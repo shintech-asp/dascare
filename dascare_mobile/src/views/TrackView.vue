@@ -2,8 +2,8 @@
   <div class="min-h-screen bg-base-200 dark:bg-[#050e1a]">
     <ScreenHeader :title="request?.reference_number || 'Request'" :fallback="isLoggedIn ? '/home' : '/welcome'">
       <template #actions>
-        <span v-if="isActive" class="mr-3 flex items-center gap-1.5 text-[0.65rem] font-bold text-red-600 dark:text-red-300">
-          <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500"></span> LIVE
+        <span v-if="isActive" class="mr-3 flex items-center gap-1.5 text-[0.65rem] font-bold" :class="live ? 'text-emerald-600 dark:text-emerald-300' : 'text-slate-400 dark:text-white/40'">
+          <span class="h-1.5 w-1.5 rounded-full" :class="live ? 'animate-pulse bg-emerald-500' : 'bg-slate-400 dark:bg-white/30'"></span> {{ live ? 'LIVE' : 'EVERY 15S' }}
         </span>
       </template>
     </ScreenHeader>
@@ -178,7 +178,8 @@ import api, { apiMessage } from '@/services/api'
 import { useSession } from '@/composables/useSession'
 import { useToast } from '@/composables/useToast'
 import { useAlert } from '@/composables/useAlert'
-import { useLiveRefresh } from '@/composables/useLiveRefresh'
+import { useLiveUpdates } from '@/composables/useLiveUpdates'
+import { requestChannel } from '@/services/realtime'
 import { STAGES, TERMINAL_ALT, categoryIcon, formatDate, relativeTime, stageIndex, statusBadgeClass, statusIcon, statusLabel } from '@/utils/requestStatus'
 
 const route = useRoute()
@@ -231,8 +232,30 @@ async function load(silent = false) {
   }
 }
 
-// Same 15 s polling as the web, only while the request is still active.
-useLiveRefresh(load, { enabled: () => isActive.value })
+// Live updates (same as the web's TrackRequest): the ambulance's GPS moves
+// the pin directly; other events on this request re-fetch it. Polls every
+// 15 s while live updates are unavailable, only while still active. A
+// dedup-linked report also follows the incident it was linked to.
+function applyAmbulanceLocation(data) {
+  const shownRequestId = Number(request.value?.merged_into?.id ?? request.value?.id)
+  const amb = request.value?.ambulance
+  if (!amb || Number(data.request_id) !== shownRequestId) return false
+  Object.assign(amb, {
+    latitude: data.latitude,
+    longitude: data.longitude,
+    accuracy_m: data.accuracy_m,
+    location_at: new Date(data.sent_at || Date.now()).toISOString(),
+    location_stale: false,
+  })
+  now.value = Date.now()
+  drawMap()
+  return true
+}
+const { live } = useLiveUpdates(load, {
+  channels: () => [requestChannel(route.params.id), requestChannel(request.value?.merged_into?.id)],
+  enabled: () => isActive.value,
+  onEvent: (message) => (message.name === 'ambulance.location' && applyAmbulanceLocation(message.data) ? false : undefined),
+})
 
 // ------------------------------------------------------------------
 // Map: incident (red), linked report's incident (orange), ambulance (blue)

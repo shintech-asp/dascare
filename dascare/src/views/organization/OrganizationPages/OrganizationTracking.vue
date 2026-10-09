@@ -4,7 +4,7 @@
       <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p class="text-[.68rem] font-black uppercase tracking-[.16em] text-red-600">Dispatch</p>
-          <h1 class="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-white">Live Mission Tracking</h1>
+          <h1 class="mt-1 flex flex-wrap items-center gap-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white">Live Mission Tracking <LiveBadge :live="live" /></h1>
           <p class="mt-2 max-w-3xl text-sm text-slate-500 dark:text-white/45">Monitor active ambulance positions and share GPS from an assigned responder device.</p>
         </div>
         <button class="inline-flex items-center gap-2 rounded-xl border border-base-300 bg-base-100 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-base-200 dark:border-white/10 dark:bg-[#0d2943] dark:text-white/65" @click="load">
@@ -81,11 +81,14 @@ import { computed, defineComponent, h, nextTick, onMounted, onUnmounted, ref, wa
 import { Icon } from '@iconify/vue'
 import { fetchLiveTracking, pushAmbulanceLocation } from '@/services/rescueOperations'
 import { useAlert } from '@/composables/useAlert'
+import { useLiveUpdates } from '@/composables/useLiveUpdates'
+import LiveBadge from '@/components/realtime/LiveBadge.vue'
+import { realtimeChannels } from '@/services/realtime'
 
 const alert = useAlert()
 const missions = ref([]), selectedId = ref(null), loading = ref(false), error = ref('')
 const canShare = ref(false), intervalSeconds = ref(15), sharing = ref(false)
-let pollTimer = null, watchId = null, lastSentAt = 0
+let watchId = null, lastSentAt = 0
 const selected = computed(() => missions.value.find(m => m.id === selectedId.value) || missions.value[0] || null)
 const canShareSelected = computed(() => !!selected.value?.assigned_to_current_user && canShare.value)
 
@@ -104,9 +107,13 @@ function updateMap(){if(!map||!window.L||!selected.value)return;const L=window.L
 watch(selectedId,async()=>{stopSharing();await nextTick();await ensureMap();updateMap()})
 watch(()=>[selected.value?.last_latitude,selected.value?.last_longitude],()=>updateMap())
 
-function startSharing(){if(!navigator.geolocation){alert.error('Geolocation is not supported by this browser.');return}if(!canShareSelected.value){alert.error('Only assigned field responders can share this ambulance location.');return}sharing.value=true;watchId=navigator.geolocation.watchPosition(async pos=>{const now=Date.now();if(now-lastSentAt<intervalSeconds.value*1000-1000)return;lastSentAt=now;try{await pushAmbulanceLocation({assignment_id:selected.value.id,latitude:pos.coords.latitude,longitude:pos.coords.longitude,accuracy_m:pos.coords.accuracy,speed_kph:pos.coords.speed!=null?pos.coords.speed*3.6:null,heading_degrees:pos.coords.heading});await load(true)}catch(e){alert.error(e?.response?.data?.message||e.message||'Location update failed.');stopSharing()}},err=>{alert.error(err.message||'Unable to read GPS.');stopSharing()},{enableHighAccuracy:true,maximumAge:5000,timeout:15000})}
+function startSharing(){if(!navigator.geolocation){alert.error('Geolocation is not supported by this browser.');return}if(!canShareSelected.value){alert.error('Only assigned field responders can share this ambulance location.');return}sharing.value=true;watchId=navigator.geolocation.watchPosition(async pos=>{const now=Date.now();if(now-lastSentAt<intervalSeconds.value*1000-1000)return;lastSentAt=now;try{await pushAmbulanceLocation({assignment_id:selected.value.id,latitude:pos.coords.latitude,longitude:pos.coords.longitude,accuracy_m:pos.coords.accuracy,speed_kph:pos.coords.speed!=null?pos.coords.speed*3.6:null,heading_degrees:pos.coords.heading});if(!live.value)await load(true)}catch(e){alert.error(e?.response?.data?.message||e.message||'Location update failed.');stopSharing()}},err=>{alert.error(err.message||'Unable to read GPS.');stopSharing()},{enableHighAccuracy:true,maximumAge:5000,timeout:15000})}
 function stopSharing(){if(watchId!=null&&navigator.geolocation)navigator.geolocation.clearWatch(watchId);watchId=null;sharing.value=false;lastSentAt=0}
 
-onMounted(()=>{load();pollTimer=setInterval(()=>load(true),15000)})
-onUnmounted(()=>{clearInterval(pollTimer);stopSharing();if(map){map.remove();map=null}})
+// Live updates: crew GPS pings move the unit on the map as they arrive;
+// other org events re-fetch the list. Polls every 15 s without live updates.
+function applyLocation(d){const m=missions.value.find(x=>x.ambulance_id===Number(d.ambulance_id)&&x.id===Number(d.assignment_id));if(!m)return false;Object.assign(m,{last_latitude:d.latitude,last_longitude:d.longitude,last_accuracy_m:d.accuracy_m,last_location_at:new Date(d.sent_at||Date.now()).toISOString(),location_age_seconds:0,location_stale:false});if(m.id===selected.value?.id)updateMap();return true}
+const { live } = useLiveUpdates(load, { channels: () => [realtimeChannels.value?.org], onEvent: msg => (msg.name==='ambulance.location' && applyLocation(msg.data) ? false : undefined) })
+onMounted(()=>{load()})
+onUnmounted(()=>{stopSharing();if(map){map.remove();map=null}})
 </script>

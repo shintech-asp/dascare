@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../cors.php';
 require_once __DIR__ . '/../../db/db.php';
 require_once __DIR__ . '/../../reusables/organization_rbac.php';
 require_once __DIR__ . '/../../reusables/care_helpers.php';
+require_once __DIR__ . '/../../reusables/realtime.php';
 header('Content-Type: application/json');
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') organizationJsonError(405, 'Method not allowed.');
@@ -13,7 +14,9 @@ $lat = filter_var($body['latitude'] ?? null, FILTER_VALIDATE_FLOAT);
 $lng = filter_var($body['longitude'] ?? null, FILTER_VALIDATE_FLOAT);
 $accuracy = filter_var($body['accuracy_m'] ?? null, FILTER_VALIDATE_FLOAT);
 $speed = filter_var($body['speed_kph'] ?? null, FILTER_VALIDATE_FLOAT);
-$heading = filter_var($body['heading_degrees'] ?? null, FILTER_VALIDATE_INT);
+// Browsers report heading as a float (e.g. 87.4); round it instead of discarding it.
+$heading = filter_var($body['heading_degrees'] ?? null, FILTER_VALIDATE_FLOAT);
+if ($heading !== false) $heading = ((int) round($heading)) % 360;
 
 if ($assignmentId <= 0 || $lat === false || $lng === false) organizationJsonError(422, 'Valid mission coordinates are required.');
 if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) organizationJsonError(422, 'Invalid coordinates.');
@@ -46,6 +49,22 @@ try {
         ->execute([$lat, $lng, $accuracy === false ? null : $accuracy, (int) $assignment['ambulance_id']]);
 
     $pdo->commit();
+
+    // Live map: the org's Tracking page and whoever follows this request
+    // (requester, dedup-linked reporters via the primary's channel, platform).
+    $position = [
+        'ambulance_id' => (int) $assignment['ambulance_id'],
+        'assignment_id' => $assignmentId,
+        'request_id' => (int) $assignment['emergency_request_id'],
+        'latitude' => (float) $lat,
+        'longitude' => (float) $lng,
+        'accuracy_m' => $accuracy === false || $accuracy === null ? null : (float) $accuracy,
+        'speed_kph' => $speed === false || $speed === null ? null : round((float) $speed, 1),
+        'heading_degrees' => $heading === false ? null : $heading,
+    ];
+    realtimeQueue($pdo, realtimeChannel('org', (int) $ctx['organization_id']), 'ambulance.location', $position);
+    realtimeQueue($pdo, realtimeChannel('request', (int) $assignment['emergency_request_id']), 'ambulance.location', $position);
+
     echo json_encode(['success' => true, 'recorded_at' => date('Y-m-d H:i:s')]);
 } catch (RuntimeException $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();

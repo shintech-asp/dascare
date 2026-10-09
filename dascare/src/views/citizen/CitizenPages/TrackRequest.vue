@@ -177,6 +177,7 @@
                   <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-600 inline-block"></span> Incident</span>
                   <span v-if="request.merged_into" class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500 inline-block"></span> Linked report</span>
                   <span v-if="ambulancePos" class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-600 inline-block"></span> Ambulance</span>
+                  <LiveBadge v-if="isActive" :live="live" />
                 </div>
               </div>
               <div ref="mapContainer" class="w-full h-56 sm:h-64 rounded-xl border border-base-300 dark:border-white/10 overflow-hidden"></div>
@@ -268,6 +269,9 @@ import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { unmergeOwnReport } from '@/services/dispatchOperations'
 import { useAlert } from '@/composables/useAlert'
+import { useLiveUpdates } from '@/composables/useLiveUpdates'
+import LiveBadge from '@/components/realtime/LiveBadge.vue'
+import { requestChannel } from '@/services/realtime'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL
 const route = useRoute()
@@ -523,8 +527,6 @@ watch(() => [request.value?.latitude, request.value?.ambulance?.latitude, reques
 // ------------------------------------------------------------------
 // Fetch + live polling while the mission is active
 // ------------------------------------------------------------------
-let pollTimer = null
-
 const fetchRequest = async (silent = false) => {
   if (!silent) loading.value = true
   loadError.value = ''
@@ -534,8 +536,6 @@ const fetchRequest = async (silent = false) => {
       withCredentials: true,
     })
     request.value = res.data
-    await nextTick()
-    if (!leafletMap) await initMap()
   } catch (err) {
     console.error(err)
     if (!silent) request.value = null
@@ -548,23 +548,43 @@ const fetchRequest = async (silent = false) => {
   } finally {
     loading.value = false
   }
+  // The map's container only renders once the loading spinner is gone, so
+  // create the map after that (it used to wait for the next refresh).
+  await nextTick()
+  if (!leafletMap && request.value) await initMap()
 }
 
-function schedulePolling() {
-  clearInterval(pollTimer)
-  pollTimer = setInterval(() => {
-    if (isActive.value) fetchRequest(true)
-  }, 15000)
+// Live updates: the ambulance's GPS moves the pin directly; any other event
+// on this request re-fetches it. Falls back to polling every 15 s while live
+// updates are unavailable (60 s while connected), only while still active.
+// A dedup-linked report also follows the incident it was linked to.
+function applyAmbulanceLocation(data) {
+  const shownRequestId = Number(request.value?.merged_into?.id ?? request.value?.id)
+  const amb = request.value?.ambulance
+  if (!amb || Number(data.request_id) !== shownRequestId) return false
+  Object.assign(amb, {
+    latitude: data.latitude,
+    longitude: data.longitude,
+    accuracy_m: data.accuracy_m,
+    location_at: new Date(data.sent_at || Date.now()).toISOString(),
+    location_stale: false,
+  })
+  now.value = Date.now()
+  return true
 }
+
+const { live } = useLiveUpdates(() => fetchRequest(true), {
+  channels: () => [requestChannel(route.params.id), requestChannel(request.value?.merged_into?.id)],
+  enabled: () => isActive.value,
+  onEvent: (message) => (message.name === 'ambulance.location' && applyAmbulanceLocation(message.data) ? false : undefined),
+})
 
 onMounted(async () => {
   await fetchRequest()
-  schedulePolling()
   clockTimer = setInterval(() => { now.value = Date.now() }, 30000)
 })
 
 onBeforeUnmount(() => {
-  clearInterval(pollTimer)
   clearInterval(clockTimer)
   if (leafletMap) {
     leafletMap.remove()

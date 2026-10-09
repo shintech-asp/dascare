@@ -1595,7 +1595,7 @@ INSERT INTO `system_settings` (`setting_key`, `setting_value`, `description`, `u
 ('platform.compliance_warning_days', '30', 'Days before an ambulance credential expiry is treated as a compliance warning.', NULL, '2026-10-04 17:42:49'),
 ('platform.incident_critical_stale_minutes', '60', 'Minutes before an unresolved pre-assignment emergency is escalated to critical overdue.', NULL, '2026-10-04 18:49:12'),
 ('platform.incident_stale_minutes', '15', 'Minutes before an unresolved pre-assignment emergency is flagged overdue.', NULL, '2026-10-04 18:49:12'),
-('tracking.default_interval_seconds', '{\"active\": 15, \"idle\": 60}', 'Suggested mobile tracking intervals', NULL, '2026-07-29 13:56:52');
+('tracking.default_interval_seconds', '{\"active\": 5, \"idle\": 60}', 'Suggested mobile tracking intervals', NULL, '2026-07-29 13:56:52');
 
 -- --------------------------------------------------------
 
