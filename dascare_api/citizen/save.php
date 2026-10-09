@@ -107,10 +107,9 @@ try {
             additional_notes = VALUES(additional_notes)
     ");
 
-    $stmt->execute([
-        'user_id' => $userId,
-        ...$fields,
-    ]);
+    // array_merge, not [...$fields]: unpacking string keys needs PHP 8.1 and
+    // XAMPP here runs 8.0 (it was a fatal error — saves never went through).
+    $stmt->execute(array_merge(['user_id' => $userId], $fields));
 
     echo json_encode(['success' => true, 'message' => 'Medical records updated.']);
 } catch (PDOException $e) {

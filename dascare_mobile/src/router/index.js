@@ -26,6 +26,8 @@ const routes = [
   // guest SOS key the app sends).
   { path: '/track/:id', name: 'Track', component: () => import('@/views/TrackView.vue'), meta: { title: 'Request' } },
   { path: '/sos', name: 'Sos', component: () => import('@/views/SosView.vue'), meta: { title: 'Emergency SOS' } },
+  { path: '/medical', name: 'MedicalRecords', component: () => import('@/views/MedicalRecordsView.vue'), meta: { auth: true, title: 'Emergency information' } },
+  { path: '/account', name: 'Account', component: () => import('@/views/AccountView.vue'), meta: { auth: true, title: 'Account & security' } },
   { path: '/verify-identity', name: 'VerifyIdentity', component: () => import('@/views/VerifyIdentityView.vue'), meta: { auth: true, title: 'Verify identity' } },
   { path: '/legal/:slug', name: 'Legal', component: () => import('@/views/LegalView.vue'), meta: { title: 'Legal' } },
   { path: '/diagnostics', name: 'Diagnostics', component: () => import('@/views/ConnectionCheck.vue'), meta: { title: 'Server connection' } },

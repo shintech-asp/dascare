@@ -67,6 +67,8 @@ npm run assets            # python3 scripts/generate_icons.py (needs Pillow)
 - **Phase 4** – Home with the live active request, My Requests (filters, linked labels), live tracking
   (dispatch steps, responding unit, ambulance on the map, status history; refreshes every 15 s and on app
   resume, pull to refresh), Notifications with an unread badge, guests track their SOS from Welcome.
+- **Phase 5** – Emergency information (medical records, unlocked by a verified ID; shared with the crew on
+  every SOS), Account & security (name, mobile number, password, two-factor).
 
 ## Notes
 

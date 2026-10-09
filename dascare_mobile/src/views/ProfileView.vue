@@ -14,6 +14,26 @@
       </dl>
     </section>
 
+    <!-- Emergency information + account -->
+    <section :class="[ui.card, 'divide-y divide-base-300 dark:divide-white/10']">
+      <RouterLink :to="{ name: 'MedicalRecords' }" class="tap flex items-center gap-3 p-4 no-underline">
+        <span class="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-300"><Icon icon="lucide:heart-pulse" width="20" /></span>
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-bold text-slate-900 dark:text-white">Emergency information</p>
+          <p class="text-xs text-slate-500 dark:text-white/45">Blood type, allergies, medications, emergency contact</p>
+        </div>
+        <Icon :icon="kycStatus === 2 ? 'lucide:chevron-right' : 'lucide:lock'" width="18" class="text-slate-400" />
+      </RouterLink>
+      <RouterLink :to="{ name: 'Account' }" class="tap flex items-center gap-3 p-4 no-underline">
+        <span class="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-white/60"><Icon icon="lucide:user-cog" width="20" /></span>
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-bold text-slate-900 dark:text-white">Account & security</p>
+          <p class="text-xs text-slate-500 dark:text-white/45">Name, mobile number, password, two-factor</p>
+        </div>
+        <Icon icon="lucide:chevron-right" width="18" class="text-slate-400" />
+      </RouterLink>
+    </section>
+
     <!-- Identity verification -->
     <RouterLink :to="{ name: 'VerifyIdentity' }" :class="[ui.card, 'tap flex items-center gap-3 p-4 no-underline']">
       <span class="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl" :class="kyc.tile"><Icon :icon="kyc.icon" width="20" /></span>
@@ -58,7 +78,7 @@
       </button>
     </section>
 
-    <p class="pb-2 text-center text-[0.65rem] font-semibold text-slate-400 dark:text-white/30">DASCARE mobile v0.2.0</p>
+    <p class="pb-2 text-center text-[0.65rem] font-semibold text-slate-400 dark:text-white/30">DASCARE mobile v0.5.0</p>
   </div>
 </template>
 
