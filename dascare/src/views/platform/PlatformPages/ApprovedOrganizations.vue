@@ -1,0 +1,41 @@
+<template>
+  <PageShell title="Approved Organizations" subtitle="Monitor participating rescue organizations, operational status, personnel, and fleet availability." icon="lucide:badge-check">
+    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <Stat v-for="s in statCards" :key="s.label" v-bind="s" />
+    </div>
+    <section class="mt-6 overflow-hidden rounded-3xl border border-base-300 bg-base-100 shadow-sm dark:border-white/10 dark:bg-[#071829]">
+      <div class="grid gap-3 border-b border-base-300 p-4 md:grid-cols-[1fr_auto_auto] dark:border-white/10">
+        <input v-model="search" class="rounded-xl border border-base-300 bg-base-100 px-4 py-2.5 text-sm outline-none focus:border-red-300 dark:border-white/10 dark:bg-white/5 dark:text-white" placeholder="Search organizations..." @keyup.enter="load" />
+        <select v-model="status" class="rounded-xl border border-base-300 bg-base-100 px-3 py-2.5 text-sm font-bold dark:border-white/10 dark:bg-white/5 dark:text-white" @change="load"><option value="all">All statuses</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="inactive">Inactive</option></select>
+        <button class="rounded-xl border border-base-300 px-4 py-2.5 text-xs font-bold" @click="load">Refresh</button>
+      </div>
+      <div v-if="loading" class="grid place-items-center py-20"><span class="h-8 w-8 animate-spin rounded-full border-4 border-red-600 border-t-transparent"></span></div>
+      <div v-else-if="error" class="p-10 text-center text-sm font-semibold text-red-600">{{ error }}</div>
+      <div v-else-if="items.length" class="overflow-x-auto">
+        <table class="w-full min-w-[1050px] text-left text-sm"><thead class="bg-base-200/70 text-[.66rem] font-black uppercase tracking-wider text-slate-400"><tr><th class="px-5 py-3.5">Organization</th><th class="px-5 py-3.5">Administrator</th><th class="px-5 py-3.5">Personnel</th><th class="px-5 py-3.5">Fleet</th><th class="px-5 py-3.5">Status</th><th class="px-5 py-3.5 text-right">Manage</th></tr></thead><tbody class="divide-y divide-base-300 dark:divide-white/5">
+          <tr v-for="item in items" :key="item.id" class="hover:bg-base-200/50"><td class="px-5 py-4"><p class="font-black text-slate-800 dark:text-white/80">{{ item.name }}</p><p class="mt-1 text-xs text-slate-400">{{ labelType(item.organization_type) }} · {{ item.application_reference || 'Legacy approved organization' }}</p></td><td class="px-5 py-4"><p class="font-bold text-slate-700 dark:text-white/65">{{ item.admin_name || 'Not recorded' }}</p><p class="text-xs text-slate-400">{{ item.admin_email || '—' }}</p></td><td class="px-5 py-4 font-black">{{ item.member_count }}</td><td class="px-5 py-4"><p class="font-black">{{ item.available_count }} / {{ item.ambulance_count }}</p><p class="text-xs text-slate-400">available</p></td><td class="px-5 py-4"><Status :value="item.status" /></td><td class="px-5 py-4 text-right"><button class="rounded-xl border border-base-300 px-3 py-2 text-xs font-bold hover:border-red-200 hover:text-red-600" @click="openManage(item)">Manage</button></td></tr>
+        </tbody></table>
+      </div>
+      <div v-else class="py-16 text-center text-sm font-semibold text-slate-400">No approved organizations match this filter.</div>
+    </section>
+
+    <Teleport to="body"><div v-if="selected" class="fixed inset-0 z-[90] grid place-items-center bg-slate-950/60 p-4" @click.self="selected=null"><section class="w-full max-w-xl rounded-[28px] border border-base-300 bg-base-100 p-6 shadow-2xl dark:border-white/10 dark:bg-[#071829]"><div class="flex items-start justify-between gap-4"><div><p class="text-xs font-black uppercase tracking-wider text-red-600">Organization control</p><h2 class="mt-1 text-xl font-black dark:text-white">{{ selected.name }}</h2></div><button class="text-slate-400" @click="selected=null"><Icon icon="lucide:x" width="20" /></button></div><div class="mt-5 grid gap-3 sm:grid-cols-3"><Mini label="Current status" :value="selected.status"/><Mini label="Members" :value="String(selected.member_count)"/><Mini label="Available units" :value="`${selected.available_count}/${selected.ambulance_count}`"/></div><label v-if="nextStatus!=='active'" class="mt-5 block"><span class="mb-1.5 block text-xs font-black uppercase text-slate-400">Administrative reason *</span><textarea v-model="reason" rows="3" class="w-full rounded-2xl border border-base-300 bg-base-100 p-3 text-sm dark:border-white/10 dark:bg-white/5 dark:text-white" /></label><div class="mt-5 flex flex-wrap justify-end gap-2"><button class="rounded-xl border border-base-300 px-4 py-2.5 text-xs font-bold" @click="selected=null">Cancel</button><button v-if="selected.status!=='active'" class="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white" @click="change('active')">Reactivate</button><button v-if="selected.status==='active'" class="rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-bold text-white" @click="nextStatus='suspended'">Suspend</button><button v-if="selected.status==='active'" class="rounded-xl bg-slate-700 px-4 py-2.5 text-xs font-bold text-white" @click="nextStatus='inactive'">Set inactive</button><button v-if="selected.status==='active' && nextStatus!=='active'" class="rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white" :disabled="saving" @click="change(nextStatus)">Confirm {{ nextStatus }}</button></div></section></div></Teleport>
+  </PageShell>
+</template>
+<script setup>
+import { computed, defineComponent, h, onMounted, ref } from 'vue'
+import { Icon } from '@iconify/vue'
+import { fetchPlatformOrganizations, updatePlatformOrganizationStatus } from '@/services/adminCompletion'
+import { useToast } from '@/composables/useToast'
+import PageShell from '@/components/management/PageShell.vue'
+const toast=useToast(),items=ref([]),stats=ref({}),loading=ref(false),error=ref(''),search=ref(''),status=ref('all'),selected=ref(null),reason=ref(''),nextStatus=ref('active'),saving=ref(false)
+const statCards=computed(()=>[{label:'Approved',value:stats.value.total||0,icon:'lucide:building-2'},{label:'Active',value:stats.value.active||0,icon:'lucide:badge-check'},{label:'Suspended',value:stats.value.suspended||0,icon:'lucide:pause-circle'},{label:'Inactive',value:stats.value.inactive||0,icon:'lucide:archive'}])
+const Stat=defineComponent({props:{label:String,value:[String,Number],icon:String},setup:p=>()=>h('article',{class:'rounded-3xl border border-base-300 bg-base-100 p-5 shadow-sm dark:border-white/10 dark:bg-[#071829]'},[h(Icon,{icon:p.icon,width:20,class:'text-red-500'}),h('p',{class:'mt-4 text-2xl font-black dark:text-white'},String(p.value??0)),h('p',{class:'mt-1 text-xs font-bold text-slate-500'},p.label)])})
+const Status=defineComponent({props:{value:String},setup:p=>()=>h('span',{class:['rounded-full px-2.5 py-1 text-[.65rem] font-black',p.value==='active'?'bg-emerald-100 text-emerald-700':p.value==='suspended'?'bg-amber-100 text-amber-700':'bg-slate-200 text-slate-600']},p.value)})
+const Mini=defineComponent({props:{label:String,value:String},setup:p=>()=>h('div',{class:'rounded-2xl bg-base-200 p-3'},[h('p',{class:'text-[.62rem] font-black uppercase text-slate-400'},p.label),h('p',{class:'mt-1 text-sm font-black text-slate-700 dark:text-white/70'},p.value)])})
+const labelType=v=>String(v||'').replaceAll('_',' ').replace(/\b\w/g,m=>m.toUpperCase())
+async function load(){loading.value=true;error.value='';try{const d=await fetchPlatformOrganizations({search:search.value,status:status.value});items.value=d.items||[];stats.value=d.stats||{}}catch(e){error.value=e?.response?.data?.message||'Unable to load organizations.'}finally{loading.value=false}}
+function openManage(item){selected.value=item;reason.value='';nextStatus.value='active'}
+async function change(target){if(target!=='active'&&!reason.value.trim()){toast.error('Provide an administrative reason.');return}saving.value=true;try{const d=await updatePlatformOrganizationStatus({organization_id:selected.value.id,status:target,reason:reason.value});toast.success(d.message);selected.value=null;await load()}catch(e){toast.error(e?.response?.data?.message||'Unable to update organization.')}finally{saving.value=false}}
+onMounted(load)
+</script>

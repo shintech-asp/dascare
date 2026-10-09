@@ -1,0 +1,37 @@
+# Dependencies / build output
+node_modules/
+dist/
+
+# Uploaded personal data (KYC IDs, emergency photos, org documents) — never commit
+uploads/
+dascare_api/storage/organization-documents/*
+!dascare_api/storage/organization-documents/.htaccess
+
+# Android build output (dascare_mobile/android)
+.gradle/
+build/
+local.properties
+*.apk
+*.aab
+.idea/
+captures/
+
+# OS / editor
+.DS_Store
+*.log
+
+# Composer packages that ship their own .git folders (not modified by us)
+dascare_api/vendor/doctrine/lexer/
+dascare_api/vendor/egulias/email-validator/
+dascare_api/vendor/psr/container/
+dascare_api/vendor/psr/event-dispatcher/
+dascare_api/vendor/psr/log/
+dascare_api/vendor/symfony/deprecation-contracts/
+dascare_api/vendor/symfony/event-dispatcher/
+dascare_api/vendor/symfony/event-dispatcher-contracts/
+dascare_api/vendor/symfony/mailer/
+dascare_api/vendor/symfony/mime/
+dascare_api/vendor/symfony/polyfill-intl-idn/
+dascare_api/vendor/symfony/polyfill-intl-normalizer/
+dascare_api/vendor/symfony/polyfill-mbstring/
+dascare_api/vendor/symfony/service-contracts/
