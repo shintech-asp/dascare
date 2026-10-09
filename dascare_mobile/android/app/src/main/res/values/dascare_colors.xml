@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DASCARE theme colours for native Android surfaces (splash, status bar).
+     Match dascare/src/assets/main.css base-200 (light) / base-200 (dark). -->
+<resources>
+    <color name="dascare_splash_background">#F5EFE1</color>
+</resources>

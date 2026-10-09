@@ -1,0 +1,17 @@
+{
+  "appId": "ph.dascare.app",
+  "appName": "DASCARE",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "launchAutoHide": true,
+      "backgroundColor": "#f5efe1",
+      "showSpinner": false
+    }
+  }
+}

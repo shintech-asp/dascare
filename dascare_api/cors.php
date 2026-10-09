@@ -12,7 +12,11 @@ ini_set('session.use_strict_mode', '1');
 $allowed_origins = [
     'http://localhost:5173',
     'http://localhost:5174',
-    'http://127.0.0.1:5173'
+    'http://127.0.0.1:5173',
+    // DASCARE Android app (dascare_mobile/): the Capacitor WebView origin,
+    // and the app's browser preview (npm run dev in dascare_mobile/).
+    'http://localhost',
+    'http://localhost:5180'
 ];
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';

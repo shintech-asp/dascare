@@ -35,3 +35,6 @@ dascare_api/vendor/symfony/polyfill-intl-idn/
 dascare_api/vendor/symfony/polyfill-intl-normalizer/
 dascare_api/vendor/symfony/polyfill-mbstring/
 dascare_api/vendor/symfony/service-contracts/
+
+# Mobile app API address is per-machine/network (see dascare_mobile/.env.example)
+dascare_mobile/.env

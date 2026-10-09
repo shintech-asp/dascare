@@ -4,11 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-DASCARE — "Development of a Web-Based Ambulance Rescue Platform in the City of Dasmariñas with a Decision Support System and Mobile Application" (capstone/thesis). The repo contains the web frontend, the PHP API, and a phpMyAdmin dump. **No mobile app exists yet**; the API is cookie-session only (no token auth, no push), so a mobile client would need backend work first.
+DASCARE — "Development of a Web-Based Ambulance Rescue Platform in the City of Dasmariñas with a Decision Support System and Mobile Application" (capstone/thesis). The repo contains the web frontend, the PHP API, a phpMyAdmin dump, and an Android app for requesters (`dascare_mobile/`, in progress). The API is cookie-session only for now (no token auth, no push); mobile token auth is planned for the app's Phase 1.
 
 - `dascare/` — Vue 3 + Vite + Tailwind v4 + daisyUI SPA
 - `dascare_api/` — plain PHP 8 + PDO (no framework, no router; one file per endpoint). Only Composer dependency is `symfony/mailer` (`vendor/` is checked in; no `composer` binary is needed to run). `symfony/mailer ^7.4` requires **PHP ≥ 8.2**, but XAMPP here runs **PHP 8.0.28**; `vendor/composer/platform_check.php` was patched (`>= 80200` → `>= 80000`) so endpoints that load `email_helper.php` (e.g. `auth/login.php`) don't 500. Re-running Composer regenerates and reverts that patch. Email features (OTP, password reset) may still fail on 8.0 since Mailer itself targets 8.2+. Proper fix is to serve PHP ≥ 8.2.
 - `dascare.sql` — full schema + seed data (MariaDB 10.4, phpMyAdmin export)
+- `dascare_mobile/` — Android app for citizens + guest SOS: Vue 3 + Vite + Tailwind v4 + daisyUI + **Capacitor 8**. Separate npm project; Android Studio project in `dascare_mobile/android`. See `dascare_mobile/README.md`.
+
+### Mobile app (`dascare_mobile/`)
+- Build loop: `npm run sync` (vite build + `cap sync android`), then Run in Android Studio. Browser preview: `npm run dev` → :5180.
+- API URL from `dascare_mobile/.env` (gitignored; template `.env.example`): emulator uses `http://10.0.2.2/Dascare/dascare_api`, a real phone uses the Mac's Wi-Fi IP. `cors.php` whitelists `http://localhost` (Capacitor WebView, `androidScheme: http`) and `http://localhost:5180`.
+- Design must match the web: theme tokens in `src/assets/main.css` are copied verbatim from `dascare/src/assets/main.css`. daisyUI built-in themes are disabled there (`themes: false`) because the stock light theme's `:is(:root:has(...))` selector out-specifies the custom `[data-theme=light]` and turned the app grey in the WebView. Lucide icons are bundled via `addCollection` (offline).
+- Gradle wrapper bumped to 9.1 (Capacitor's 8.14 can't run on Android Studio 2026.1's bundled Java 25). Icons/splash: `npm run assets` (Pillow script, not `@capacitor/assets`).
+- Phased plan: 0 setup ✓ · 1 backend token auth (citizen-only login, guest access keys) · 2 app shell + accounts + KYC · 3 SOS · 4 tracking/history · 5 profile · 6 polish/APK · 7 push (optional). Rule: mobile work must not change web behaviour.
 
 ## Commands
 
