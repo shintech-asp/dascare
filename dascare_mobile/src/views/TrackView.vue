@@ -10,8 +10,12 @@
 
     <PullToRefresh :on-refresh="() => load(true)">
       <main class="space-y-4 px-4 pb-[calc(var(--safe-bottom)+2rem)] pt-4">
-        <div v-if="loading" class="flex justify-center py-20">
-          <div class="h-8 w-8 animate-spin rounded-full border-4 border-red-600 border-t-transparent"></div>
+        <div v-if="loading" class="space-y-4" aria-busy="true" aria-label="Loading">
+          <div class="flex items-center gap-3">
+            <div class="h-14 w-14 animate-pulse rounded-2xl bg-base-100 dark:bg-white/5"></div>
+            <div class="flex-1 space-y-2"><div class="h-4 w-1/2 animate-pulse rounded bg-base-100 dark:bg-white/5"></div><div class="h-3 w-1/3 animate-pulse rounded bg-base-100 dark:bg-white/5"></div></div>
+          </div>
+          <div v-for="i in 3" :key="i" class="h-32 animate-pulse rounded-3xl bg-base-100 dark:bg-white/5"></div>
         </div>
 
         <template v-else-if="request">

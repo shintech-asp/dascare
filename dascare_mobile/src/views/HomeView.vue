@@ -47,7 +47,12 @@
         </div>
       </RouterLink>
 
-      <section v-if="!active" :class="[ui.card, 'p-5']">
+      <div v-if="loading && !active" :class="[ui.card, 'space-y-3 p-5']" aria-busy="true">
+        <div class="h-3 w-28 animate-pulse rounded bg-base-200 dark:bg-white/5"></div>
+        <div class="h-4 w-3/4 animate-pulse rounded bg-base-200 dark:bg-white/5"></div>
+        <div class="h-1.5 w-full animate-pulse rounded-full bg-base-200 dark:bg-white/5"></div>
+      </div>
+      <section v-else-if="!active" :class="[ui.card, 'p-5']">
         <h3 class="text-sm font-black text-slate-900 dark:text-white">Active request</h3>
         <div class="mt-4 rounded-2xl border border-dashed border-slate-300 p-6 text-center dark:border-white/15">
           <Icon icon="lucide:truck" width="22" class="mx-auto text-slate-300 dark:text-white/20" />

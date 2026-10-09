@@ -78,7 +78,7 @@
       </button>
     </section>
 
-    <p class="pb-2 text-center text-[0.65rem] font-semibold text-slate-400 dark:text-white/30">DASCARE mobile v0.5.0</p>
+    <p class="pb-2 text-center text-[0.65rem] font-semibold text-slate-400 dark:text-white/30">DASCARE mobile v1.0.0</p>
   </div>
 </template>
 

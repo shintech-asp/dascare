@@ -85,7 +85,7 @@
           </div>
 
           <div v-if="gpsError && !showMap" class="space-y-3 border-b border-base-300 bg-base-200 px-5 py-4 dark:border-white/10 dark:bg-white/5">
-            <p class="text-xs leading-relaxed text-slate-500 dark:text-white/45">{{ gpsErrorText }} You can still send this — pin your location on the map.</p>
+            <p class="text-xs leading-relaxed text-slate-500 dark:text-white/45">{{ gpsErrorText }}</p>
             <button type="button" class="tap flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-base-300 bg-base-100 px-3 py-3 text-xs font-bold text-slate-700 dark:border-white/15 dark:bg-white/5 dark:text-white/70" @click="showMap = true">
               <Icon icon="lucide:map-pin" width="14" /> Pin location manually
             </button>
@@ -235,6 +235,7 @@ import api, { apiMessage } from '@/services/api'
 import { useSession } from '@/composables/useSession'
 import { useGuestKeys } from '@/composables/useGuestKeys'
 import { useToast } from '@/composables/useToast'
+import { cameraDeniedText, isPermissionDenied, isUserCancel, locationDeniedText } from '@/utils/permissions'
 
 const GENERIC_CATEGORY_ID = 8 // "Other" — dispatch classifies on the call (same as the web)
 const BOUNDS = { south: 14.26, north: 14.40, west: 120.86, east: 121.0 } // matches create.php
@@ -259,7 +260,8 @@ const inDasmarinas = (lat, lng) => lat >= BOUNDS.south && lat <= BOUNDS.north &&
 // ------------------------------------------------------------------
 const locating = ref(false)
 const gpsError = ref(false)
-const gpsErrorText = ref('Couldn\'t get your GPS.')
+const GPS_FAILED_TEXT = 'Couldn\'t get your GPS — make sure Location is on. You can still send this by pinning your location on the map.'
+const gpsErrorText = ref(GPS_FAILED_TEXT)
 const showMap = ref(false)
 const geocoding = ref(false)
 const locationOk = computed(() => form.latitude !== null && form.longitude !== null)
@@ -281,13 +283,16 @@ async function captureGps(userInitiated = false) {
   locating.value = true
   gpsError.value = false
   try {
+    // Ask once. A first "Don't allow" comes back as prompt-with-rationale,
+    // not "denied" — anything short of granted means stop here, otherwise
+    // getCurrentPosition() would pop the system dialog a second time.
     const perm = await Geolocation.requestPermissions().catch(() => null)
-    if (perm?.location === 'denied') throw Object.assign(new Error('denied'), { denied: true })
+    if (perm && perm.location !== 'granted' && perm.coarseLocation !== 'granted') throw Object.assign(new Error('denied'), { denied: true })
     const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 })
     const { latitude: lat, longitude: lng } = pos.coords
     if (!inDasmarinas(lat, lng)) {
       gpsError.value = true
-      gpsErrorText.value = 'Your current location is outside Dasmariñas.'
+      gpsErrorText.value = 'Your current location is outside Dasmariñas. Pin the incident location on the map instead.'
       showMap.value = true
       if (userInitiated) toast.error('Your current location is outside Dasmariñas. Pin the incident location manually.', 'Outside service area')
       return
@@ -295,7 +300,7 @@ async function captureGps(userInitiated = false) {
     setLocation(lat, lng)
   } catch (err) {
     gpsError.value = true
-    gpsErrorText.value = err?.denied ? 'Location permission is off.' : 'Couldn\'t get your GPS.'
+    gpsErrorText.value = err?.denied ? locationDeniedText : GPS_FAILED_TEXT
   } finally {
     locating.value = false
   }
@@ -375,7 +380,7 @@ async function addPhotos(source) {
       }
     }
   } catch (err) {
-    if (!String(err?.message || '').toLowerCase().includes('cancel')) toast.error('Couldn’t open the camera or gallery. Check the app’s permissions in Android Settings.', 'Photo not added')
+    if (!isUserCancel(err)) toast.error(isPermissionDenied(err) ? cameraDeniedText : 'Couldn’t open the camera or gallery. Please try again.', 'Photo not added')
   }
 }
 

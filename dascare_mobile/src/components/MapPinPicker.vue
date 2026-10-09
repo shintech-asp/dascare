@@ -21,6 +21,7 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import L from 'leaflet'
 import { Geolocation } from '@capacitor/geolocation'
+import { isPermissionDenied, locationDeniedText } from '@/utils/permissions'
 
 const props = defineProps({
   lat: { type: Number, default: null },
@@ -67,8 +68,11 @@ async function useCurrentLocation() {
   locating.value = true
   error.value = ''
   try {
+    // Ask once. A first "Don't allow" comes back as prompt-with-rationale,
+    // not "denied" — anything short of granted means stop here, otherwise
+    // getCurrentPosition() would pop the system dialog a second time.
     const perm = await Geolocation.requestPermissions().catch(() => null)
-    if (perm && perm.location === 'denied') throw new Error('denied')
+    if (perm && perm.location !== 'granted' && perm.coarseLocation !== 'granted') throw Object.assign(new Error('denied'), { denied: true })
     const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 })
     const { latitude, longitude } = pos.coords
     if (placePin(latitude, longitude, 'gps')) {
@@ -76,9 +80,9 @@ async function useCurrentLocation() {
       emit('picked', { lat: latitude, lng: longitude, source: 'gps' })
     }
   } catch (err) {
-    error.value = String(err?.message || '').includes('denied')
-      ? 'Location permission is off. Allow it in Android Settings, or tap the map instead.'
-      : 'Couldn’t get your location. Make sure GPS is on, or tap the map instead.'
+    error.value = isPermissionDenied(err)
+      ? locationDeniedText
+      : 'Couldn’t get your location. Make sure Location is on, or tap the map instead.'
   } finally {
     locating.value = false
   }

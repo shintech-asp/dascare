@@ -157,6 +157,7 @@ import api, { apiMessage } from '@/services/api'
 import { useSession } from '@/composables/useSession'
 import { useAlert } from '@/composables/useAlert'
 import { useToast } from '@/composables/useToast'
+import { cameraDeniedText, isPermissionDenied, isUserCancel } from '@/utils/permissions'
 
 const { user, kycStatus: status, fetchSession } = useSession()
 const alert = useAlert()
@@ -240,9 +241,7 @@ async function pickPhoto(source) {
     idBlob.value = blob
     idPreview.value = photo.webPath
   } catch (err) {
-    if (!String(err?.message || '').toLowerCase().includes('cancel')) {
-      toast.error('Couldn’t open the camera or gallery. Check the app’s permissions in Android Settings.', 'Photo not added')
-    }
+    if (!isUserCancel(err)) toast.error(isPermissionDenied(err) ? cameraDeniedText : 'Couldn’t open the camera or gallery. Please try again.', 'Photo not added')
   }
 }
 function clearPhoto() { idBlob.value = null; idPreview.value = '' }

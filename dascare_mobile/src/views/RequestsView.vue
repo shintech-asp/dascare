@@ -29,7 +29,7 @@
           </button>
         </div>
 
-        <div v-if="loading" class="flex justify-center py-16"><div class="h-8 w-8 animate-spin rounded-full border-4 border-red-600 border-t-transparent"></div></div>
+        <SkeletonList v-if="loading" :rows="4" />
         <div v-else-if="loadError" class="rounded-3xl border border-dashed border-red-200 py-14 text-center dark:border-red-500/20">
           <Icon icon="lucide:alert-triangle" width="28" class="mx-auto mb-3 text-red-400" />
           <p class="text-sm font-semibold text-slate-600 dark:text-white/50">{{ loadError }}</p>
@@ -52,6 +52,7 @@
 import { computed, ref, watch } from 'vue'
 import KycCard from '@/components/KycCard.vue'
 import PullToRefresh from '@/components/PullToRefresh.vue'
+import SkeletonList from '@/components/SkeletonList.vue'
 import RequestRow from '@/components/RequestRow.vue'
 import * as ui from '@/components/ui/styles'
 import api, { apiMessage } from '@/services/api'

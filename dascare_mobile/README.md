@@ -6,6 +6,20 @@ Staff and admins use the web portal (`../dascare`).
 **Stack:** Vue 3 + Vite + Tailwind v4 + daisyUI 5, packaged for Android with **Capacitor 8**.
 It talks to the same PHP API as the web (`../dascare_api`, served by XAMPP).
 
+## Install on a phone (APK)
+
+```bash
+cd dascare_mobile
+npm run apk                 # phone on the same Wi-Fi as this Mac (uses the Mac's current Wi-Fi IP)
+npm run apk -- emulator     # Android emulator
+npm run apk -- 192.168.1.5  # a specific address
+```
+
+The APK lands in `release/DASCARE-v<version>-<target>.apk` (debug-signed; Android asks to allow installs from
+this source the first time). XAMPP must be running, and the phone on the same Wi-Fi — campus networks that
+isolate devices won't work; a phone hotspot will. Rebuild after changing networks. Demo/defense steps:
+**[TEST_CHECKLIST.md](TEST_CHECKLIST.md)**.
+
 ## First-time setup
 
 ```bash
@@ -69,6 +83,8 @@ npm run assets            # python3 scripts/generate_icons.py (needs Pillow)
   resume, pull to refresh), Notifications with an unread badge, guests track their SOS from Welcome.
 - **Phase 5** – Emergency information (medical records, unlocked by a verified ID; shared with the crew on
   every SOS), Account & security (name, mobile number, password, two-factor).
+- **Phase 6** – No-internet banner with Call 911, plain permission-denied guidance (location asked once, never
+  re-prompted), loading placeholders, Android Back closes popups first, v1.0.0, `npm run apk`, test checklist.
 
 ## Notes
 

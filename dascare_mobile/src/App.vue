@@ -11,6 +11,7 @@
       </KeepAlive>
     </Transition>
   </RouterView>
+  <OfflineBanner />
   <AlertProvider />
   <ToastProvider />
 </template>
@@ -23,6 +24,9 @@ import { App as CapApp } from '@capacitor/app'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import AlertProvider from '@/components/modals/AlertProvider.vue'
 import ToastProvider from '@/components/toasts/ToastProvider.vue'
+import OfflineBanner from '@/components/OfflineBanner.vue'
+import { useNetwork } from '@/composables/useNetwork'
+import { useAlert } from '@/composables/useAlert'
 import { useTheme } from '@/composables/useTheme'
 import { useSession } from '@/composables/useSession'
 import { useGuestKeys } from '@/composables/useGuestKeys'
@@ -69,6 +73,13 @@ let backListener = null
 let resumeListener = null
 async function onBackButton() {
   const current = router.currentRoute.value
+  // An open alert/confirm (the web's AlertModal) closes first, as "Cancel".
+  const alert = useAlert()
+  if (alert.visible.value) {
+    if (alert.confirmAction.value) alert.confirmAction.value(false)
+    else alert.close()
+    return
+  }
   if (document.querySelector('[data-modal-open]')) {
     window.dispatchEvent(new CustomEvent('dascare:close-modal'))
     return
@@ -87,7 +98,7 @@ async function onBackButton() {
 }
 
 onMounted(async () => {
-  await Promise.all([init(), useGuestKeys().load()])
+  await Promise.all([init(), useGuestKeys().load(), useNetwork().start()])
   syncStatusBar()
   if (Capacitor.isNativePlatform()) {
     backListener = await CapApp.addListener('backButton', onBackButton)

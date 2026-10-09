@@ -1,7 +1,7 @@
 {
   "name": "dascare-mobile",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "DASCARE Android app for requesters (citizens + guest SOS). Vue 3 + Capacitor.",
   "type": "module",
   "scripts": {
@@ -11,7 +11,8 @@
     "sync": "npm run build && cap sync android",
     "open": "cap open android",
     "assets": "python3 scripts/generate_icons.py",
-    "icons": "node scripts/build-icon-subset.mjs"
+    "icons": "node scripts/build-icon-subset.mjs",
+    "apk": "bash scripts/build-apk.sh"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
@@ -20,6 +21,7 @@
     "@capacitor/core": "^8.5.3",
     "@capacitor/geolocation": "^8.2.3",
     "@capacitor/haptics": "^8.0.2",
+    "@capacitor/network": "^8.0.1",
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.2",
     "@capacitor/status-bar": "^8.0.4",
