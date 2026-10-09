@@ -103,6 +103,18 @@ function realtimeRequestChanged(PDO $pdo, int $requestId, string $event = 'reque
     realtimeRegisterFlush($pdo);
 }
 
+/**
+ * An organization's fleet changed (status, readiness, maintenance, details):
+ * that org's Fleet screen and the platform's Fleet Availability re-load.
+ */
+function realtimeFleetChanged(PDO $pdo, int $organizationId, ?int $ambulanceId = null): void
+{
+    if ($organizationId <= 0) return;
+    $data = ['organization_id' => $organizationId] + ($ambulanceId ? ['ambulance_id' => $ambulanceId] : []);
+    realtimeQueue($pdo, realtimeChannel('org', $organizationId), 'fleet.updated', $data);
+    realtimeQueue($pdo, realtimeChannel('platform'), 'fleet.updated', $data);
+}
+
 /** Turn realtimeRequestChanged() calls into queued channel events. */
 function realtimeResolveRequestEvents(PDO $pdo): void
 {

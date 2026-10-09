@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/realtime.php';
 /**
  * DASCARE incident attention / overdue synchronization.
  *
@@ -36,6 +37,20 @@ function syncIncidentAttentionFlags(PDO $pdo, ?int $requestId = null): void
     $pdo->exec("\n        INSERT INTO notifications (user_id, notification_type, title, message, related_type, related_id, dedup_key)\n        SELECT ur.user_id, 'incident_escalation', 'Emergency Request Overdue',\n               CONCAT(er.reference_number, ' has remained unresolved for more than {$overdueMinutes} minutes and requires operational review.'),\n               'emergency_request', er.id, CONCAT('incident-overdue-', er.id)\n        FROM emergency_requests er\n        JOIN user_roles ur ON ur.role = 'platform_executive_admin'\n        JOIN users u ON u.id = ur.user_id AND u.deleted_at IS NULL AND u.account_status = 'active'\n        WHERE er.request_mode = 'instant'\n          AND er.status IN ('submitted','validating','verified')\n          AND er.attention_level = 'normal'\n          AND er.submitted_at <= DATE_SUB(NOW(), INTERVAL {$overdueMinutes} MINUTE)\n          {$idSql}\n        ON DUPLICATE KEY UPDATE title = VALUES(title), message = VALUES(message)\n    ");
 
     $pdo->exec("\n        INSERT INTO notifications (user_id, notification_type, title, message, related_type, related_id, dedup_key)\n        SELECT ur.user_id, 'incident_escalation', 'Critical Unresolved Emergency',\n               CONCAT(er.reference_number, ' has remained unresolved for more than {$criticalMinutes} minutes. Immediate review is required.'),\n               'emergency_request', er.id, CONCAT('incident-critical-overdue-', er.id)\n        FROM emergency_requests er\n        JOIN user_roles ur ON ur.role = 'platform_executive_admin'\n        JOIN users u ON u.id = ur.user_id AND u.deleted_at IS NULL AND u.account_status = 'active'\n        WHERE er.request_mode = 'instant'\n          AND er.status IN ('submitted','validating','verified')\n          AND er.attention_level <> 'critical_overdue'\n          AND er.submitted_at <= DATE_SUB(NOW(), INTERVAL {$criticalMinutes} MINUTE)\n          {$idSql}\n        ON DUPLICATE KEY UPDATE title = VALUES(title), message = VALUES(message)\n    ");
+
+    // Which requests are about to change flag, so open screens can be told.
+    $changing = $pdo->query("
+        SELECT er.id FROM emergency_requests er
+        WHERE er.request_mode = 'instant' AND er.status IN ('submitted','validating','verified') {$idSql}
+          AND er.attention_level <> CASE
+                WHEN er.submitted_at <= DATE_SUB(NOW(), INTERVAL {$criticalMinutes} MINUTE) THEN 'critical_overdue'
+                WHEN er.submitted_at <= DATE_SUB(NOW(), INTERVAL {$overdueMinutes} MINUTE) THEN 'overdue'
+                ELSE 'normal' END
+        UNION
+        SELECT er.id FROM emergency_requests er
+        WHERE er.attention_level <> 'normal' AND er.status NOT IN ('submitted','validating','verified') {$idSql}
+    ")->fetchAll(PDO::FETCH_COLUMN);
+    foreach ($changing as $changedId) realtimeRequestChanged($pdo, (int) $changedId, 'request.attention');
 
     $pdo->exec("\n        UPDATE emergency_requests er\n        SET er.attention_level = CASE\n              WHEN er.submitted_at <= DATE_SUB(NOW(), INTERVAL {$criticalMinutes} MINUTE) THEN 'critical_overdue'\n              WHEN er.submitted_at <= DATE_SUB(NOW(), INTERVAL {$overdueMinutes} MINUTE) THEN 'overdue'\n              ELSE 'normal'\n            END,\n            er.attention_flagged_at = CASE\n              WHEN er.submitted_at <= DATE_SUB(NOW(), INTERVAL {$overdueMinutes} MINUTE) THEN COALESCE(er.attention_flagged_at, NOW())\n              ELSE NULL\n            END,\n            er.attention_reason = CASE\n              WHEN er.submitted_at <= DATE_SUB(NOW(), INTERVAL {$criticalMinutes} MINUTE)\n                THEN 'Emergency request has remained unresolved beyond the critical escalation threshold.'\n              WHEN er.submitted_at <= DATE_SUB(NOW(), INTERVAL {$overdueMinutes} MINUTE)\n                THEN 'Emergency request has remained unresolved beyond the configured escalation threshold.'\n              ELSE NULL\n            END\n        WHERE er.request_mode = 'instant'\n          AND er.status IN ('submitted','validating','verified')\n          {$idSql}\n    ");
 

@@ -4,7 +4,7 @@
       <header class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p class="text-[0.68rem] font-black uppercase tracking-[0.16em] text-red-600 dark:text-red-300">City Operations</p>
-          <h1 class="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-white">City-wide Incidents</h1>
+          <h1 class="mt-1 flex flex-wrap items-center gap-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white">City-wide Incidents <LiveBadge :live="live" /></h1>
           <p class="mt-2 max-w-2xl text-sm text-slate-500 dark:text-white/45">Monitor immediate emergency requests, inspect DSS rankings, and restart resource screening when conditions change.</p>
         </div>
         <button class="inline-flex items-center justify-center gap-2 rounded-xl border border-base-300 bg-base-100 px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:bg-base-200 dark:border-white/10 dark:bg-[#0d2943] dark:text-white/70" @click="load">
@@ -116,6 +116,9 @@ import { Icon } from '@iconify/vue'
 import { fetchPlatformIncident, fetchPlatformIncidents, runIncidentDss, unmergePlatformReport } from '@/services/dispatchOperations'
 import LinkedReportsPanel from '@/components/incidents/LinkedReportsPanel.vue'
 import { useAlert } from '@/composables/useAlert'
+import { useLiveUpdates } from '@/composables/useLiveUpdates'
+import { realtimeChannels } from '@/services/realtime'
+import LiveBadge from '@/components/realtime/LiveBadge.vue'
 
 const alert = useAlert()
 const items = ref([]); const stats = ref({}); const pagination = ref({page:1,pages:1,total:0}); const loading = ref(false); const error = ref('')
@@ -128,7 +131,7 @@ const statCards = computed(() => [
   {label:'Organization Accepted',value:stats.value.accepted||0,icon:'lucide:badge-check'},
   {label:'Overdue / Escalated',value:(stats.value.overdue||0)+(stats.value.critical_overdue||0),icon:'lucide:triangle-alert'},
 ])
-async function load(){loading.value=true;error.value='';try{const data=await fetchPlatformIncidents({status:status.value,search:search.value,page:page.value,per_page:20});items.value=data.items;stats.value=data.stats;pagination.value=data.pagination}catch(e){error.value=e?.response?.data?.message||e.message||'Unable to load incidents.'}finally{loading.value=false}}
+async function load(silent=false){if(!silent)loading.value=true;error.value='';try{const data=await fetchPlatformIncidents({status:status.value,search:search.value,page:page.value,per_page:20});items.value=data.items;stats.value=data.stats;pagination.value=data.pagination}catch(e){error.value=e?.response?.data?.message||e.message||'Unable to load incidents.'}finally{loading.value=false}}
 async function openIncident(item){selectedOpen.value=true;detail.value=null;detailLoading.value=true;try{detail.value=await fetchPlatformIncident(item.id)}catch(e){alert.error(e?.response?.data?.message||e.message||'Unable to load incident.')}finally{detailLoading.value=false}}
 function closeIncident(){selectedOpen.value=false;detail.value=null}
 async function rerunDss(){if(!detail.value?.incident?.id)return;const ok=await alert.confirm('Re-run the DSS resource ranking using current fleet readiness and workload?','Refresh DSS ranking');if(!ok)return;runningDss.value=true;try{const data=await runIncidentDss(detail.value.incident.id);alert.success(data.message);detail.value=await fetchPlatformIncident(detail.value.incident.id);await load()}catch(e){alert.error(e?.response?.data?.message||e.message||'Unable to run DSS.')}finally{runningDss.value=false}}
@@ -143,5 +146,11 @@ function statusClass(v){if(['verified','assigned','acknowledged','responding','o
 function attentionLabel(v){return v==='critical_overdue'?'Critical Overdue':v==='overdue'?'Overdue':''}
 function attentionClass(v){return v==='critical_overdue'?'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300':'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'}
 function offerClass(v){return {sent:'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300',accepted:'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300',declined:'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300',timed_out:'bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-white/45',cancelled:'bg-slate-100 text-slate-500 dark:bg-white/5 dark:text-white/40'}[v]||'bg-base-200 text-slate-500'}
-onMounted(load)
+// Live updates: any incident change in the city (new SOS, offers, missions,
+// duplicate links, overdue flags) re-loads the list and the open incident.
+// Loading the list is also what expires stale offers and raises overdue
+// flags on the server, so it keeps a slow poll while live.
+async function refreshLive(){await load(true);if(selectedOpen.value&&detail.value?.incident?.id){try{detail.value=await fetchPlatformIncident(detail.value.incident.id)}catch{}}}
+const { live } = useLiveUpdates(refreshLive, { channels: () => [realtimeChannels.value?.platform], debounceMs: 600, pollMs: 15000, livePollMs: 60000 })
+onMounted(() => load())
 </script>

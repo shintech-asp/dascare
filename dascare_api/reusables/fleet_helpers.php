@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/organization_guard.php';
+require_once __DIR__ . '/realtime.php';
 
 function fleetBody(): array
 {
@@ -29,6 +30,8 @@ function fleetAudit(PDO $pdo, array $ctx, string $action, string $entityType, ?i
         $_SERVER['REMOTE_ADDR'] ?? null,
         mb_substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
     ]);
+    // Every fleet change is audited here, so this is where it's announced live.
+    realtimeFleetChanged($pdo, (int) $ctx['organization_id'], $entityType === 'ambulance' ? $entityId : null);
 }
 
 function fleetStatusLog(PDO $pdo, int $ambulanceId, ?string $oldStatus, string $newStatus, int $userId, ?string $reason = null): void

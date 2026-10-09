@@ -4,7 +4,7 @@
       <header class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div class="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.12em] text-red-700 dark:bg-red-500/10 dark:text-red-300"><Icon icon="lucide:ambulance" width="14" /> Organization resources</div>
-          <h1 class="mt-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white">Fleet</h1>
+          <h1 class="mt-3 flex flex-wrap items-center gap-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white">Fleet <LiveBadge :live="live" /></h1>
           <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-white/45">Register ambulance units, maintain their identity and credentials, and control whether they are eligible for future dispatch.</p>
         </div>
         <button v-if="canCreate" class="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-red-600/15 hover:bg-red-700" @click="openCreate"><Icon icon="lucide:plus" width="16" /> Add Ambulance</button>
@@ -98,6 +98,9 @@
 
 <script setup>
 import { computed, defineComponent, h, onMounted, ref } from 'vue'
+import { useLiveUpdates } from '@/composables/useLiveUpdates'
+import { realtimeChannels } from '@/services/realtime'
+import LiveBadge from '@/components/realtime/LiveBadge.vue'
 import { RouterLink } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { archiveFleetUnit, createFleetUnit, fetchFleetUnit, fetchFleetUnits, updateFleetUnit, updateFleetUnitStatus } from '@/services/organizationFleet'
@@ -125,7 +128,7 @@ const StatusPill=defineComponent({props:{value:String},setup(p){return()=>h('spa
 const ReadinessPill=defineComponent({props:{value:String},setup(p){return()=>h('span',{class:['inline-flex rounded-full px-2.5 py-1 text-[0.64rem] font-bold',p.value==='ready'?'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300':p.value==='out_of_service'?'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300':p.value==='needs_attention'?'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300':'bg-base-200 text-slate-500 dark:bg-white/5 dark:text-white/40']},readinessLabel(p.value))}})
 const Info=defineComponent({props:{label:String,value:String},setup(p){return()=>h('div',{class:'rounded-2xl bg-base-200 p-3.5 dark:bg-white/[0.035]'},[h('p',{class:'text-[0.62rem] font-black uppercase tracking-wide text-slate-400'},p.label),h('p',{class:'mt-1 text-xs font-bold text-slate-700 dark:text-white/60'},p.value||'—')])}})
 
-async function load(){loading.value=true;errorMessage.value='';try{const r=await fetchFleetUnits();units.value=r.units||[];stats.value=r.stats||stats.value}catch(e){errorMessage.value=e?.response?.data?.message||'Could not load the organization fleet.'}finally{loading.value=false}}
+async function load(silent=false){if(!silent)loading.value=true;errorMessage.value='';try{const r=await fetchFleetUnits();units.value=r.units||[];stats.value=r.stats||stats.value}catch(e){errorMessage.value=e?.response?.data?.message||'Could not load the organization fleet.'}finally{loading.value=false}}
 function openCreate(){form.value=emptyForm();formOpen.value=true}
 function normalizeForm(u){return{id:u.id,unit_code:u.unit_code||'',plate_number:u.plate_number||'',vehicle_make_model:u.vehicle_make_model||'',model_year:u.model_year||'',ambulance_type:u.ambulance_type||'basic_life_support',capacity:u.capacity||1,registration_expiry:u.registration_expiry||'',inspection_expiry:u.inspection_expiry||'',capability_notes:u.capability_notes||''}}
 async function saveUnit(){saving.value=true;try{const r=form.value.id?await updateFleetUnit(form.value):await createFleetUnit(form.value);toast.success(r.message);formOpen.value=false;await load();if(form.value.id&&detailOpen.value)await openDetail(form.value.id)}catch(e){toast.error(e?.response?.data?.message||'Could not save the ambulance.')}finally{saving.value=false}}
@@ -134,5 +137,8 @@ function openEditFromDetail(){form.value=normalizeForm(detail.value.unit);formOp
 function openStatus(){statusForm.value={status:detail.value.unit.status==='available'?'available':'offline',reason:''};statusOpen.value=true}
 async function saveStatus(){statusSaving.value=true;try{const r=await updateFleetUnitStatus(detail.value.unit.id,statusForm.value.status,statusForm.value.reason);toast.success(r.message);statusOpen.value=false;await load();await openDetail(detail.value.unit.id)}catch(e){toast.error(e?.response?.data?.message||'Could not update status.')}finally{statusSaving.value=false}}
 async function archiveCurrent(){const u=detail.value?.unit;if(!u)return;const ok=await alert.confirm(`Archive ${u.unit_code} from the active fleet? This keeps its history but removes it from operational lists.`, 'Archive ambulance');if(!ok)return;try{const r=await archiveFleetUnit(u.id,'Archived by organization fleet administrator.');toast.success(r.message);detailOpen.value=false;await load()}catch(e){toast.error(e?.response?.data?.message||'Could not archive this ambulance.')}}
-onMounted(load)
+// Live updates: fleet edits by colleagues and mission status changes (which
+// move ambulances between statuses) re-load the fleet.
+const { live } = useLiveUpdates(load, { channels: () => [realtimeChannels.value?.org], events: ['fleet.updated', 'mission.updated'], debounceMs: 600, pollMs: 30000, livePollMs: 120000 })
+onMounted(() => load())
 </script>
