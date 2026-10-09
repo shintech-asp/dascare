@@ -60,7 +60,10 @@ npm run assets            # python3 scripts/generate_icons.py (needs Pillow)
 - **Phase 0** – project, theme, icons, splash, API check (Profile → Server connection)
 - **Phase 2** – Welcome (guest SOS + log in / sign up), Login, 2FA, Register + email code, Forgot / reset
   password, bottom tab bar (Home · Requests · **SOS** · Alerts · Profile), identity verification (KYC)
-  with camera/gallery ID photo and map pin. SOS screen is a placeholder until Phase 3.
+  with camera/gallery ID photo and map pin.
+- **Phase 3** – Emergency SOS (guest or logged in): automatic GPS, one-tap send, optional details
+  (patients, description, address, barangay, landmark, up to 3 photos), manual map pin, "already reported"
+  notice with Request separately, offline error with Call 911.
 
 ## Notes
 
