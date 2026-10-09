@@ -37,6 +37,16 @@
     </section>
 
     <section :class="[ui.card, 'divide-y divide-base-300 dark:divide-white/10']">
+      <RouterLink :to="{ name: 'Legal', params: { slug: 'terms-of-service' } }" class="tap flex items-center gap-3 p-4 no-underline">
+        <Icon icon="lucide:scroll-text" width="18" class="text-slate-400" />
+        <span class="flex-1 text-sm font-semibold text-slate-700 dark:text-white/70">Terms of Service</span>
+        <Icon icon="lucide:chevron-right" width="18" class="text-slate-400" />
+      </RouterLink>
+      <RouterLink :to="{ name: 'Legal', params: { slug: 'privacy-policy' } }" class="tap flex items-center gap-3 p-4 no-underline">
+        <Icon icon="lucide:lock" width="18" class="text-slate-400" />
+        <span class="flex-1 text-sm font-semibold text-slate-700 dark:text-white/70">Privacy Policy</span>
+        <Icon icon="lucide:chevron-right" width="18" class="text-slate-400" />
+      </RouterLink>
       <RouterLink to="/diagnostics" class="tap flex items-center gap-3 p-4 no-underline">
         <Icon icon="lucide:server" width="18" class="text-slate-400" />
         <span class="flex-1 text-sm font-semibold text-slate-700 dark:text-white/70">Server connection</span>

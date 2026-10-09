@@ -291,11 +291,10 @@ if ($existing && (int) $existing['status'] === 2) {
 // Random filename — avoids collisions and stops filenames being guessable/enumerable.
 $filename = 'id_' . $userId . '_' . bin2hex(random_bytes(16)) . '.' . $ext;
 
-// Absolute path off the web server's own document root, mirroring the
-// convention used by the reference system, so the file lands in the PHP
-// server's public folder and is reachable over HTTP from there
-// (e.g. http://localhost/dascare/uploads/kyc/<filename>).
-$destDir = $_SERVER['DOCUMENT_ROOT'] . '/dascare/uploads/kyc/';
+// dascare/uploads/kyc/ in this repo — see reusables/upload_paths.php.
+// Admins view these through platform/kyc/media.php.
+require_once __DIR__ . '/../reusables/upload_paths.php';
+$destDir = dascareUploadsDir('kyc');
 if (!is_dir($destDir)) {
     mkdir($destDir, 0755, true);
 }

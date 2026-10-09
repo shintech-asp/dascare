@@ -24,6 +24,7 @@ const routes = [
   { path: '/reset-password', name: 'ResetPassword', component: () => import('@/views/auth/ResetPasswordView.vue'), meta: { guestOnly: true } },
   { path: '/sos', name: 'Sos', component: () => import('@/views/SosView.vue'), meta: { title: 'Emergency SOS' } },
   { path: '/verify-identity', name: 'VerifyIdentity', component: () => import('@/views/VerifyIdentityView.vue'), meta: { auth: true, title: 'Verify identity' } },
+  { path: '/legal/:slug', name: 'Legal', component: () => import('@/views/LegalView.vue'), meta: { title: 'Legal' } },
   { path: '/diagnostics', name: 'Diagnostics', component: () => import('@/views/ConnectionCheck.vue'), meta: { title: 'Server connection' } },
   {
     path: '/',

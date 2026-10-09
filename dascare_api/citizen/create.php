@@ -302,7 +302,8 @@ if (!empty($_FILES['photos'])) {
 // it's inserted with a temporary unique placeholder and updated right after
 // — avoids a separate counter table / race condition on a shared sequence.
 // ==================================================
-$destDir = $_SERVER['DOCUMENT_ROOT'] . '/dascare/uploads/emergency_requests/'; // adjust to match actual deployment folder
+require_once __DIR__ . '/../reusables/upload_paths.php';
+$destDir = dascareUploadsDir('emergency_requests'); // dascare/uploads/emergency_requests/ — see reusables/upload_paths.php
 $savedFiles = []; // for cleanup if the transaction fails after files are written
 
 // Instant requests hold the dedup lock from insert through the duplicate

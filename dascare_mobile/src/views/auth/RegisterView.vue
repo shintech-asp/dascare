@@ -43,7 +43,11 @@
 
       <label class="mt-5 flex items-start gap-3 text-sm text-slate-500 dark:text-white/50">
         <input v-model="agree" type="checkbox" class="mt-0.5 h-5 w-5 flex-shrink-0 rounded border-slate-300 accent-red-600 dark:border-white/20" />
-        <span class="leading-relaxed">I agree to the DASCARE <span class="font-semibold text-red-600 dark:text-red-400">Terms of Service</span> and <span class="font-semibold text-red-600 dark:text-red-400">Privacy Policy</span>.</span>
+        <span class="leading-relaxed">I agree to the
+          <RouterLink :to="{ name: 'Legal', params: { slug: 'terms-of-service' } }" class="font-semibold text-red-600 no-underline dark:text-red-400" @click.stop>Terms of Service</RouterLink>
+          and
+          <RouterLink :to="{ name: 'Legal', params: { slug: 'privacy-policy' } }" class="font-semibold text-red-600 no-underline dark:text-red-400" @click.stop>Privacy Policy</RouterLink>.
+        </span>
       </label>
 
       <button type="submit" :disabled="!agree || sending" :class="[ui.primaryButton, 'mt-5']">

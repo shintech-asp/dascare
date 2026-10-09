@@ -21,7 +21,8 @@ if (!$filename) {
 }
 
 $filename = basename((string) $filename);
-$path = $_SERVER['DOCUMENT_ROOT'] . '/dascare/uploads/kyc/' . $filename;
+require_once __DIR__ . '/../../reusables/upload_paths.php';
+$path = dascareUploadsDir('kyc') . $filename;
 
 if (!is_file($path) || !is_readable($path)) {
     http_response_code(404);

@@ -4,7 +4,11 @@
   </div>
   <RouterView v-else v-slot="{ Component, route }">
     <Transition :name="transitionName">
-      <component :is="Component" :key="route.meta.tab ? 'shell' : route.fullPath" />
+      <!-- The sign-up form stays alive so typed fields survive a trip to
+           the Terms / Privacy screen and back. -->
+      <KeepAlive :include="['RegisterView']">
+        <component :is="Component" :key="route.meta.tab ? 'shell' : route.fullPath" />
+      </KeepAlive>
     </Transition>
   </RouterView>
   <AlertProvider />
