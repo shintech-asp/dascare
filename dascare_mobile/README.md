@@ -55,7 +55,19 @@ npm run assets            # python3 scripts/generate_icons.py (needs Pillow)
 - Icons: the same `<Icon icon="lucide:…">` as the web, but bundled (works offline).
 - Font: Inter, bundled.
 
+## What's in the app so far
+
+- **Phase 0** – project, theme, icons, splash, API check (Profile → Server connection)
+- **Phase 2** – Welcome (guest SOS + log in / sign up), Login, 2FA, Register + email code, Forgot / reset
+  password, bottom tab bar (Home · Requests · **SOS** · Alerts · Profile), identity verification (KYC)
+  with camera/gallery ID photo and map pin. SOS screen is a placeholder until Phase 3.
+
 ## Notes
+
+- First Android build downloads **Java 21** (needed by the camera plugin) into `~/.gradle/jdks` — that's
+  the foojay plugin in `android/settings.gradle`. One-time, ~200 MB.
+- Icons: `npm run dev` / `npm run build` first run `scripts/build-icon-subset.mjs`, which bundles only the
+  `line-md:` / `mdi:` icons used in `src/` (all of Lucide is bundled). Use literal icon names.
 
 - `android/gradle/wrapper/gradle-wrapper.properties` uses **Gradle 9.1** (the Capacitor template ships 8.14,
   which can't run on the Java 25 bundled with Android Studio 2026.1).

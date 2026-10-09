@@ -1,28 +1,110 @@
 <template>
-  <!-- Phase 0: single setup-check screen. Router, app shell (top bar +
-       bottom tab bar with SOS) and the real screens arrive in Phase 2. -->
-  <ConnectionCheck />
+  <div v-if="!ready" class="grid min-h-screen place-items-center bg-base-200 dark:bg-[#050e1a]">
+    <span class="h-8 w-8 animate-spin rounded-full border-4 border-red-600 border-t-transparent"></span>
+  </div>
+  <RouterView v-else v-slot="{ Component, route }">
+    <Transition :name="transitionName">
+      <component :is="Component" :key="route.meta.tab ? 'shell' : route.fullPath" />
+    </Transition>
+  </RouterView>
+  <AlertProvider />
+  <ToastProvider />
 </template>
 
 <script setup>
-import { onMounted, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { Capacitor } from '@capacitor/core'
+import { App as CapApp } from '@capacitor/app'
 import { StatusBar, Style } from '@capacitor/status-bar'
-import ConnectionCheck from '@/views/ConnectionCheck.vue'
+import AlertProvider from '@/components/modals/AlertProvider.vue'
+import ToastProvider from '@/components/toasts/ToastProvider.vue'
 import { useTheme } from '@/composables/useTheme'
+import { useSession } from '@/composables/useSession'
+import { useGuestKeys } from '@/composables/useGuestKeys'
+import { useToast } from '@/composables/useToast'
 
+const router = useRouter()
 const { theme } = useTheme()
+const { ready, init } = useSession()
+const toast = useToast()
 
-// Status bar follows the app theme (same background as the web's base-200).
+// ------------------------------------------------------------------
+// Screen transitions: forward = slide in from the right, back = slide
+// out to the right (like native Android/iOS). Tab ↔ tab is handled
+// inside AppShell (it stays mounted), so it doesn't slide here.
+// ------------------------------------------------------------------
+const transitionName = ref('none')
+let lastPosition = window.history.state?.position ?? 0
+router.afterEach((to, from) => {
+  const position = window.history.state?.position ?? 0
+  const bothTabs = to.meta.tab && from.meta.tab
+  transitionName.value = !from.name || bothTabs ? 'none' : position < lastPosition ? 'slide-back' : 'slide-forward'
+  lastPosition = position
+})
+
+// ------------------------------------------------------------------
+// Status bar follows the theme (same colour as the screen background).
+// ------------------------------------------------------------------
 async function syncStatusBar() {
   if (!Capacitor.isNativePlatform()) return
   const dark = theme.value === 'dark'
   try {
     await StatusBar.setStyle({ style: dark ? Style.Dark : Style.Light })
     await StatusBar.setBackgroundColor({ color: dark ? '#050e1a' : '#f5efe1' })
-  } catch { /* not fatal on devices that don't support it */ }
+  } catch { /* not supported everywhere */ }
+}
+watch(theme, syncStatusBar)
+
+// ------------------------------------------------------------------
+// Android back button: go back a screen; on a root screen (Home /
+// Welcome) press twice to exit, like most Android apps.
+// ------------------------------------------------------------------
+let lastBackAt = 0
+let backListener = null
+async function onBackButton() {
+  const current = router.currentRoute.value
+  if (document.querySelector('[data-modal-open]')) {
+    window.dispatchEvent(new CustomEvent('dascare:close-modal'))
+    return
+  }
+  if (!current.meta.root) {
+    if (window.history.state?.back) router.back()
+    else router.replace('/')
+    return
+  }
+  if (Date.now() - lastBackAt < 2000) {
+    CapApp.exitApp()
+    return
+  }
+  lastBackAt = Date.now()
+  toast.info('Press back again to exit.', 'DASCARE')
 }
 
-onMounted(syncStatusBar)
-watch(theme, syncStatusBar)
+onMounted(async () => {
+  await Promise.all([init(), useGuestKeys().load()])
+  syncStatusBar()
+  if (Capacitor.isNativePlatform()) backListener = await CapApp.addListener('backButton', onBackButton)
+})
+onBeforeUnmount(() => backListener?.remove())
 </script>
+
+<style>
+.slide-forward-enter-active,
+.slide-forward-leave-active,
+.slide-back-enter-active,
+.slide-back-leave-active {
+  transition: transform 0.26s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.26s ease;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+}
+.slide-forward-enter-from { transform: translateX(100%); }
+.slide-forward-leave-to { transform: translateX(-25%); opacity: 0.4; }
+.slide-back-enter-from { transform: translateX(-25%); opacity: 0.4; }
+.slide-back-leave-to { transform: translateX(100%); }
+.slide-forward-leave-active,
+.slide-back-enter-active { z-index: 0; }
+.slide-forward-enter-active,
+.slide-back-leave-active { z-index: 1; }
+</style>

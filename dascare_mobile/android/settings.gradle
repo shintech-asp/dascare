@@ -1,3 +1,10 @@
+// Lets Gradle download the exact Java version a plugin asks for (e.g.
+// @capacitor/camera compiles with Java 21) into ~/.gradle/jdks, instead of
+// requiring it to be installed by hand. Android Studio uses this too.
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
 include ':app'
 include ':capacitor-cordova-android-plugins'
 project(':capacitor-cordova-android-plugins').projectDir = new File('./capacitor-cordova-android-plugins/')

@@ -1,26 +1,10 @@
 <template>
-  <main class="flex min-h-screen flex-col bg-base-200 px-5 pb-[calc(var(--safe-bottom)+1.5rem)] pt-[calc(var(--safe-top)+1.5rem)] dark:bg-[#050e1a]">
-    <!-- Brand — same lockup as the web header (AppHeader.vue) -->
-    <header class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <span class="grid h-14 w-14 place-items-center rounded-2xl bg-white ring-1 ring-[#1976D2]/20 shadow-sm dark:bg-white/95">
-          <img src="/img/logoo.png" alt="" class="h-11 w-11 object-contain" />
-        </span>
-        <span class="flex flex-col leading-tight">
-          <span class="text-2xl font-bold text-slate-900 dark:text-white">Dascare</span>
-          <span class="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#1976D2] dark:text-[#7fb3ec]">Ambulance Dispatch</span>
-          <span class="mt-0.5 flex items-center gap-1 text-[10px] text-slate-400 dark:text-white/40">
-            <Icon icon="lucide:map-pin" width="11" /> Dasmariñas City, Cavite
-          </span>
-        </span>
-      </div>
-      <button type="button" class="tap grid h-10 w-10 place-items-center rounded-xl text-amber-500 dark:text-[#7fb3ec]" aria-label="Toggle theme" @click="toggleTheme">
-        <Icon :icon="theme === 'dark' ? 'lucide:moon' : 'lucide:sun'" width="22" />
-      </button>
-    </header>
+  <div class="min-h-screen bg-base-200 dark:bg-[#050e1a]">
+  <ScreenHeader title="Server connection" />
+  <main class="flex flex-col px-5 pb-[calc(var(--safe-bottom)+1.5rem)]">
 
     <!-- Phase 0 check: can the app reach the PHP API? -->
-    <section class="relative mt-8 overflow-hidden rounded-3xl border border-base-300 bg-base-100 p-6 shadow-sm dark:border-white/10 dark:bg-[#071829]">
+    <section class="relative mt-4 overflow-hidden rounded-3xl border border-base-300 bg-base-100 p-6 shadow-sm dark:border-white/10 dark:bg-[#071829]">
       <div class="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-red-500/10 blur-3xl"></div>
 
       <p class="relative text-[0.68rem] font-black uppercase tracking-[0.16em] text-red-600 dark:text-red-300">Setup check</p>
@@ -57,17 +41,15 @@
       </ul>
     </section>
 
-    <p class="mt-auto pt-8 text-center text-[0.65rem] font-semibold text-slate-400 dark:text-white/30">DASCARE mobile · Phase 0 · v0.1.0</p>
   </main>
+  </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import api, { API_BASE_URL } from '@/services/api'
-import { useTheme } from '@/composables/useTheme'
-
-const { theme, toggleTheme } = useTheme()
+import ScreenHeader from '@/components/ScreenHeader.vue'
 
 const state = ref('checking') // checking | ok | failed
 const latencyMs = ref(null)
