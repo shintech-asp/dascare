@@ -12,7 +12,8 @@
     "open": "cap open android",
     "assets": "python3 scripts/generate_icons.py",
     "icons": "node scripts/build-icon-subset.mjs",
-    "apk": "bash scripts/build-apk.sh"
+    "apk": "bash scripts/build-apk.sh",
+    "apk:web": "bash scripts/build-apk.sh wifi --web"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",

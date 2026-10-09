@@ -13,6 +13,7 @@ cd dascare_mobile
 npm run apk                 # phone on the same Wi-Fi as this Mac (uses the Mac's current Wi-Fi IP)
 npm run apk -- emulator     # Android emulator
 npm run apk -- 192.168.1.5  # a specific address
+npm run apk:web             # Wi-Fi build + publish it to the web landing page's "Download for Android" button
 ```
 
 The APK lands in `release/DASCARE-v<version>-<target>.apk` (debug-signed; Android asks to allow installs from

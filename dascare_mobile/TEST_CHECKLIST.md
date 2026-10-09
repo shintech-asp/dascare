@@ -11,6 +11,7 @@ Tick **Pass** / **Fail** and note anything unexpected.
 | ☐ | Phone and Mac on the **same Wi-Fi**. (Campus Wi-Fi that isolates devices won't work — use a phone hotspot or a home router.) | — |
 | ☐ | In `dascare_mobile/`, run `npm run apk`. | Prints `APK ready: release/DASCARE-v1.0.0-<ip>.apk`. |
 | ☐ | Copy that APK to the phone and install it (allow "Install unknown apps" when asked). | DASCARE icon appears. |
+| ☐ | *Or:* run `npm run apk:web`, open the website's landing page → **Mobile App** section → **Download for Android** (Chrome warns for any non-Play-Store app → *Download anyway*). | Installs the same app. |
 | ☐ | Open the app → **Server connection** (bottom of Welcome). | "Connected to DASCARE API". |
 | ☐ | Have ready: a **citizen** test account, a **staff** account (e.g. dispatcher), and the web open as **platform admin** and **organization** users. | — |
 

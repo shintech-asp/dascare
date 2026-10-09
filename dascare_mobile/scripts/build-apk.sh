@@ -4,6 +4,8 @@
 #   npm run apk                 # real phone on this Wi-Fi: uses this Mac's current Wi-Fi IP
 #   npm run apk -- emulator     # Android emulator (http://10.0.2.2/...)
 #   npm run apk -- 192.168.1.5  # a specific IP or host
+#   npm run apk:web             # Wi-Fi build, also published to the web's
+#                               # "Download for Android" button (landing page)
 #
 # Output: release/DASCARE-v<version>-<target>.apk (debug-signed — install it
 # directly; Android asks to allow installs from this source the first time).
@@ -12,6 +14,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 target="${1:-wifi}"
+publish_web="${2:-}"
 case "$target" in
   emulator) host="10.0.2.2" ;;
   wifi)     host="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)" ;;
@@ -43,3 +46,16 @@ echo
 echo "APK ready: dascare_mobile/${out}"
 echo "API:       ${api}"
 [ "$target" = emulator ] || echo "The phone must be on the same Wi-Fi as this Mac, and the Mac's IP must stay ${host}."
+
+# --web: publish for the landing page's "Download for Android" button
+# (dascare/src/views/landing/MobileApp.vue reads downloads/app.json).
+if [ "$publish_web" = "--web" ]; then
+  web_dir="../dascare/public/downloads"
+  mkdir -p "$web_dir"
+  cp "$out" "$web_dir/DASCARE.apk"
+  size=$(stat -f%z "$web_dir/DASCARE.apk")
+  printf '{"version":"%s","size_bytes":%s,"built_at":"%s","api":"%s"}\n' "$version" "$size" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$api" > "$web_dir/app.json"
+  # Apache (XAMPP / production): send .apk as an Android package, not "zip".
+  printf 'AddType application/vnd.android.package-archive .apk\n<IfModule mod_headers.c>\n  <FilesMatch "\\.apk$">\n    Header set Content-Disposition "attachment"\n  </FilesMatch>\n</IfModule>\n' > "$web_dir/.htaccess"
+  echo "Published to the web: dascare/public/downloads/DASCARE.apk"
+fi
