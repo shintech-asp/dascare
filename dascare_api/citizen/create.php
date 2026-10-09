@@ -531,7 +531,7 @@ if ($isGuest) {
     ];
 }
 
-echo json_encode([
+$response = [
     'success'          => true,
     'id'               => $requestId,
     'reference_number' => $referenceNumber,
@@ -548,4 +548,18 @@ echo json_encode([
     // Set when this report was linked to an earlier one nearby:
     // {id, reference_number, distance_m, gap_seconds}. null otherwise.
     'mergedInto' => $merge['merged'] ? $merge['primary'] : null,
-]);
+];
+
+// Android app only (X-Dascare-Client: mobile, see reusables/mobile_auth.php):
+// a guest SOS gets a private key so the same phone can track the request and
+// say "not my emergency" later without an account. Web responses are
+// unchanged. A failure here must never fail the emergency itself.
+if ($isGuest && function_exists('isMobileAppRequest') && isMobileAppRequest()) {
+    try {
+        $response['guestAccessToken'] = mobileIssueGuestRequestToken($pdo, $requestId);
+    } catch (Throwable $e) {
+        error_log('Guest access key failed for request ' . $requestId . ': ' . $e->getMessage());
+    }
+}
+
+echo json_encode($response);
