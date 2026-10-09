@@ -94,6 +94,49 @@
         </div>
       </article>
 
+      <!-- Live updates evidence: latency benchmark + free-tier usage (thesis) -->
+      <article class="rounded-3xl border border-base-300 bg-base-100 p-5 shadow-sm dark:border-white/10 dark:bg-[#071829]">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p class="font-mono text-xs font-black text-red-600">evidence</p>
+            <h2 class="mt-1 text-base font-black text-slate-900 dark:text-white">Live updates vs polling</h2>
+            <p class="mt-1 max-w-2xl text-sm text-slate-500 dark:text-white/45">Times {{ LATENCY_RUNS }} server-published events from request to arrival in this browser, and shows how much of the free tiers the platform uses.</p>
+          </div>
+          <button class="rounded-xl bg-red-600 px-5 py-3 text-xs font-black text-white disabled:opacity-50" :disabled="benchmarking || !realtime.configured || !realtime.enabled" @click="runBenchmark">
+            {{ benchmarking ? `Measuring ${benchProgress}/${LATENCY_RUNS}...` : 'Run latency test' }}
+          </button>
+        </div>
+
+        <div class="mt-5 grid gap-4 sm:grid-cols-2">
+          <div class="rounded-2xl bg-base-200 p-4 dark:bg-white/[0.03]">
+            <span class="text-xs font-black uppercase text-slate-400">Live updates (measured)</span>
+            <div v-if="bench?.ok" class="mt-3 grid grid-cols-4 gap-2 text-center">
+              <div v-for="m in benchStats" :key="m.label"><p class="text-lg font-black text-emerald-600 dark:text-emerald-300">{{ m.value }}</p><p class="text-[.6rem] font-bold uppercase text-slate-400">{{ m.label }}</p></div>
+            </div>
+            <p v-else class="mt-3 text-sm font-bold text-slate-500 dark:text-white/50">{{ bench ? bench.message : 'Not measured yet.' }}</p>
+            <p class="mt-3 text-[.65rem] leading-4 text-slate-400">{{ bench?.ok ? `${bench.message} Includes the server request and delivery through Ably.` : 'Milliseconds from the server request to the event arriving here.' }}</p>
+          </div>
+          <div class="rounded-2xl bg-base-200 p-4 dark:bg-white/[0.03]">
+            <span class="text-xs font-black uppercase text-slate-400">15-second polling (by design)</span>
+            <div class="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div><p class="text-lg font-black text-slate-700 dark:text-white/70">0 s</p><p class="text-[.6rem] font-bold uppercase text-slate-400">best</p></div>
+              <div><p class="text-lg font-black text-slate-700 dark:text-white/70">7.5 s</p><p class="text-[.6rem] font-bold uppercase text-slate-400">average</p></div>
+              <div><p class="text-lg font-black text-slate-700 dark:text-white/70">15 s</p><p class="text-[.6rem] font-bold uppercase text-slate-400">worst</p></div>
+            </div>
+            <p class="mt-3 text-[.65rem] leading-4 text-slate-400"><template v-if="bench?.ok">Median live update is about <strong class="text-slate-700 dark:text-white/70">{{ speedup }}× faster</strong> than the average poll. </template>A change waits for the next refresh, so delay is spread evenly between 0 and 15 s.</p>
+          </div>
+        </div>
+
+        <div class="mt-4 grid gap-4 sm:grid-cols-3">
+          <div v-for="u in usageCards" :key="u.label" class="rounded-2xl border border-base-300 p-4 dark:border-white/10">
+            <span class="text-xs font-black uppercase text-slate-400">{{ u.label }}</span>
+            <p class="mt-2 text-sm font-black text-slate-800 dark:text-white/80">{{ u.value }}</p>
+            <div v-if="u.pct != null" class="mt-2 h-1.5 rounded-full bg-base-200 dark:bg-white/10"><div class="h-1.5 rounded-full bg-emerald-500" :style="{ width: `${Math.max(1, Math.min(100, u.pct))}%` }"></div></div>
+            <p class="mt-2 text-[.65rem] leading-4 text-slate-400">{{ u.help }}</p>
+          </div>
+        </div>
+      </article>
+
       <article v-for="item in otherItems" :key="item.key" class="rounded-3xl border border-base-300 bg-base-100 p-5 shadow-sm dark:border-white/10 dark:bg-[#071829]">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -116,10 +159,10 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import PageShell from '@/components/management/PageShell.vue'
-import { fetchTechnicalConfiguration, saveTechnicalConfiguration, saveTechnicalConfigurationBatch } from '@/services/adminCompletion'
+import { fetchRealtimeUsage, fetchTechnicalConfiguration, saveTechnicalConfiguration, saveTechnicalConfigurationBatch } from '@/services/adminCompletion'
 import { useToast } from '@/composables/useToast'
 import { Icon } from '@iconify/vue'
-import { realtimeState, resetRealtime, runRealtimeTest } from '@/services/realtime'
+import { realtimeState, resetRealtime, runRealtimeLatency, runRealtimeTest } from '@/services/realtime'
 
 const toast = useToast(), items = ref([]), drafts = ref({})
 const format = v => v ? new Date(String(v).replace(' ', 'T')).toLocaleString() : '—'
@@ -157,6 +200,31 @@ async function toggleRealtime(enabled) {
     savingRealtime.value = false
   }
 }
+// --- Evidence: latency benchmark + free-tier usage ---
+const LATENCY_RUNS = 20
+const benchmarking = ref(false), benchProgress = ref(0), bench = ref(null), usage = ref(null)
+const benchStats = computed(() => bench.value?.ok ? [
+  { label: 'min', value: `${bench.value.min} ms` }, { label: 'median', value: `${bench.value.median} ms` },
+  { label: '95%', value: `${bench.value.p95} ms` }, { label: 'max', value: `${bench.value.max} ms` },
+] : [])
+const speedup = computed(() => bench.value?.median ? Math.round(7500 / bench.value.median) : null)
+const fmt = (n) => Number(n || 0).toLocaleString()
+const usageCards = computed(() => {
+  const a = usage.value?.ably, r = usage.value?.routing
+  return [
+    { label: 'Ably messages this month', value: a?.month ? `${fmt(a.month.messages)} of ${fmt(a.limits.messages_per_month)}` : (a?.configured ? 'Unavailable' : 'Not set up'), pct: a?.month ? (a.month.messages / a.limits.messages_per_month) * 100 : null, help: a?.today ? `Today: ${fmt(a.today.messages)} (${fmt(a.today.published)} sent by the server, ${fmt(a.today.delivered)} delivered to screens).` : 'Free plan: 6 million per month.' },
+    { label: 'Open connections (peak today)', value: a?.today ? `${fmt(a.today.peak_connections)} of ${fmt(a.limits.peak_connections)}` : '—', pct: a?.today ? (a.today.peak_connections / a.limits.peak_connections) * 100 : null, help: 'Each open browser tab or app is one connection.' },
+    { label: 'TomTom routes today', value: r ? `${fmt(r.calls_today)} of ${fmt(r.daily_limit)}` : '—', pct: r ? (r.calls_today / r.daily_limit) * 100 : null, help: r ? (r.configured ? `This month: ${fmt(r.calls_month)}. Failures today: ${fmt(r.failures_today)}. Re-routed only after 150 m or 60 s.` : 'No TomTom key — maps use straight-line estimates.') : '' },
+  ]
+})
+async function loadUsage() { try { usage.value = await fetchRealtimeUsage() } catch { usage.value = null } }
+async function runBenchmark() {
+  benchmarking.value = true
+  benchProgress.value = 0
+  bench.value = null
+  try { bench.value = await runRealtimeLatency({ count: LATENCY_RUNS, onProgress: (done) => { benchProgress.value = done } }) } finally { benchmarking.value = false; loadUsage() }
+}
+
 async function testRealtime() {
   testing.value = true
   testResult.value = null
@@ -191,5 +259,5 @@ async function saveDedup() {
     savingDedup.value = false
   }
 }
-onMounted(load)
+onMounted(() => { load(); loadUsage() })
 </script>

@@ -91,7 +91,22 @@ Tick **Pass** / **Fail** and note anything unexpected.
 | 6.7 | Appearance: Light / Dark / System. | Theme changes and is remembered. | ☐ / ☐ |
 | 6.8 | Log out. | Back to Welcome; SOS still available. | ☐ / ☐ |
 
-## 7. Notes for the panel
+## 7. Live updates (web + app together)
+
+Open the web as an organization user on **Live Mission Tracking** and the app on the request's tracking screen.
+
+| | Step | Expected | Pass/Fail |
+|---|---|---|---|
+| 7.1 | Look at the screen headers. | Green **Live** badge (web) / green **LIVE** (app). | ☐ / ☐ |
+| 7.2 | Web (crew phone/laptop): **Share This Device GPS** and move. | App's ambulance pin moves within ~1 s each time; ETA card updates. | ☐ / ☐ |
+| 7.3 | Send a new SOS while the organization has **Incident Offers** open. | Offer appears within ~2 s with a "New incident offer" toast — no refresh. | ☐ / ☐ |
+| 7.4 | Organization advances the mission (Acknowledge → Start Response). | App's dispatch steps advance within ~2 s; bell/Alerts badge goes up. | ☐ / ☐ |
+| 7.5 | Technical admin → System Configuration → **Run latency test**. | 20/20 events; median a few hundred ms vs 7.5 s average for polling. | ☐ / ☐ |
+| 7.6 | Switch **Live updates** off in the same page, then repeat 7.4. | Badges show **Every 15s**; screens still update, within ~15 s. Switch it back on. | ☐ / ☐ |
+
+Results and method for the paper: `docs/live-updates-evaluation.md`.
+
+## 8. Notes for the panel
 
 - **Platform:** Android app built with Vue 3 + Capacitor 8, sharing the web platform's design system and PHP API.
 - **Who uses it:** requesters only — citizens and guests. Staff and admins are refused and use the web portal.

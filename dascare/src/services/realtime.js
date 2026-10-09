@@ -227,3 +227,66 @@ export async function runRealtimeTest({ timeoutMs = 10000 } = {}) {
     off()
   }
 }
+
+/**
+ * Latency benchmark for diagnostics / thesis evidence: join your own user
+ * channel once, then have the server publish `count` test events one after
+ * another (realtime/test.php) and time each from "request sent" to "event
+ * received". onProgress(done, count) is called as it goes.
+ * Resolves { ok, samples[], min, median, p95, max, failed, message }.
+ */
+export async function runRealtimeLatency({ count = 20, onProgress = () => {} } = {}) {
+  const c = await ensureClient()
+  if (!c) return { ok: false, message: realtimeState.value === 'disabled' ? 'Live updates are turned off or not set up on the server.' : 'Could not start live updates.' }
+  const name = realtimeChannels.value?.user
+  if (!name) return { ok: false, message: 'Sign in to run this test.' }
+
+  const waiting = new Map() // nonce -> resolve
+  let joinedResolve
+  const joined = new Promise((resolve) => { joinedResolve = resolve })
+  const off = subscribe(name, (message) => {
+    if (message.name !== 'test') return
+    waiting.get(message.data?.nonce)?.(performance.now())
+  }, (ok) => joinedResolve(ok))
+
+  const samples = []
+  let failed = 0
+  try {
+    if (!(await joined)) return { ok: false, message: 'Could not join the live updates channel.' }
+    for (let i = 0; i < count; i += 1) {
+      const nonce = `lat${Date.now().toString(36)}${i}`
+      const arrived = new Promise((resolve) => {
+        waiting.set(nonce, resolve)
+        setTimeout(() => resolve(null), 10000)
+      })
+      const started = performance.now()
+      try {
+        await api.post('/realtime/test.php', { nonce })
+        const at = await arrived
+        if (at == null) failed += 1
+        else samples.push(Math.round(at - started))
+      } catch {
+        failed += 1
+      }
+      waiting.delete(nonce)
+      onProgress(i + 1, count)
+      await new Promise((r) => setTimeout(r, 150))
+    }
+  } finally {
+    off()
+  }
+
+  if (!samples.length) return { ok: false, failed, samples, message: 'No test events arrived.' }
+  const sorted = [...samples].sort((a, b) => a - b)
+  const pick = (q) => sorted[Math.min(sorted.length - 1, Math.ceil(q * sorted.length) - 1)]
+  return {
+    ok: true,
+    samples,
+    failed,
+    min: sorted[0],
+    median: pick(0.5),
+    p95: pick(0.95),
+    max: sorted[sorted.length - 1],
+    message: `${samples.length} of ${count} test events arrived.`,
+  }
+}

@@ -16,4 +16,5 @@ export const updateTechnicalAccountStatus = async (payload) => (await api.post('
 export const fetchTechnicalAudit = async (params={}) => (await api.get('/technical/audit/list.php',{params})).data
 export const fetchTechnicalConfiguration = async () => (await api.get('/technical/configuration/index.php')).data
 export const saveTechnicalConfiguration = async (key,value) => (await api.post('/technical/configuration/index.php',{key,value})).data
+export const fetchRealtimeUsage = async () => (await api.get('/technical/realtime/usage.php')).data
 export const saveTechnicalConfigurationBatch = async (items) => (await api.post('/technical/configuration/index.php',{items})).data
