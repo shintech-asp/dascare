@@ -3,4 +3,5 @@
      Match dascare/src/assets/main.css base-200 (light) / base-200 (dark). -->
 <resources>
     <color name="dascare_splash_background">#F5EFE1</color>
+    <color name="dascare_red">#DC2626</color>
 </resources>

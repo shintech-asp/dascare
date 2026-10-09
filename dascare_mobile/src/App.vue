@@ -27,6 +27,7 @@ import ToastProvider from '@/components/toasts/ToastProvider.vue'
 import OfflineBanner from '@/components/OfflineBanner.vue'
 import { useNetwork } from '@/composables/useNetwork'
 import { useAlert } from '@/composables/useAlert'
+import { initPush } from '@/services/push'
 import { useTheme } from '@/composables/useTheme'
 import { useSession } from '@/composables/useSession'
 import { useGuestKeys } from '@/composables/useGuestKeys'
@@ -99,6 +100,21 @@ async function onBackButton() {
 
 onMounted(async () => {
   await Promise.all([init(), useGuestKeys().load(), useNetwork().start()])
+  initPush({
+    onOpen: (data) => {
+      if (data.request_id || (data.related_type === 'emergency_request' && data.related_id)) {
+        router.push({ name: 'Track', params: { id: data.request_id || data.related_id } })
+      } else if (data.related_type === 'kyc_verification') {
+        router.push({ name: 'VerifyIdentity' })
+      } else {
+        router.push('/')
+      }
+    },
+    onForeground: (n) => {
+      toast.info(n.body || '', n.title || 'DASCARE')
+      window.dispatchEvent(new CustomEvent('dascare:resume'))
+    },
+  })
   syncStatusBar()
   if (Capacitor.isNativePlatform()) {
     backListener = await CapApp.addListener('backButton', onBackButton)

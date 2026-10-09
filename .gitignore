@@ -29,3 +29,7 @@ dascare_mobile/src/assets/icon-subset.json
 
 # Built APKs (npm run apk)
 dascare_mobile/release/
+
+# Secrets: Firebase service account (push) and the app's Firebase config — never commit
+dascare_api/config/*.json
+dascare_mobile/android/app/google-services.json

@@ -4,6 +4,7 @@ require_once __DIR__ . '/../../../db/db.php';
 require_once __DIR__ . '/../../../reusables/organization_rbac.php';
 require_once __DIR__ . '/../../../reusables/assignment_helpers.php';
 require_once __DIR__ . '/../../../reusables/fleet_helpers.php';
+require_once __DIR__ . '/../../../reusables/push.php';
 header('Content-Type: application/json');
 if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST') organizationJsonError(405,'Method not allowed.');
 $ctx=requireOrganizationAccess($pdo,'dispatch.dispatch_assignments.update');
@@ -41,6 +42,8 @@ try{
   assignmentLog($pdo,$assignmentId,null,'assigned',(int)$ctx['user_id'],'Ambulance '.$amb['unit_code'].' and '.count($normalized).' crew assigned.');
 
   if(!empty($offer['requester_user_id'])) assignmentNotifyUser($pdo,(int)$offer['requester_user_id'],'dispatch_update','Ambulance Assigned','Ambulance '.$amb['unit_code'].' and a response crew have been assigned to '.$offer['reference_number'].'.','emergency_request',$requestId,'assignment-citizen:'.$assignmentId);
+  // DASCARE app (no-op without Firebase): guest phones and linked (dedup) reports following this incident.
+  pushQueueRequestFollowers($pdo,$requestId,'Ambulance Assigned','Ambulance '.$amb['unit_code'].' and a response crew have been assigned to '.$offer['reference_number'].'.','assigned');
   $userByMember=[];foreach($rows as $r)$userByMember[(int)$r['id']]=(int)$r['user_id'];
   foreach($normalized as $mid=>$role) assignmentNotifyUser($pdo,$userByMember[$mid],'mission_assignment','New Mission Assignment','You were assigned as '.str_replace('_',' ',$role).' for '.$offer['reference_number'].'.','dispatch_assignment',$assignmentId,'assignment-crew:'.$assignmentId.':'.$mid);
   $audit=$pdo->prepare("INSERT INTO audit_logs (user_id,organization_id,action,entity_type,entity_id,new_values,ip_address,user_agent) VALUES (?,?, 'dispatch.resources_assigned','dispatch_assignment',?,?,?,?)");

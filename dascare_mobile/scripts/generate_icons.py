@@ -91,6 +91,21 @@ def main() -> None:
         splash(w, h, SPLASH_DARK).save(night_dir / 'splash.png')
         count += 1
 
+    # Status-bar notification icon (push): Android draws it as a white
+    # silhouette, so use the logo's shape (alpha) in solid white.
+    sizes = {'mdpi': 24, 'hdpi': 36, 'xhdpi': 48, 'xxhdpi': 72, 'xxxhdpi': 96}
+    alpha = LOGO.split()[-1]
+    for density, size in sizes.items():
+        mask = alpha.copy()
+        mask.thumbnail((round(size * 0.9), round(size * 0.9)), Image.LANCZOS)
+        icon = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+        white = Image.new('RGBA', mask.size, (255, 255, 255, 255))
+        icon.paste(white, ((size - mask.width) // 2, (size - mask.height) // 2), mask)
+        out_dir = RES / f'drawable-{density}'
+        out_dir.mkdir(exist_ok=True)
+        icon.save(out_dir / 'ic_stat_dascare.png')
+        count += 1
+
     print(f'Wrote {count} icon/splash images under {RES.relative_to(ROOT)}')
 
 

@@ -85,6 +85,8 @@ npm run assets            # python3 scripts/generate_icons.py (needs Pillow)
   every SOS), Account & security (name, mobile number, password, two-factor).
 - **Phase 6** – No-internet banner with Call 911, plain permission-denied guidance (location asked once, never
   re-prompted), loading placeholders, Android Back closes popups first, v1.0.0, `npm run apk`, test checklist.
+- **Phase 7** – Push notifications (Firebase): "Ambulance en route" etc. with the app closed, tap opens the
+  request. Code is complete; turn it on with **[PUSH_SETUP.md](PUSH_SETUP.md)** (two Firebase files).
 
 ## Notes
 

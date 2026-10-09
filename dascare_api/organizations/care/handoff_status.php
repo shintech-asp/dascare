@@ -22,6 +22,8 @@ try{
   if($note!==''){$sets[]='notes=?';$params[]=$note;}
   $params[]=$handoffId;$pdo->prepare('UPDATE patient_handoffs SET '.implode(',',$sets).' WHERE id=?')->execute($params);
   if($next==='completed'&&!empty($h['requester_user_id'])) assignmentNotifyUser($pdo,(int)$h['requester_user_id'],'dispatch_update','Patient Handoff Completed','The response team completed patient handoff at '.$h['facility_name'].' for '.$h['reference_number'].'.','emergency_request',(int)$h['emergency_request_id'],'handoff-completed:'.$handoffId);
+  // DASCARE app (no-op without Firebase): guest phones and linked (dedup) reports following this incident.
+  if($next==='completed') pushQueueRequestFollowers($pdo,(int)$h['emergency_request_id'],'Patient Handoff Completed','The response team completed patient handoff at '.$h['facility_name'].' for '.$h['reference_number'].'.');
   careAudit($pdo,$ctx,'care.handoff_'.$next,'patient_handoff',$handoffId,['status'=>$h['status']],['status'=>$next,'note'=>$note]);
   $pdo->commit();echo json_encode(['success'=>true,'message'=>$next==='completed'?'Physical handoff recorded. The mission can now be completed.':'Facility response recorded.']);
 }catch(RuntimeException $e){if($pdo->inTransaction())$pdo->rollBack();organizationJsonError(409,$e->getMessage());}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();error_log('Handoff status failed: '.$e->getMessage());organizationJsonError(500,'Unable to update facility handoff.');}

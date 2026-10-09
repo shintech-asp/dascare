@@ -235,6 +235,7 @@ import api, { apiMessage } from '@/services/api'
 import { useSession } from '@/composables/useSession'
 import { useGuestKeys } from '@/composables/useGuestKeys'
 import { useToast } from '@/composables/useToast'
+import { enablePush } from '@/services/push'
 import { cameraDeniedText, isPermissionDenied, isUserCancel, locationDeniedText } from '@/utils/permissions'
 
 const GENERIC_CATEGORY_ID = 8 // "Other" — dispatch classifies on the call (same as the web)
@@ -442,6 +443,7 @@ async function submit() {
     }
     result.value = data
     Haptics.notification({ type: NotificationType.Success }).catch(() => {})
+    enablePush() // get "a unit is on the way" even with the app closed
   } catch (err) {
     Haptics.notification({ type: NotificationType.Error }).catch(() => {})
     sendError.value = err.server ? err.message : err.response

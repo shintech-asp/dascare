@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../../cors.php';
 require_once __DIR__ . '/../../../db/db.php';
 require_once __DIR__ . '/../../../reusables/organization_guard.php';
 require_once __DIR__ . '/../../../reusables/dispatch_dss.php';
+require_once __DIR__ . '/../../../reusables/push.php';
 
 header('Content-Type: application/json');
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') organizationJsonError(405, 'Method not allowed.');
@@ -49,6 +50,13 @@ try {
             $notify = $pdo->prepare("INSERT INTO notifications (user_id, notification_type, title, message, related_type, related_id, dedup_key) VALUES (?, 'dispatch_update', 'Rescue Organization Accepted', ?, 'emergency_request', ?, ?) ON DUPLICATE KEY UPDATE message=VALUES(message), read_at=NULL, created_at=CURRENT_TIMESTAMP");
             $notify->execute([(int)$offer['requester_user_id'], 'A rescue organization accepted ' . $offer['reference_number'] . ' and is preparing an ambulance and crew.', (int)$offer['emergency_request_id'], 'incident-accepted:' . $offer['emergency_request_id']]);
         }
+        // DASCARE app (no-op without Firebase): the requester's phone, plus
+        // guest phones and linked (dedup) reports following this incident.
+        $pushBody = 'A rescue organization accepted ' . $offer['reference_number'] . ' and is preparing an ambulance and crew.';
+        if (!empty($offer['requester_user_id'])) {
+            pushQueueUser($pdo, (int)$offer['requester_user_id'], 'Rescue Organization Accepted', $pushBody, ['type' => 'dispatch_update', 'related_type' => 'emergency_request', 'related_id' => (int)$offer['emergency_request_id']], 'incident-accepted:' . $offer['emergency_request_id']);
+        }
+        pushQueueRequestFollowers($pdo, (int)$offer['emergency_request_id'], 'Rescue Organization Accepted', $pushBody);
         $message = 'Incident accepted. Continue to Resource Assignment to choose the ambulance and crew.';
     } else {
         $pdo->prepare("UPDATE incident_offers SET offer_status='declined', responded_at=NOW(), responded_by_user_id=?, response_note=? WHERE id=?")

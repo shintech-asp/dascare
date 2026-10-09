@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import api, { onTokenInvalid, setAuthToken } from '@/services/api'
 import { getItem, removeItem, setItem } from '@/services/storage'
+import { disablePushForAccount, enablePush } from '@/services/push'
 
 /**
  * Signed-in citizen for the app (singleton state, like the web's
@@ -52,6 +53,7 @@ async function adoptToken(newToken, newUser) {
   await setItem(TOKEN_KEY, newToken)
   user.value = newUser
   await fetchSession()
+  enablePush() // ask for notification permission + link this phone to the account
 }
 
 async function login(email, password) {
@@ -67,6 +69,7 @@ async function verify2fa(challenge, otp) {
 }
 
 async function logout() {
+  await disablePushForAccount()
   try { await api.post('/mobile/auth/logout.php') } catch { /* sign out locally anyway */ }
   await clearLocal()
 }

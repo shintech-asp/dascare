@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../cors.php';
 require_once __DIR__ . '/../../db/db.php';
 require_once __DIR__ . '/../../reusables/platform_guard.php';
+require_once __DIR__ . '/../../reusables/push.php';
 
 header('Content-Type: application/json');
 $reviewerId = requirePlatformExecutive($pdo, 'citizens.kyc_verifications.approve');
@@ -89,6 +90,8 @@ try {
         $citizenId,
         $dedupKey,
     ]);
+    // DASCARE app on the citizen's phone (no-op without Firebase).
+    pushQueueUser($pdo, $citizenId, $notification['title'], $notification['message'], ['type' => $notification['type'], 'related_type' => 'kyc_verification', 'related_id' => $citizenId], $dedupKey);
 
     $oldValues = json_encode([
         'status' => (int) $current['status'],
