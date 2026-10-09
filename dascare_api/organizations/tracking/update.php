@@ -4,6 +4,7 @@ require_once __DIR__ . '/../../db/db.php';
 require_once __DIR__ . '/../../reusables/organization_rbac.php';
 require_once __DIR__ . '/../../reusables/care_helpers.php';
 require_once __DIR__ . '/../../reusables/realtime.php';
+require_once __DIR__ . '/../../reusables/routing.php';
 header('Content-Type: application/json');
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') organizationJsonError(405, 'Method not allowed.');
@@ -64,6 +65,8 @@ try {
     ];
     realtimeQueue($pdo, realtimeChannel('org', (int) $ctx['organization_id']), 'ambulance.location', $position);
     realtimeQueue($pdo, realtimeChannel('request', (int) $assignment['emergency_request_id']), 'ambulance.location', $position);
+    // Road route + ETA from the new position (re-computed only when due; see reusables/routing.php).
+    routingRefreshAndAnnounceLater($pdo, $assignmentId);
 
     echo json_encode(['success' => true, 'recorded_at' => date('Y-m-d H:i:s')]);
 } catch (RuntimeException $e) {

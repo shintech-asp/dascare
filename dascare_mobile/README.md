@@ -34,6 +34,10 @@ npm run open              # opens android/ in Android Studio
 In Android Studio: wait for Gradle sync, pick the emulator (or your phone) and press **Run ▶**.
 You can also open the `dascare_mobile/android` folder directly from Android Studio.
 
+> **Blank tracking map in the emulator?** The live map uses WebGL (MapLibre). Some emulator graphics modes
+> don't display WebGL: Device Manager → ⋮ Edit → Show Advanced Settings → **Graphics: Software**, or start
+> the emulator with `-gpu swiftshader_indirect`. Real phones are unaffected.
+
 ## Every time you change the app code
 
 ```bash

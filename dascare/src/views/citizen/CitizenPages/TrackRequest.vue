@@ -180,9 +180,16 @@
                   <LiveBadge v-if="isActive" :live="live" />
                 </div>
               </div>
-              <div ref="mapContainer" class="w-full h-56 sm:h-64 rounded-xl border border-base-300 dark:border-white/10 overflow-hidden"></div>
+              <div class="w-full h-64 sm:h-80 rounded-xl border border-base-300 dark:border-white/10 overflow-hidden">
+                <LiveMissionMap
+                  :incident="request"
+                  :linked="request.merged_into"
+                  :ambulance="isActive && ambulancePos ? request.ambulance : null"
+                  :route="isActive ? request.ambulance?.route : null"
+                />
+              </div>
               <div v-if="ambulancePos" class="mt-2 flex flex-wrap items-center gap-2 text-[0.68rem] text-slate-400 dark:text-white/30">
-                <span>Straight-line position, updated {{ relativeTime(request.ambulance.location_at) }} — not the driving route.</span>
+                <span>Ambulance position updated {{ relativeTime(request.ambulance.location_at) }}<template v-if="request.ambulance.route && !request.ambulance.route.traffic"> — the ETA is a straight-line estimate</template>.</span>
                 <span :class="['rounded-full px-2 py-0.5 font-bold', request.ambulance.location_stale ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300']">{{ request.ambulance.location_stale ? 'Stale GPS' : 'Live GPS' }}</span>
               </div>
             </div>
@@ -264,13 +271,14 @@
 
 <script setup>
 import axios from 'axios'
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { unmergeOwnReport } from '@/services/dispatchOperations'
 import { useAlert } from '@/composables/useAlert'
 import { useLiveUpdates } from '@/composables/useLiveUpdates'
 import LiveBadge from '@/components/realtime/LiveBadge.vue'
+import LiveMissionMap from '@/components/maps/LiveMissionMap.vue'
 import { requestChannel } from '@/services/realtime'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL
@@ -409,119 +417,12 @@ const stageClass = (i) => {
 }
 
 // ------------------------------------------------------------------
-// Map — read-only Leaflet, incident pin + ambulance's last known fix,
-// same Dasmariñas geofence styling as the request forms.
+// Map — components/maps/LiveMissionMap.vue (MapLibre): incident, linked
+// report, the ambulance gliding between GPS fixes, road route + ETA.
 // ------------------------------------------------------------------
-const DASMARINAS_CENTER = [14.3294, 120.9367]
-const DASMARINAS_BOUNDS = [[14.26, 120.86], [14.40, 121.00]]
-
-const mapContainer = ref(null)
-let leafletMap = null
-let incidentMarker = null
-let ambulanceMarker = null
-let connectorLine = null
-let linkedMarker = null
-
 const ambulancePos = computed(() => {
   const a = request.value?.ambulance
   return a?.latitude != null && a?.longitude != null ? [a.latitude, a.longitude] : null
-})
-
-function loadLeaflet() {
-  return new Promise((resolve, reject) => {
-    if (window.L) { resolve(window.L); return }
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
-    document.head.appendChild(link)
-    const script = document.createElement('script')
-    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-    script.onload = () => resolve(window.L)
-    script.onerror = () => reject(new Error('Failed to load map'))
-    document.head.appendChild(script)
-  })
-}
-
-function pulseIcon(L, color) {
-  return L.divIcon({
-    className: '',
-    html: `<span style="display:block;width:14px;height:14px;border-radius:9999px;background:${color};border:2px solid white;box-shadow:0 0 0 2px ${color}55"></span>`,
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
-  })
-}
-
-async function initMap() {
-  if (!request.value?.latitude) return
-  try {
-    const L = await loadLeaflet()
-    await nextTick()
-    if (!mapContainer.value || leafletMap) return
-
-    const bounds = L.latLngBounds(DASMARINAS_BOUNDS)
-    leafletMap = L.map(mapContainer.value, {
-      maxBounds: bounds.pad(0.05),
-      maxBoundsViscosity: 1.0,
-      minZoom: 12,
-      zoomControl: true,
-    }).setView(DASMARINAS_CENTER, 13)
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-      maxZoom: 19,
-    }).addTo(leafletMap)
-
-    L.rectangle(bounds, { color: '#dc2626', weight: 1, fillOpacity: 0.02, dashArray: '4 4' }).addTo(leafletMap)
-
-    updateMapMarkers(L)
-  } catch (err) {
-    console.error('Map failed to load', err)
-  }
-}
-
-function updateMapMarkers(L) {
-  if (!leafletMap || !request.value?.latitude) return
-  const incidentPos = [request.value.latitude, request.value.longitude]
-
-  if (incidentMarker) {
-    incidentMarker.setLatLng(incidentPos)
-  } else {
-    incidentMarker = L.marker(incidentPos, { icon: pulseIcon(L, '#dc2626') }).addTo(leafletMap)
-  }
-
-  const linked = request.value.merged_into
-  if (linked) {
-    const linkedPos = [linked.latitude, linked.longitude]
-    if (linkedMarker) linkedMarker.setLatLng(linkedPos)
-    else linkedMarker = L.marker(linkedPos, { icon: pulseIcon(L, '#f97316') }).addTo(leafletMap)
-  } else if (linkedMarker) {
-    leafletMap.removeLayer(linkedMarker)
-    linkedMarker = null
-  }
-
-  if (ambulancePos.value) {
-    if (ambulanceMarker) {
-      ambulanceMarker.setLatLng(ambulancePos.value)
-    } else {
-      ambulanceMarker = L.marker(ambulancePos.value, { icon: pulseIcon(L, '#2563eb') }).addTo(leafletMap)
-    }
-    if (connectorLine) {
-      connectorLine.setLatLngs([incidentPos, ambulancePos.value])
-    } else {
-      connectorLine = L.polyline([incidentPos, ambulancePos.value], { color: '#2563eb', weight: 2, dashArray: '5 6', opacity: 0.6 }).addTo(leafletMap)
-    }
-    leafletMap.fitBounds(L.latLngBounds([incidentPos, ambulancePos.value]).pad(0.35), { maxZoom: 16 })
-  } else {
-    if (ambulanceMarker) { leafletMap.removeLayer(ambulanceMarker); ambulanceMarker = null }
-    if (connectorLine) { leafletMap.removeLayer(connectorLine); connectorLine = null }
-    if (linked) leafletMap.fitBounds(L.latLngBounds([incidentPos, [linked.latitude, linked.longitude]]).pad(0.5), { maxZoom: 17 })
-    else leafletMap.setView(incidentPos, 15)
-  }
-}
-
-watch(() => [request.value?.latitude, request.value?.ambulance?.latitude, request.value?.ambulance?.longitude, request.value?.merged_into?.id], () => {
-  if (!leafletMap || !window.L) return
-  updateMapMarkers(window.L)
 })
 
 // ------------------------------------------------------------------
@@ -548,10 +449,6 @@ const fetchRequest = async (silent = false) => {
   } finally {
     loading.value = false
   }
-  // The map's container only renders once the loading spinner is gone, so
-  // create the map after that (it used to wait for the next refresh).
-  await nextTick()
-  if (!leafletMap && request.value) await initMap()
 }
 
 // Live updates: the ambulance's GPS moves the pin directly; any other event
@@ -573,10 +470,22 @@ function applyAmbulanceLocation(data) {
   return true
 }
 
+// New road route / ETA (reusables/routing.php) for the unit shown here.
+function applyRoute(data) {
+  const shownRequestId = Number(request.value?.merged_into?.id ?? request.value?.id)
+  const amb = request.value?.ambulance
+  if (!amb || Number(data.request_id) !== shownRequestId) return false
+  amb.route = data.route
+  return true
+}
+
 const { live } = useLiveUpdates(() => fetchRequest(true), {
   channels: () => [requestChannel(route.params.id), requestChannel(request.value?.merged_into?.id)],
   enabled: () => isActive.value,
-  onEvent: (message) => (message.name === 'ambulance.location' && applyAmbulanceLocation(message.data) ? false : undefined),
+  onEvent: (message) => {
+    if (message.name === 'ambulance.location' && applyAmbulanceLocation(message.data)) return false
+    if (message.name === 'route.updated' && applyRoute(message.data)) return false
+  },
 })
 
 onMounted(async () => {
@@ -586,14 +495,6 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   clearInterval(clockTimer)
-  if (leafletMap) {
-    leafletMap.remove()
-    leafletMap = null
-    incidentMarker = null
-    ambulanceMarker = null
-    connectorLine = null
-    linkedMarker = null
-  }
 })
 </script>
 

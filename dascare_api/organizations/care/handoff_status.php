@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../reusables/organization_rbac.php';
 require_once __DIR__ . '/../../reusables/care_helpers.php';
 require_once __DIR__ . '/../../reusables/assignment_helpers.php';
 require_once __DIR__ . '/../../reusables/realtime.php';
+require_once __DIR__ . '/../../reusables/routing.php';
 header('Content-Type: application/json');
 if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST') organizationJsonError(405,'Method not allowed.');
 $ctx=requireOrganizationAccess($pdo,null);$body=json_decode(file_get_contents('php://input'),true)?:[];$handoffId=(int)($body['handoff_id']??0);$next=strtolower(trim((string)($body['status']??'')));$note=mb_substr(trim((string)($body['note']??'')),0,500);
@@ -26,5 +27,5 @@ try{
   // DASCARE app (no-op without Firebase): guest phones and linked (dedup) reports following this incident.
   if($next==='completed') pushQueueRequestFollowers($pdo,(int)$h['emergency_request_id'],'Patient Handoff Completed','The response team completed patient handoff at '.$h['facility_name'].' for '.$h['reference_number'].'.');
   careAudit($pdo,$ctx,'care.handoff_'.$next,'patient_handoff',$handoffId,['status'=>$h['status']],['status'=>$next,'note'=>$note]);
-  realtimeRequestChanged($pdo,(int)$h['emergency_request_id'],'mission.updated',['handoff_id'=>$handoffId,'handoff_status'=>$next]);$pdo->commit();echo json_encode(['success'=>true,'message'=>$next==='completed'?'Physical handoff recorded. The mission can now be completed.':'Facility response recorded.']);
+  realtimeRequestChanged($pdo,(int)$h['emergency_request_id'],'mission.updated',['handoff_id'=>$handoffId,'handoff_status'=>$next]);$pdo->commit();if(!empty($h['dispatch_assignment_id']))routingRefreshAndAnnounceLater($pdo,(int)$h['dispatch_assignment_id']);echo json_encode(['success'=>true,'message'=>$next==='completed'?'Physical handoff recorded. The mission can now be completed.':'Facility response recorded.']);
 }catch(RuntimeException $e){if($pdo->inTransaction())$pdo->rollBack();organizationJsonError(409,$e->getMessage());}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();error_log('Handoff status failed: '.$e->getMessage());organizationJsonError(500,'Unable to update facility handoff.');}

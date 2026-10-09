@@ -49,6 +49,9 @@
                 <div class="flex flex-wrap gap-2">
                   <button v-if="canShareSelected && !sharing" class="rounded-xl bg-red-600 px-4 py-2.5 text-xs font-black text-white hover:bg-red-700" @click="startSharing"><Icon icon="lucide:locate-fixed" width="14" class="mr-1 inline"/>Share This Device GPS</button>
                   <button v-if="sharing" class="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-black text-red-700" @click="stopSharing"><Icon icon="lucide:square" width="13" class="mr-1 inline"/>Stop Sharing</button>
+                  <!-- Turn-by-turn for the driver: hand the destination to Google Maps / Waze -->
+                  <a :href="navigateUrl('google')" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-xl border border-base-300 bg-base-100 px-4 py-2.5 text-xs font-black text-slate-700 no-underline hover:bg-base-200 dark:border-white/10 dark:bg-[#0d2943] dark:text-white/70"><Icon icon="lucide:navigation" width="14"/>Google Maps</a>
+                  <a :href="navigateUrl('waze')" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-xl border border-base-300 bg-base-100 px-4 py-2.5 text-xs font-black text-slate-700 no-underline hover:bg-base-200 dark:border-white/10 dark:bg-[#0d2943] dark:text-white/70"><Icon icon="lucide:navigation-2" width="14"/>Waze</a>
                 </div>
               </div>
             </header>
@@ -66,7 +69,9 @@
               </div>
               <div v-else-if="selected.assigned_to_current_user && canShare" class="rounded-2xl border border-base-300 bg-base-200/40 p-4 text-xs text-slate-500 dark:border-white/10 dark:bg-white/[.03] dark:text-white/45">If this device is inside the assigned ambulance, use <strong>Share This Device GPS</strong> during the mission. Keep the page open while responding.</div>
 
-              <div ref="mapContainer" class="h-[480px] w-full overflow-hidden rounded-2xl border border-base-300 dark:border-white/10"></div>
+              <div class="h-[480px] w-full overflow-hidden rounded-2xl border border-base-300 dark:border-white/10">
+                <LiveMissionMap :key="selected.id" :incident="{ latitude: selected.incident_latitude, longitude: selected.incident_longitude }" :ambulance="selected.last_latitude != null ? { latitude: selected.last_latitude, longitude: selected.last_longitude } : null" :route="selected.route" />
+              </div>
             </div>
           </template>
           <div v-else class="grid min-h-[560px] place-items-center p-10 text-center text-sm font-bold text-slate-400">Choose an active mission to open its live map.</div>
@@ -83,6 +88,7 @@ import { fetchLiveTracking, pushAmbulanceLocation } from '@/services/rescueOpera
 import { useAlert } from '@/composables/useAlert'
 import { useLiveUpdates } from '@/composables/useLiveUpdates'
 import LiveBadge from '@/components/realtime/LiveBadge.vue'
+import LiveMissionMap from '@/components/maps/LiveMissionMap.vue'
 import { realtimeChannels } from '@/services/realtime'
 
 const alert = useAlert()
@@ -96,24 +102,22 @@ const Stat = defineComponent({ props:{label:String,value:[String,Number],icon:St
 const pretty=v=>String(v||'').replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase())
 function relative(v){ if(!v)return'—'; const ms=Date.now()-new Date(String(v).replace(' ','T')).getTime(); const sec=Math.max(0,Math.floor(ms/1000)); if(sec<60)return`${sec}s ago`; const min=Math.floor(sec/60); if(min<60)return`${min}m ago`; return`${Math.floor(min/60)}h ago` }
 
-async function load(silent=false){ if(!silent)loading.value=true; error.value=''; try{ const d=await fetchLiveTracking(); missions.value=d.missions||[]; canShare.value=!!d.can_share_location; intervalSeconds.value=d.tracking_interval_seconds||15; if(!selectedId.value||!missions.value.some(m=>m.id===selectedId.value))selectedId.value=missions.value[0]?.id||null; await nextTick(); await ensureMap(); updateMap() }catch(e){error.value=e?.response?.data?.message||e.message||'Unable to load tracking.'}finally{loading.value=false} }
+async function load(silent=false){ if(!silent)loading.value=true; error.value=''; try{ const d=await fetchLiveTracking(); missions.value=d.missions||[]; canShare.value=!!d.can_share_location; intervalSeconds.value=d.tracking_interval_seconds||15; if(!selectedId.value||!missions.value.some(m=>m.id===selectedId.value))selectedId.value=missions.value[0]?.id||null; }catch(e){error.value=e?.response?.data?.message||e.message||'Unable to load tracking.'}finally{loading.value=false} }
 
-let map=null, incidentMarker=null, ambulanceMarker=null, line=null
-const loadLeaflet=()=>new Promise((resolve,reject)=>{if(window.L)return resolve(window.L);if(!document.querySelector('link[data-dascare-leaflet]')){const l=document.createElement('link');l.rel='stylesheet';l.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';l.dataset.dascareLeaflet='1';document.head.appendChild(l)}const existing=document.querySelector('script[data-dascare-leaflet]');if(existing){existing.addEventListener('load',()=>resolve(window.L),{once:true});existing.addEventListener('error',reject,{once:true});return}const s=document.createElement('script');s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';s.dataset.dascareLeaflet='1';s.onload=()=>resolve(window.L);s.onerror=reject;document.head.appendChild(s)})
-function dot(L,color){return L.divIcon({className:'',html:`<span style="display:block;width:16px;height:16px;border-radius:9999px;background:${color};border:3px solid white;box-shadow:0 0 0 3px ${color}44"></span>`,iconSize:[16,16],iconAnchor:[8,8]})}
-const mapContainer=ref(null)
-async function ensureMap(){if(map||!mapContainer.value)return;const L=await loadLeaflet();map=L.map(mapContainer.value,{zoomControl:true}).setView([14.3294,120.9367],13);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors',maxZoom:19}).addTo(map)}
-function updateMap(){if(!map||!window.L||!selected.value)return;const L=window.L, i=[selected.value.incident_latitude,selected.value.incident_longitude];if(incidentMarker)incidentMarker.setLatLng(i);else incidentMarker=L.marker(i,{icon:dot(L,'#dc2626')}).addTo(map).bindTooltip('Incident');const has=selected.value.last_latitude!=null&&selected.value.last_longitude!=null;if(has){const a=[selected.value.last_latitude,selected.value.last_longitude];if(ambulanceMarker)ambulanceMarker.setLatLng(a);else ambulanceMarker=L.marker(a,{icon:dot(L,'#2563eb')}).addTo(map).bindTooltip(selected.value.unit_code);if(line)line.setLatLngs([i,a]);else line=L.polyline([i,a],{color:'#2563eb',weight:2,dashArray:'5 7',opacity:.55}).addTo(map);map.fitBounds(L.latLngBounds([i,a]).pad(.28),{maxZoom:16})}else{if(ambulanceMarker){map.removeLayer(ambulanceMarker);ambulanceMarker=null}if(line){map.removeLayer(line);line=null}map.setView(i,15)}}
-watch(selectedId,async()=>{stopSharing();await nextTick();await ensureMap();updateMap()})
-watch(()=>[selected.value?.last_latitude,selected.value?.last_longitude],()=>updateMap())
+// Map: components/maps/LiveMissionMap.vue (MapLibre) — road route + ETA from
+// reusables/routing.php, ambulance gliding between fixes.
+watch(selectedId,()=>stopSharing())
+// Turn-by-turn for the driver: the current destination (hospital while
+// transporting, otherwise the incident) opened in Google Maps or Waze.
+function navigateUrl(app){const d=selected.value?.route?.destination||{latitude:selected.value?.incident_latitude,longitude:selected.value?.incident_longitude};const ll=`${d.latitude},${d.longitude}`;return app==='waze'?`https://waze.com/ul?ll=${encodeURIComponent(ll)}&navigate=yes`:`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(ll)}&travelmode=driving`}
 
 function startSharing(){if(!navigator.geolocation){alert.error('Geolocation is not supported by this browser.');return}if(!canShareSelected.value){alert.error('Only assigned field responders can share this ambulance location.');return}sharing.value=true;watchId=navigator.geolocation.watchPosition(async pos=>{const now=Date.now();if(now-lastSentAt<intervalSeconds.value*1000-1000)return;lastSentAt=now;try{await pushAmbulanceLocation({assignment_id:selected.value.id,latitude:pos.coords.latitude,longitude:pos.coords.longitude,accuracy_m:pos.coords.accuracy,speed_kph:pos.coords.speed!=null?pos.coords.speed*3.6:null,heading_degrees:pos.coords.heading});if(!live.value)await load(true)}catch(e){alert.error(e?.response?.data?.message||e.message||'Location update failed.');stopSharing()}},err=>{alert.error(err.message||'Unable to read GPS.');stopSharing()},{enableHighAccuracy:true,maximumAge:5000,timeout:15000})}
 function stopSharing(){if(watchId!=null&&navigator.geolocation)navigator.geolocation.clearWatch(watchId);watchId=null;sharing.value=false;lastSentAt=0}
 
 // Live updates: crew GPS pings move the unit on the map as they arrive;
 // other org events re-fetch the list. Polls every 15 s without live updates.
-function applyLocation(d){const m=missions.value.find(x=>x.ambulance_id===Number(d.ambulance_id)&&x.id===Number(d.assignment_id));if(!m)return false;Object.assign(m,{last_latitude:d.latitude,last_longitude:d.longitude,last_accuracy_m:d.accuracy_m,last_location_at:new Date(d.sent_at||Date.now()).toISOString(),location_age_seconds:0,location_stale:false});if(m.id===selected.value?.id)updateMap();return true}
-const { live } = useLiveUpdates(load, { channels: () => [realtimeChannels.value?.org], onEvent: msg => (msg.name==='ambulance.location' && applyLocation(msg.data) ? false : undefined) })
+function applyLocation(d){const m=missions.value.find(x=>x.ambulance_id===Number(d.ambulance_id)&&x.id===Number(d.assignment_id));if(!m)return false;Object.assign(m,{last_latitude:d.latitude,last_longitude:d.longitude,last_accuracy_m:d.accuracy_m,last_location_at:new Date(d.sent_at||Date.now()).toISOString(),location_age_seconds:0,location_stale:false});return true}
+const { live } = useLiveUpdates(load, { channels: () => [realtimeChannels.value?.org], onEvent: msg => { if (msg.name==='ambulance.location' && applyLocation(msg.data)) return false; if (msg.name==='route.updated') { const m=missions.value.find(x=>x.id===Number(msg.data?.assignment_id)); if (m) { m.route=msg.data.route; return false } } } })
 onMounted(()=>{load()})
-onUnmounted(()=>{stopSharing();if(map){map.remove();map=null}})
+onUnmounted(()=>{stopSharing()})
 </script>

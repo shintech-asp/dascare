@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../cors.php';
 require_once __DIR__ . '/../../db/db.php';
 require_once __DIR__ . '/../../reusables/organization_rbac.php';
 require_once __DIR__ . '/../../reusables/care_helpers.php';
+require_once __DIR__ . '/../../reusables/routing.php';
 header('Content-Type: application/json');
 if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST') organizationJsonError(405,'Method not allowed.');
 $ctx=requireOrganizationAccess($pdo,null);$body=json_decode(file_get_contents('php://input'),true)?:[];
@@ -17,5 +18,6 @@ try{
   $stmt=$pdo->prepare("INSERT INTO patient_handoffs (emergency_request_id,dispatch_assignment_id,medical_facility_id,initiated_by_user_id,status,eta_minutes,notes) VALUES (?,?,?,?,'pending',?,?)");
   $stmt->execute([(int)$assignment['emergency_request_id'],$assignmentId,$facilityId,(int)$ctx['user_id'],$eta?:null,$notes?:null]);$id=(int)$pdo->lastInsertId();
   careAudit($pdo,$ctx,'care.handoff_created','patient_handoff',$id,null,['assignment_id'=>$assignmentId,'facility_id'=>$facilityId,'facility'=>$f['name']]);
+  routingRefreshAndAnnounceLater($pdo,$assignmentId); // a facility to drive to while transporting
   echo json_encode(['success'=>true,'handoff_id'=>$id,'message'=>'Facility endorsement created. Record the facility response when available.']);
 }catch(RuntimeException $e){organizationJsonError(409,$e->getMessage());}catch(Throwable $e){error_log('Handoff create failed: '.$e->getMessage());organizationJsonError(500,'Unable to create facility handoff.');}

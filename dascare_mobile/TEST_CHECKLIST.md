@@ -16,6 +16,7 @@ Tick **Pass** / **Fail** and note anything unexpected.
 | ☐ | Have ready: a **citizen** test account, a **staff** account (e.g. dispatcher), and the web open as **platform admin** and **organization** users. | — |
 
 > Emulator instead of a phone: `npm run apk -- emulator`, or press Run ▶ in Android Studio.
+> If the **tracking map is blank** in the emulator (pins show, streets don't): the emulator isn't displaying WebGL. In Android Studio → Device Manager → ⋮ Edit → Show Advanced Settings → **Graphics: Software**, or start it with `emulator -avd <name> -gpu swiftshader_indirect`. Real phones are fine.
 > If the Mac's Wi-Fi IP changes (new network), run `npm run apk` again.
 
 ## 1. First launch & look
@@ -70,9 +71,10 @@ Tick **Pass** / **Fail** and note anything unexpected.
 | | Step | Expected | Pass/Fail |
 |---|---|---|---|
 | 5.1 | Open the request (Track this request / Home card). | Status, dispatch steps, map with the incident pin, history. | ☐ / ☐ |
-| 5.2 | On the web, the organization accepts and assigns a unit, then sets **Responding**. | Within ~15 s the app shows Responding, the unit card, and the ambulance on the map. | ☐ / ☐ |
-| 5.3 | Crew GPS pings (organization tracking). | Ambulance dot moves; "GPS live". | ☐ / ☐ |
-| 5.4 | Move the mission to **On scene → Transporting → Completed**. | Steps fill in; history grows; "Completed" at the end. | ☐ / ☐ |
+| 5.2 | On the web, the organization accepts and assigns a unit, then sets **Responding**. | Within ~2 s the app shows Responding, the unit card, and the ambulance on the map; header says **LIVE** (green). | ☐ / ☐ |
+| 5.3 | Crew GPS pings (organization tracking → Share This Device GPS). | Ambulance dot glides to the new spot; blue **road route** line and an ETA card ("6 min · 2.4 km · Live traffic"). Without a TomTom key: dashed line + "Estimate · straight line". | ☐ / ☐ |
+| 5.3b | Drag the map, wait for a ping. | Map stops re-centering; **Recenter** brings it back. | ☐ / ☐ |
+| 5.4 | Move the mission to **On scene → Transporting → Completed** (add a hospital handoff before Transporting). | Steps fill in; route disappears on scene, then points to the hospital (green H) while transporting; "Completed" at the end. | ☐ / ☐ |
 | 5.5 | Guest: Welcome → **Your emergency requests** → open one. | Guest can track without an account. | ☐ / ☐ |
 | 5.6 | Pull down on the tracking screen. | Refreshes. | ☐ / ☐ |
 
@@ -94,5 +96,6 @@ Tick **Pass** / **Fail** and note anything unexpected.
 - **Platform:** Android app built with Vue 3 + Capacitor 8, sharing the web platform's design system and PHP API.
 - **Who uses it:** requesters only — citizens and guests. Staff and admins are refused and use the web portal.
 - **Login:** token-based (hashed, revocable bearer tokens, citizens only); the web keeps cookie sessions.
-- **Updates:** the app refreshes every ~15 s while open and when reopened (same as the web dashboards). Push notifications with the app closed are not included in v1.0.0.
+- **Updates:** live (Ably) — status changes, ambulance position and ETA arrive within ~1–2 s while the app is open; it falls back to refreshing every ~15 s if live updates are unavailable. Push notifications cover the app being closed.
+- **Maps:** live tracking uses MapLibre + OpenFreeMap with a TomTom road route and traffic-aware ETA; the crew opens Google Maps/Waze for turn-by-turn.
 - **Known limitations:** the API runs on a local XAMPP server, so the phone must be on the same network; email features depend on the SMTP account being reachable.

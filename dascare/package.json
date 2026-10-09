@@ -14,6 +14,7 @@
     "ably": "^2.29.0",
     "axios": "latest",
     "daisyui": "^5.7.7",
+    "maplibre-gl": "^5.24.0",
     "tailwindcss": "^4.3.3",
     "vue": "latest",
     "vue-router": "latest"

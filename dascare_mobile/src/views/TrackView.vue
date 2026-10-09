@@ -119,9 +119,16 @@
                 <span v-if="ambulancePos" class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full bg-blue-600"></span> Ambulance</span>
               </div>
             </div>
-            <div ref="mapEl" class="h-60 w-full overflow-hidden rounded-xl border border-base-300 dark:border-white/10"></div>
+            <div class="h-72 w-full overflow-hidden rounded-xl border border-base-300 dark:border-white/10">
+              <LiveMissionMap
+                :incident="request"
+                :linked="request.merged_into"
+                :ambulance="isActive && ambulancePos ? request.ambulance : null"
+                :route="isActive ? request.ambulance?.route : null"
+              />
+            </div>
             <p class="mt-2 text-xs text-slate-500 dark:text-white/45">{{ request.address_text }}<span v-if="request.barangay && request.barangay !== 'Unspecified'">, Brgy. {{ request.barangay }}</span></p>
-            <p v-if="ambulancePos" class="mt-1 text-[0.68rem] text-slate-400 dark:text-white/30">Straight-line position, updated {{ relativeTime(request.ambulance.location_at, now) }} — not the driving route.</p>
+            <p v-if="ambulancePos" class="mt-1 text-[0.68rem] text-slate-400 dark:text-white/30">Ambulance position updated {{ relativeTime(request.ambulance.location_at, now) }}<template v-if="request.ambulance.route && !request.ambulance.route.traffic"> — the ETA is a straight-line estimate</template>.</p>
           </section>
 
           <!-- Details -->
@@ -168,9 +175,9 @@
 // Phone version of the web's TrackRequest.vue — same data (citizen/detail.php),
 // stepper, unit card, map and history. Works for the signed-in citizen and
 // for guests (their SOS key rides along in X-Guest-Tokens).
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import L from 'leaflet'
+import LiveMissionMap from '@/components/maps/LiveMissionMap.vue'
 import ScreenHeader from '@/components/ScreenHeader.vue'
 import PullToRefresh from '@/components/PullToRefresh.vue'
 import * as ui from '@/components/ui/styles'
@@ -222,8 +229,6 @@ async function load(silent = false) {
     const { data } = await api.get('/citizen/detail.php', { params: { id: route.params.id } })
     request.value = data
     now.value = Date.now()
-    await nextTick()
-    drawMap()
   } catch (err) {
     if (!silent) request.value = null
     if (err.response?.status !== 404 && err.response?.status !== 401) loadError.value = apiMessage(err, 'Could not load this request. Please try again.')
@@ -248,48 +253,24 @@ function applyAmbulanceLocation(data) {
     location_stale: false,
   })
   now.value = Date.now()
-  drawMap()
+  return true
+}
+// New road route / ETA (reusables/routing.php) for the unit shown here.
+function applyRoute(data) {
+  const shownRequestId = Number(request.value?.merged_into?.id ?? request.value?.id)
+  const amb = request.value?.ambulance
+  if (!amb || Number(data.request_id) !== shownRequestId) return false
+  amb.route = data.route
   return true
 }
 const { live } = useLiveUpdates(load, {
   channels: () => [requestChannel(route.params.id), requestChannel(request.value?.merged_into?.id)],
   enabled: () => isActive.value,
-  onEvent: (message) => (message.name === 'ambulance.location' && applyAmbulanceLocation(message.data) ? false : undefined),
+  onEvent: (message) => {
+    if (message.name === 'ambulance.location' && applyAmbulanceLocation(message.data)) return false
+    if (message.name === 'route.updated' && applyRoute(message.data)) return false
+  },
 })
-
-// ------------------------------------------------------------------
-// Map: incident (red), linked report's incident (orange), ambulance (blue)
-// ------------------------------------------------------------------
-const mapEl = ref(null)
-let map = null
-const layers = {}
-const dot = (color) => L.divIcon({ className: '', html: `<span style="display:block;width:16px;height:16px;border-radius:9999px;background:${color};border:3px solid white;box-shadow:0 0 0 2px ${color}55"></span>`, iconSize: [16, 16], iconAnchor: [8, 8] })
-function setMarker(key, pos, color) {
-  if (!pos) { if (layers[key]) { map.removeLayer(layers[key]); delete layers[key] } return }
-  if (layers[key]) layers[key].setLatLng(pos)
-  else layers[key] = L.marker(pos, { icon: dot(color) }).addTo(map)
-}
-function drawMap() {
-  if (!request.value?.latitude || !mapEl.value) return
-  if (!map) {
-    map = L.map(mapEl.value, { zoomControl: true, attributionControl: true, minZoom: 11 })
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 19 }).addTo(map)
-  }
-  const incident = [request.value.latitude, request.value.longitude]
-  const linked = request.value.merged_into ? [request.value.merged_into.latitude, request.value.merged_into.longitude] : null
-  setMarker('incident', incident, '#dc2626')
-  setMarker('linked', linked, '#f97316')
-  setMarker('ambulance', ambulancePos.value, '#2563eb')
-  const target = linked || incident
-  if (ambulancePos.value) {
-    if (layers.line) layers.line.setLatLngs([target, ambulancePos.value])
-    else layers.line = L.polyline([target, ambulancePos.value], { color: '#2563eb', weight: 2, dashArray: '5 6', opacity: 0.6 }).addTo(map)
-  } else if (layers.line) { map.removeLayer(layers.line); delete layers.line }
-  const points = [incident, linked, ambulancePos.value].filter(Boolean)
-  if (points.length > 1) map.fitBounds(L.latLngBounds(points).pad(0.4), { maxZoom: 16 })
-  else map.setView(incident, 15)
-  setTimeout(() => map?.invalidateSize(), 300)
-}
 
 // "Not the same emergency?" — same as the web; guests are authorised by key.
 const unmerging = ref(false)
@@ -311,5 +292,5 @@ async function requestSeparately() {
 let clock = null
 onMounted(() => { load(); clock = setInterval(() => { now.value = Date.now() }, 30000) })
 watch(() => route.params.id, (id) => { if (id) load() })
-onBeforeUnmount(() => { clearInterval(clock); map?.remove(); map = null })
+onBeforeUnmount(() => { clearInterval(clock) })
 </script>

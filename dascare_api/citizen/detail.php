@@ -14,6 +14,7 @@
 
 require_once __DIR__ . '/../session.php';
 require_once __DIR__ . '/../reusables/incident_attention.php';
+require_once __DIR__ . '/../reusables/routing.php';
 require_once __DIR__ . '/../reusables/dispatch_dss.php';
 
 header('Content-Type: application/json');
@@ -137,6 +138,7 @@ try {
             a.last_accuracy_m,
             a.last_location_at,
             o.name AS organization_name,
+            da.id AS assignment_id,
             da.assignment_status
         FROM dispatch_assignments da
         INNER JOIN ambulances a ON a.id = da.ambulance_id
@@ -145,7 +147,7 @@ try {
         ORDER BY da.assigned_at DESC
         LIMIT 1
     ");
-    $loadAmbulance = function (int $id) use ($ambStmt): ?array {
+    $loadAmbulance = function (int $id) use ($ambStmt, $pdo): ?array {
         $ambStmt->execute([$id]);
         $assignment = $ambStmt->fetch(PDO::FETCH_ASSOC);
         if (!$assignment) return null;
@@ -159,6 +161,8 @@ try {
             'location_at' => $assignment['last_location_at'],
             'location_age_seconds' => $assignment['last_location_at'] ? max(0, time() - strtotime($assignment['last_location_at'])) : null,
             'location_stale' => !$assignment['last_location_at'] || (time() - strtotime($assignment['last_location_at'])) > 45,
+            // Road route + ETA to where the unit is heading (reusables/routing.php), or null.
+            'route' => routingForAssignment($pdo, (int) $assignment['assignment_id']),
         ];
     };
     $result['ambulance'] = $loadAmbulance($requestId);

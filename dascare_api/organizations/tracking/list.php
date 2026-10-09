@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../cors.php';
 require_once __DIR__ . '/../../db/db.php';
 require_once __DIR__ . '/../../reusables/organization_rbac.php';
+require_once __DIR__ . '/../../reusables/routing.php';
 header('Content-Type: application/json');
 
 $ctx = requireOrganizationAccess($pdo, 'dispatch.tracking.read');
@@ -46,6 +47,7 @@ try {
         $m['location_age_seconds'] = $age;
         $m['location_stale'] = $age === null || $age > $staleAfter;
         $m['assigned_to_current_user'] = !empty($assignedToCurrent[$m['id']]);
+        $m['route'] = routingForAssignment($pdo, $m['id']);
     }
     unset($m);
 
