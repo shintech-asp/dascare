@@ -231,6 +231,7 @@ import { Haptics, NotificationType } from '@capacitor/haptics'
 import ScreenHeader from '@/components/ScreenHeader.vue'
 import MapPinPicker from '@/components/MapPinPicker.vue'
 import * as ui from '@/components/ui/styles'
+import { refreshRealtimeAccess } from '@/services/realtime'
 import api, { apiMessage } from '@/services/api'
 import { useSession } from '@/composables/useSession'
 import { useGuestKeys } from '@/composables/useGuestKeys'
@@ -442,6 +443,7 @@ async function submit() {
       await guestKeys.add({ id: data.id, reference_number: data.reference_number, token: data.guestAccessToken, created_at: new Date().toISOString() })
     }
     result.value = data
+    if (!data.guestAccessToken) refreshRealtimeAccess() // follow the new request live
     Haptics.notification({ type: NotificationType.Success }).catch(() => {})
     enablePush() // get "a unit is on the way" even with the app closed
   } catch (err) {

@@ -1,7 +1,7 @@
 <template>
   <section class="min-h-screen bg-base-200 px-4 py-6 sm:px-6 lg:px-8">
     <div class="mx-auto max-w-[1500px] space-y-5">
-      <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-[.68rem] font-black uppercase tracking-[.16em] text-red-600">Dispatch</p><h1 class="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-white">Active Missions</h1><p class="mt-2 max-w-3xl text-sm text-slate-500 dark:text-white/45">Follow assigned incidents from acknowledgement through response, arrival, transport, and completion.</p></div><button class="inline-flex items-center gap-2 rounded-xl border border-base-300 bg-base-100 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-base-200 dark:border-white/10 dark:bg-[#0d2943] dark:text-white/65" @click="load"><Icon icon="lucide:refresh-cw" width="16" :class="loading?'animate-spin':''"/>Refresh</button></header>
+      <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-[.68rem] font-black uppercase tracking-[.16em] text-red-600">Dispatch</p><h1 class="mt-1 flex flex-wrap items-center gap-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white">Active Missions <LiveBadge :live="live" /></h1><p class="mt-2 max-w-3xl text-sm text-slate-500 dark:text-white/45">Follow assigned incidents from acknowledgement through response, arrival, transport, and completion.</p></div><button class="inline-flex items-center gap-2 rounded-xl border border-base-300 bg-base-100 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-base-200 dark:border-white/10 dark:bg-[#0d2943] dark:text-white/65" @click="load"><Icon icon="lucide:refresh-cw" width="16" :class="loading?'animate-spin':''"/>Refresh</button></header>
 
       <div v-if="loading" class="grid place-items-center rounded-3xl border border-base-300 bg-base-100 py-20 dark:border-white/10 dark:bg-[#0d2943]"><span class="h-8 w-8 animate-spin rounded-full border-2 border-red-600 border-t-transparent"></span></div>
       <div v-else-if="error" class="rounded-3xl border border-red-200 bg-red-50 p-8 text-center text-sm font-semibold text-red-700">{{ error }}</div>
@@ -69,7 +69,10 @@ import { updateIncidentDetails } from '@/services/organizationCompletion'
 import { useAlert } from '@/composables/useAlert'
 import { useToast } from '@/composables/useToast'
 import { useSession } from '@/composables/useSession'
-const alert=useAlert(),toast=useToast(),{ hasPermission }=useSession(),missions=ref([]),selectedId=ref(null),loading=ref(false),error=ref(''),saving=ref(false),canDispatch=ref(false),canMission=ref(false),currentMemberId=ref(null);let poll
+import { useLiveUpdates } from '@/composables/useLiveUpdates'
+import { realtimeChannels } from '@/services/realtime'
+import LiveBadge from '@/components/realtime/LiveBadge.vue'
+const alert=useAlert(),toast=useToast(),{ hasPermission }=useSession(),missions=ref([]),selectedId=ref(null),loading=ref(false),error=ref(''),saving=ref(false),canDispatch=ref(false),canMission=ref(false),currentMemberId=ref(null)
 const canEditIncident=computed(()=>hasPermission('incidents.emergency_requests.update'))
 
 // --- Edit incident details (same capability as the Incident Records page) ---
@@ -96,5 +99,9 @@ async function load(){loading.value=missions.value.length===0;error.value='';try
 function stepReached(k){if(!selected.value)return false;return order.indexOf(k)<=order.indexOf(selected.value.assignment_status)}
 async function advance(a){const ok=await alert.confirm(`${a.label} for ${selected.value.reference_number}?`,'Update mission status');if(!ok)return;saving.value=true;try{const d=await updateMissionStatus(selected.value.id,a.status);alert.success(d.message);await load()}catch(e){alert.error(e?.response?.data?.message||e.message||'Unable to update mission.')}finally{saving.value=false}}
 const pretty=v=>String(v||'').replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());function missionClass(v){return {assigned:'bg-slate-100 text-slate-600',acknowledged:'bg-blue-50 text-blue-700',responding:'bg-amber-50 text-amber-700',on_scene:'bg-orange-50 text-orange-700',transporting:'bg-violet-50 text-violet-700',completed:'bg-emerald-50 text-emerald-700'}[v]||'bg-base-200 text-slate-500'}
-onMounted(()=>{load();poll=setInterval(load,15000)});onUnmounted(()=>clearInterval(poll))
+// Live updates: assignments, status changes, handoffs, linked reports and
+// detail edits on this org's incidents re-load the list instantly (GPS pings
+// on the org channel are ignored). Polls every 15 s without live updates.
+const { live }=useLiveUpdates(load,{channels:()=>[realtimeChannels.value?.org],onEvent:msg=>msg.name==='ambulance.location'?false:undefined})
+onMounted(()=>{load()})
 </script>

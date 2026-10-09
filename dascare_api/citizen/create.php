@@ -516,6 +516,10 @@ if ($requestMode === 'instant' && !$merge['merged']) {
     }
 }
 
+// Live updates: the platform's incident feed and anyone following this
+// request (offers to organizations are announced by the DSS itself).
+if (!$merge['merged']) realtimeRequestChanged($pdo, $requestId, 'request.created');
+
 $guestStatus = null;
 if ($isGuest) {
     // Phone-keyed counter only when a number was given — otherwise every

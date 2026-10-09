@@ -303,6 +303,7 @@
 
 <script setup>
 import axios from 'axios'
+import { refreshRealtimeAccess } from '@/services/realtime'
 import { reactive, ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAlert } from '@/composables/useAlert'
@@ -648,6 +649,7 @@ async function submitRequest() {
     })
 
     if (res.data?.success) {
+      refreshRealtimeAccess() // follow the new request live
       if (res.data.mergedInto) {
         alert.success(`Reference ${res.data.reference_number} — this emergency was already reported nearby (${res.data.mergedInto.reference_number}), so you're linked to the unit handling it.`, 'Already reported')
       } else {

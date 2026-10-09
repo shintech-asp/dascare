@@ -39,6 +39,11 @@ export function requestChannel(id) {
   return prefix && id ? `${prefix}:request:${id}` : null
 }
 
+/** Every request channel this user/guest may follow (their own requests). */
+export function ownRequestChannels() {
+  return (realtimeChannels.value?.requests || []).map(requestChannel).filter(Boolean)
+}
+
 export function isRealtimeLive() {
   return realtimeState.value === 'connected'
 }

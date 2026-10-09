@@ -86,7 +86,8 @@ import RequestRow from '@/components/RequestRow.vue'
 import * as ui from '@/components/ui/styles'
 import api from '@/services/api'
 import { useSession } from '@/composables/useSession'
-import { useLiveRefresh } from '@/composables/useLiveRefresh'
+import { useLiveUpdates } from '@/composables/useLiveUpdates'
+import { ownRequestChannels } from '@/services/realtime'
 import { STAGES, followLinked, isActiveStatus, relativeTime, stageIndex, statusBadgeClass, statusLabel } from '@/utils/requestStatus'
 
 const { user, kycStatus, isVerified, fetchSession } = useSession()
@@ -124,6 +125,8 @@ async function load(withSession = false) {
   }
 }
 
-useLiveRefresh(() => load()) // polling + app resume (App.vue refreshes the session on resume)
+// Live updates on the citizen's requests (GPS pings ignored) + app resume;
+// polls every 15 s while live updates are unavailable.
+useLiveUpdates(() => load(), { channels: ownRequestChannels, onEvent: (msg) => (msg.name === 'ambulance.location' ? false : undefined) })
 onMounted(() => load())
 </script>

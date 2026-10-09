@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/realtime.php';
 
 /**
  * DASCARE Phase 7 dispatch/DSS foundation.
@@ -311,6 +312,7 @@ function dssCreateOfferForRecommendation(PDO $pdo, array $recommendation, array 
     $expiresStmt->execute([$offerId]);
     $expiresAt = (string) ($expiresStmt->fetchColumn() ?: '');
     dssNotifyOrganization($pdo, (int) $recommendation['organization_id'], $offerId, $request, $timeout);
+    realtimeRequestChanged($pdo, (int) $request['id'], 'offer.created', ['organization_id' => (int) $recommendation['organization_id']]);
     return ['id' => $offerId, 'expires_at' => $expiresAt, 'organization_id' => (int) $recommendation['organization_id']];
 }
 
@@ -352,7 +354,7 @@ function dssSyncExpiredOffers(PDO $pdo, ?int $requestId = null): void
     $ownTransaction = !$pdo->inTransaction();
     if ($ownTransaction) $pdo->beginTransaction();
     try {
-        $sql = "SELECT id, emergency_request_id FROM incident_offers WHERE offer_status = 'sent' AND expires_at <= NOW()";
+        $sql = "SELECT id, emergency_request_id, organization_id FROM incident_offers WHERE offer_status = 'sent' AND expires_at <= NOW()";
         $params = [];
         if ($requestId !== null) { $sql .= ' AND emergency_request_id = ?'; $params[] = $requestId; }
         $sql .= ' FOR UPDATE';
@@ -364,6 +366,7 @@ function dssSyncExpiredOffers(PDO $pdo, ?int $requestId = null): void
         foreach ($rows as $row) {
             $update->execute([(int) $row['id']]);
             $requests[(int) $row['emergency_request_id']] = true;
+            realtimeRequestChanged($pdo, (int) $row['emergency_request_id'], 'offer.expired', [], [(int) $row['organization_id']]);
         }
         foreach (array_keys($requests) as $id) dssEscalateNextOffer($pdo, $id);
         if ($ownTransaction) $pdo->commit();
@@ -387,6 +390,9 @@ function dssGenerateRecommendations(PDO $pdo, int $requestId, ?int $generatedByU
         $acceptedStmt->execute([$requestId]);
         if ($acceptedStmt->fetchColumn()) throw new RuntimeException('An organization has already accepted this incident.');
 
+        $supersededOrgs = $pdo->prepare("SELECT organization_id FROM incident_offers WHERE emergency_request_id = ? AND offer_status = 'sent'");
+        $supersededOrgs->execute([$requestId]);
+        realtimeRequestChanged($pdo, $requestId, 'request.updated', [], array_map('intval', $supersededOrgs->fetchAll(PDO::FETCH_COLUMN)));
         $pdo->prepare("UPDATE incident_offers SET offer_status = 'cancelled', responded_at = NOW(), response_note = 'Superseded by a new DSS run.' WHERE emergency_request_id = ? AND offer_status = 'sent'")->execute([$requestId]);
         $pdo->prepare("UPDATE dss_recommendation_runs SET run_status = 'superseded' WHERE emergency_request_id = ? AND run_status IN ('active','exhausted')")->execute([$requestId]);
 

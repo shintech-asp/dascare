@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../../reusables/organization_rbac.php';
 require_once __DIR__ . '/../../../reusables/assignment_helpers.php';
 require_once __DIR__ . '/../../../reusables/fleet_helpers.php';
 require_once __DIR__ . '/../../../reusables/push.php';
+require_once __DIR__ . '/../../../reusables/realtime.php';
 header('Content-Type: application/json');
 if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST') organizationJsonError(405,'Method not allowed.');
 $ctx=requireOrganizationAccess($pdo,'dispatch.dispatch_assignments.update');
@@ -48,5 +49,5 @@ try{
   foreach($normalized as $mid=>$role) assignmentNotifyUser($pdo,$userByMember[$mid],'mission_assignment','New Mission Assignment','You were assigned as '.str_replace('_',' ',$role).' for '.$offer['reference_number'].'.','dispatch_assignment',$assignmentId,'assignment-crew:'.$assignmentId.':'.$mid);
   $audit=$pdo->prepare("INSERT INTO audit_logs (user_id,organization_id,action,entity_type,entity_id,new_values,ip_address,user_agent) VALUES (?,?, 'dispatch.resources_assigned','dispatch_assignment',?,?,?,?)");
   $audit->execute([(int)$ctx['user_id'],(int)$ctx['organization_id'],$assignmentId,json_encode(['request_id'=>$requestId,'ambulance_id'=>$ambulanceId,'crew'=>$normalized]),$_SERVER['REMOTE_ADDR']??null,mb_substr((string)($_SERVER['HTTP_USER_AGENT']??''),0,255)]);
-  $pdo->commit();echo json_encode(['success'=>true,'assignment_id'=>$assignmentId,'message'=>'Ambulance and crew assigned. The mission is ready for acknowledgement.']);
+  realtimeRequestChanged($pdo,$requestId,'mission.updated',['assignment_id'=>$assignmentId]);$pdo->commit();echo json_encode(['success'=>true,'assignment_id'=>$assignmentId,'message'=>'Ambulance and crew assigned. The mission is ready for acknowledgement.']);
 }catch(RuntimeException $e){if($pdo->inTransaction())$pdo->rollBack();organizationJsonError(409,$e->getMessage());}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();error_log('Create assignment failed: '.$e->getMessage());organizationJsonError(500,'Unable to assign resources.');}

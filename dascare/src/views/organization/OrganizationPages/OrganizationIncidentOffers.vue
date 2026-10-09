@@ -1,7 +1,7 @@
 <template>
   <section class="min-h-screen bg-base-200 px-4 py-6 sm:px-6 lg:px-8">
     <div class="mx-auto max-w-7xl space-y-5">
-      <header class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between"><div><p class="text-[0.68rem] font-black uppercase tracking-[0.16em] text-red-600 dark:text-red-300">Dispatch</p><h1 class="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-white">Incident Offers</h1><p class="mt-2 max-w-2xl text-sm text-slate-500 dark:text-white/45">Respond to timed DSS recommendations. Accepting reserves organizational responsibility only; ambulance and crew assignment happens next.</p></div><button class="inline-flex items-center justify-center gap-2 rounded-xl border border-base-300 bg-base-100 px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:bg-base-200 dark:border-white/10 dark:bg-[#0d2943] dark:text-white/70" @click="load"><Icon icon="lucide:refresh-cw" width="16" :class="loading ? 'animate-spin' : ''" />Refresh</button></header>
+      <header class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between"><div><p class="text-[0.68rem] font-black uppercase tracking-[0.16em] text-red-600 dark:text-red-300">Dispatch</p><h1 class="mt-1 flex flex-wrap items-center gap-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white">Incident Offers <LiveBadge :live="live" /></h1><p class="mt-2 max-w-2xl text-sm text-slate-500 dark:text-white/45">Respond to timed DSS recommendations. Accepting reserves organizational responsibility only; ambulance and crew assignment happens next.</p></div><button class="inline-flex items-center justify-center gap-2 rounded-xl border border-base-300 bg-base-100 px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:bg-base-200 dark:border-white/10 dark:bg-[#0d2943] dark:text-white/70" @click="load"><Icon icon="lucide:refresh-cw" width="16" :class="loading ? 'animate-spin' : ''" />Refresh</button></header>
 
       <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><article v-for="card in statCards" :key="card.label" class="rounded-2xl border border-base-300 bg-base-100 p-4 shadow-sm dark:border-white/10 dark:bg-[#0d2943]"><div class="flex items-center justify-between"><div><p class="text-xs font-bold text-slate-400">{{card.label}}</p><p class="mt-1 text-2xl font-black text-slate-950 dark:text-white">{{card.value}}</p></div><span class="grid h-10 w-10 place-items-center rounded-xl bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-300"><Icon :icon="card.icon" width="18" /></span></div></article></div>
 
@@ -28,8 +28,13 @@ import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { fetchOrganizationOffers, respondToIncidentOffer } from '@/services/dispatchOperations'
 import { useAlert } from '@/composables/useAlert'
+import { useToast } from '@/composables/useToast'
+import { useSession } from '@/composables/useSession'
+import { useLiveUpdates } from '@/composables/useLiveUpdates'
+import { realtimeChannels } from '@/services/realtime'
+import LiveBadge from '@/components/realtime/LiveBadge.vue'
 
-const alert=useAlert();const router=useRouter();const offers=ref([]);const stats=ref({});const loading=ref(false);const error=ref('');const canRespond=ref(false);const savingId=ref(null);const declineOffer=ref(null);const declineNote=ref('');const now=ref(Date.now());let tick=null;let poll=null
+const alert=useAlert();const router=useRouter();const offers=ref([]);const stats=ref({});const loading=ref(false);const error=ref('');const canRespond=ref(false);const savingId=ref(null);const declineOffer=ref(null);const declineNote=ref('');const now=ref(Date.now());let tick=null
 const activeOffers=computed(()=>offers.value.filter(o=>o.offer_status==='sent'))
 const historyOffers=computed(()=>offers.value.filter(o=>o.offer_status!=='sent'))
 const statCards=computed(()=>[
@@ -48,6 +53,14 @@ function formatCountdown(offer){const s=secondsLeft(offer);return `${String(Math
 function titleCase(v=''){return String(v).replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase())}
 function formatDate(v){return v?new Date(String(v).replace(' ','T')).toLocaleString():'—'}
 function statusClass(v){return {accepted:'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300',declined:'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300',timed_out:'bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-white/45',cancelled:'bg-slate-100 text-slate-500 dark:bg-white/5 dark:text-white/40'}[v]||'bg-base-200 text-slate-500'}
-onMounted(()=>{load();tick=setInterval(()=>{now.value=Date.now()},1000);poll=setInterval(load,15000)})
-onUnmounted(()=>{clearInterval(tick);clearInterval(poll)})
+// Live updates: new/expired/answered offers arrive instantly (GPS pings on
+// the org channel are ignored). Offers expire lazily on the server when a list
+// loads (no cron), so this page also re-loads the moment a countdown hits 0 and
+// keeps a 15 s poll — that is what hands an unanswered offer to the next org.
+const toast=useToast();const { organization }=useSession()
+const { live }=useLiveUpdates(load,{channels:()=>[realtimeChannels.value?.org],livePollMs:15000,onEvent:msg=>{if(msg.name==='ambulance.location')return false;if(msg.name==='offer.created'&&Number(msg.data?.organization_id)===Number(organization.value?.id))toast.info('A new incident offer needs a response.',{title:'New incident offer'})}})
+const expiryReloaded=new Set()
+function reloadOnExpiry(){const due=offers.value.some(o=>o.offer_status==='sent'&&secondsLeft(o)===0&&!expiryReloaded.has(o.id));if(!due)return;offers.value.forEach(o=>{if(o.offer_status==='sent'&&secondsLeft(o)===0)expiryReloaded.add(o.id)});setTimeout(load,1500)}
+onMounted(()=>{load();tick=setInterval(()=>{now.value=Date.now();reloadOnExpiry()},1000)})
+onUnmounted(()=>{clearInterval(tick)})
 </script>

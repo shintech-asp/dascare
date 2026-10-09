@@ -177,6 +177,7 @@ function dedupCheckNewRequest(PDO $pdo, int $requestId): array
             throw $e;
         }
 
+        realtimeRequestChanged($pdo, (int) $primary['id'], 'request.linked', ['linked_request_id' => $requestId]);
         return [
             'merged' => true,
             'primary' => [
@@ -237,6 +238,9 @@ function dedupUnmergeRequest(PDO $pdo, int $requestId, ?int $userId, ?int $organ
             mb_substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
         ]);
         $pdo->commit();
+        // The incident loses a linked report; the report becomes its own request.
+        realtimeRequestChanged($pdo, (int) $request['merged_into_request_id'], 'request.unlinked', ['unlinked_request_id' => $requestId]);
+        realtimeRequestChanged($pdo, $requestId, 'request.updated');
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         throw $e;

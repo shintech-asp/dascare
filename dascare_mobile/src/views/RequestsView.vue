@@ -57,7 +57,8 @@ import RequestRow from '@/components/RequestRow.vue'
 import * as ui from '@/components/ui/styles'
 import api, { apiMessage } from '@/services/api'
 import { useSession } from '@/composables/useSession'
-import { useLiveRefresh } from '@/composables/useLiveRefresh'
+import { useLiveUpdates } from '@/composables/useLiveUpdates'
+import { ownRequestChannels } from '@/services/realtime'
 import { followLinked, isActiveStatus } from '@/utils/requestStatus'
 
 const { kycStatus, isVerified } = useSession()
@@ -87,6 +88,6 @@ async function load() {
   }
 }
 
-useLiveRefresh(load)
+useLiveUpdates(load, { channels: ownRequestChannels, onEvent: (msg) => (msg.name === 'ambulance.location' ? false : undefined) })
 watch(isVerified, load, { immediate: true })
 </script>

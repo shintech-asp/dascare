@@ -16,6 +16,7 @@
 require_once __DIR__ . '/../../cors.php';
 require_once __DIR__ . '/../../db/db.php';
 require_once __DIR__ . '/../../reusables/organization_guard.php';
+require_once __DIR__ . '/../../reusables/realtime.php';
 header('Content-Type: application/json');
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
@@ -135,6 +136,7 @@ try {
         mb_substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
     ]);
 
+    realtimeRequestChanged($pdo, $requestId, 'request.updated');
     $pdo->commit();
 
     echo json_encode([

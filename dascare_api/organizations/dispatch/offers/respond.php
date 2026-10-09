@@ -71,6 +71,7 @@ try {
         json_encode(['offer_status'=>'sent']), json_encode(['offer_status'=>$decision === 'accept' ? 'accepted' : 'declined','note'=>$note]),
         $_SERVER['REMOTE_ADDR'] ?? null, mb_substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''),0,255)
     ]);
+    realtimeRequestChanged($pdo, (int)$offer['emergency_request_id'], $decision === 'accept' ? 'offer.accepted' : 'offer.declined', [], [(int)$ctx['organization_id']]);
     $pdo->commit();
     echo json_encode(['success'=>true,'message'=>$message]);
 } catch (RuntimeException $e) {

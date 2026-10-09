@@ -77,27 +77,89 @@ function realtimeChannel(string $type, ?int $id = null): string
 
 function realtimeQueue(PDO $pdo, string $channel, string $event, array $data = []): void
 {
-    static $registered = false;
     if (!realtimeEnabled($pdo)) return;
     $GLOBALS['DASCARE_REALTIME_QUEUE'][] = ['channel' => $channel, 'event' => $event, 'data' => $data];
-    if (!$registered) {
-        $registered = true;
-        register_shutdown_function(static function () use ($pdo) {
-            try { realtimeFlush($pdo); } catch (Throwable $e) { error_log('Realtime flush failed: ' . $e->getMessage()); }
-        });
+    realtimeRegisterFlush($pdo);
+}
+
+/**
+ * "This emergency request changed" (offer sent/answered/expired, assignment,
+ * mission status, details, duplicate link). Who hears it is worked out at
+ * shutdown, after the changes committed: the request's own channel, the
+ * platform channel, and every organization with a live offer or an assignment
+ * on it — plus $alsoOrgIds (e.g. the org whose offer just expired or was
+ * declined, so its Offers list drops it). Safe to call inside a transaction;
+ * if that transaction rolls back the event is at worst a harmless "re-fetch".
+ *
+ * @param int[] $alsoOrgIds
+ */
+function realtimeRequestChanged(PDO $pdo, int $requestId, string $event = 'request.updated', array $data = [], array $alsoOrgIds = []): void
+{
+    if ($requestId <= 0 || !realtimeEnabled($pdo)) return;
+    $entry = &$GLOBALS['DASCARE_REALTIME_REQUESTS'][$requestId];
+    $entry['events'][$event] = $data;
+    foreach ($alsoOrgIds as $orgId) if ((int) $orgId > 0) $entry['orgs'][(int) $orgId] = true;
+    unset($entry);
+    realtimeRegisterFlush($pdo);
+}
+
+/** Turn realtimeRequestChanged() calls into queued channel events. */
+function realtimeResolveRequestEvents(PDO $pdo): void
+{
+    $requests = $GLOBALS['DASCARE_REALTIME_REQUESTS'] ?? [];
+    $GLOBALS['DASCARE_REALTIME_REQUESTS'] = [];
+    if (!$requests) return;
+
+    $orgsStmt = $pdo->prepare("
+        SELECT organization_id FROM incident_offers WHERE emergency_request_id = ? AND offer_status IN ('sent', 'accepted')
+        UNION
+        SELECT organization_id FROM dispatch_assignments WHERE emergency_request_id = ?
+    ");
+    $statusStmt = $pdo->prepare('SELECT status, merged_into_request_id FROM emergency_requests WHERE id = ?');
+    foreach ($requests as $requestId => $entry) {
+        $statusStmt->execute([$requestId]);
+        $row = $statusStmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) continue;
+        $orgsStmt->execute([$requestId, $requestId]);
+        $orgIds = array_map('intval', $orgsStmt->fetchAll(PDO::FETCH_COLUMN));
+        $orgIds = array_unique(array_merge($orgIds, array_keys($entry['orgs'] ?? [])));
+
+        $channels = [realtimeChannel('request', $requestId), realtimeChannel('platform')];
+        foreach ($orgIds as $orgId) $channels[] = realtimeChannel('org', $orgId);
+        foreach ($entry['events'] as $event => $data) {
+            $payload = ['request_id' => $requestId, 'status' => $row['status']] + $data;
+            if ($row['merged_into_request_id']) $payload['merged_into_request_id'] = (int) $row['merged_into_request_id'];
+            foreach ($channels as $channel) {
+                $GLOBALS['DASCARE_REALTIME_QUEUE'][] = ['channel' => $channel, 'event' => $event, 'data' => $payload];
+            }
+        }
     }
+}
+
+function realtimeRegisterFlush(PDO $pdo): void
+{
+    static $registered = false;
+    if ($registered) return;
+    $registered = true;
+    register_shutdown_function(static function () use ($pdo) {
+        try { realtimeFlush($pdo); } catch (Throwable $e) { error_log('Realtime flush failed: ' . $e->getMessage()); }
+    });
 }
 
 /** Publish everything queued during this request (one HTTP call per channel). */
 function realtimeFlush(PDO $pdo): void
 {
+    if ($pdo->inTransaction()) {
+        $dropped = count($GLOBALS['DASCARE_REALTIME_QUEUE'] ?? []) + count($GLOBALS['DASCARE_REALTIME_REQUESTS'] ?? []);
+        $GLOBALS['DASCARE_REALTIME_QUEUE'] = [];
+        $GLOBALS['DASCARE_REALTIME_REQUESTS'] = [];
+        error_log("Realtime: dropped $dropped event(s) queued inside a transaction that never committed.");
+        return;
+    }
+    realtimeResolveRequestEvents($pdo);
     $queue = $GLOBALS['DASCARE_REALTIME_QUEUE'] ?? [];
     $GLOBALS['DASCARE_REALTIME_QUEUE'] = [];
     if (!$queue) return;
-    if ($pdo->inTransaction()) {
-        error_log('Realtime: dropped ' . count($queue) . ' event(s) queued inside a transaction that never committed.');
-        return;
-    }
 
     // Same event + data twice in one request is one event.
     $byChannel = [];

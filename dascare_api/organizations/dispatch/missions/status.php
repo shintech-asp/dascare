@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../../reusables/organization_rbac.php';
 require_once __DIR__ . '/../../../reusables/assignment_helpers.php';
 require_once __DIR__ . '/../../../reusables/fleet_helpers.php';
 require_once __DIR__ . '/../../../reusables/push.php';
+require_once __DIR__ . '/../../../reusables/realtime.php';
 header('Content-Type: application/json');
 if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST') organizationJsonError(405,'Method not allowed.');
 $ctx=requireOrganizationAccess($pdo,null);$body=json_decode(file_get_contents('php://input'),true)?:[];$id=(int)($body['assignment_id']??0);$next=strtolower(trim((string)($body['status']??'')));$note=mb_substr(trim(strip_tags((string)($body['note']??''))),0,500);
@@ -29,5 +30,5 @@ try{
  // DASCARE app (no-op without Firebase): guest phones and linked (dedup) reports following this incident.
  $pushTitles=['acknowledged'=>'Response Team Acknowledged','responding'=>'Ambulance En Route','on_scene'=>'Responders Arrived','transporting'=>'Patient Transport Started','completed'=>'Rescue Mission Completed'];if(isset($pushTitles[$next]))pushQueueRequestFollowers($pdo,(int)$m['emergency_request_id'],$pushTitles[$next],$labels[$next].' Reference: '.$m['reference_number'].'.',$next);
  $audit=$pdo->prepare("INSERT INTO audit_logs (user_id,organization_id,action,entity_type,entity_id,old_values,new_values,ip_address,user_agent) VALUES (?,?, 'dispatch.mission_status','dispatch_assignment',?,?,?,?,?)");$audit->execute([(int)$ctx['user_id'],(int)$ctx['organization_id'],$id,json_encode(['status'=>$old]),json_encode(['status'=>$next,'note'=>$note]),$_SERVER['REMOTE_ADDR']??null,mb_substr((string)($_SERVER['HTTP_USER_AGENT']??''),0,255)]);
- $pdo->commit();echo json_encode(['success'=>true,'message'=>$labels[$next]]);
+ realtimeRequestChanged($pdo,(int)$m['emergency_request_id'],'mission.updated',['assignment_id'=>$id,'assignment_status'=>$next]);$pdo->commit();echo json_encode(['success'=>true,'message'=>$labels[$next]]);
 }catch(RuntimeException $e){if($pdo->inTransaction())$pdo->rollBack();organizationJsonError(409,$e->getMessage());}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();error_log('Mission status failed: '.$e->getMessage());organizationJsonError(500,'Unable to update mission status.');}

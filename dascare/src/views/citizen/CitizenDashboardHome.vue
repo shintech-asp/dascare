@@ -285,6 +285,8 @@ import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { getSession } from '@/composables/useSession'
 import { setPostLoginRedirect } from '@/utils/postLoginRedirect'
+import { useLiveUpdates } from '@/composables/useLiveUpdates'
+import { ownRequestChannels } from '@/services/realtime'
 
 const router = useRouter()
 const API_BASE = import.meta.env.VITE_API_BASE_URL
@@ -395,8 +397,8 @@ const formatDate = (s) =>
   s ? new Date(s).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
 
 /* ===== FETCH ===== */
-const fetchDashboard = async () => {
-  loading.value = true
+const fetchDashboard = async (silent = false) => {
+  if (!silent) loading.value = true
   dashboardError.value = ''
   try {
     const res = await axios.get(`${API_BASE}/citizen/dashboard.php`, { withCredentials: true })
@@ -436,6 +438,15 @@ const fetchKycStatus = async () => {
     kycStatus.value = 0
   }
 }
+
+// Live updates: status changes on any of the citizen's requests refresh the
+// summary (GPS pings are ignored — the request page shows those).
+useLiveUpdates(() => kycStatus.value === 2 && fetchDashboard(true), {
+  channels: ownRequestChannels,
+  pollMs: 30000,
+  livePollMs: 120000,
+  onEvent: (msg) => (msg.name === 'ambulance.location' ? false : undefined),
+})
 
 onMounted(async () => {
   loading.value = true

@@ -137,6 +137,8 @@
 import axios from 'axios'
 import { ref, computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
+import { useLiveUpdates } from '@/composables/useLiveUpdates'
+import { ownRequestChannels } from '@/services/realtime'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL
 
@@ -211,22 +213,30 @@ const formatDate = (s) =>
 
 // Backed by citizen/emergency_requests/list.php — requester_user_id-scoped
 // rows from `emergency_requests`, newest first.
-const fetchRequests = async () => {
-  loading.value = true
+const fetchRequests = async (silent = false) => {
+  if (!silent) loading.value = true
   loadError.value = ''
   try {
     const res = await axios.get(`${API_BASE}/citizen/list.php`, { withCredentials: true })
     requests.value = Array.isArray(res.data) ? res.data.map(followLinked) : []
   } catch (err) {
     console.error(err)
-    requests.value = []
+    if (!silent) requests.value = []
     loadError.value = err.response?.data?.message || 'Could not load your requests. Please try again.'
   } finally {
     loading.value = false
   }
 }
 
-onMounted(fetchRequests)
+// Live updates: status changes on the citizen's requests refresh the list.
+useLiveUpdates(() => fetchRequests(true), {
+  channels: ownRequestChannels,
+  pollMs: 30000,
+  livePollMs: 120000,
+  onEvent: (msg) => (msg.name === 'ambulance.location' ? false : undefined),
+})
+
+onMounted(() => fetchRequests())
 </script>
 
 <style scoped>
