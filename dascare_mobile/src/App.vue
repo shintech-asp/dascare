@@ -66,6 +66,7 @@ watch(theme, syncStatusBar)
 // ------------------------------------------------------------------
 let lastBackAt = 0
 let backListener = null
+let resumeListener = null
 async function onBackButton() {
   const current = router.currentRoute.value
   if (document.querySelector('[data-modal-open]')) {
@@ -88,9 +89,17 @@ async function onBackButton() {
 onMounted(async () => {
   await Promise.all([init(), useGuestKeys().load()])
   syncStatusBar()
-  if (Capacitor.isNativePlatform()) backListener = await CapApp.addListener('backButton', onBackButton)
+  if (Capacitor.isNativePlatform()) {
+    backListener = await CapApp.addListener('backButton', onBackButton)
+    // Back in the foreground: refresh the session (KYC may have been
+    // approved on the web) and tell open screens to reload their data.
+    resumeListener = await CapApp.addListener('resume', () => {
+      useSession().fetchSession()
+      window.dispatchEvent(new CustomEvent('dascare:resume'))
+    })
+  }
 })
-onBeforeUnmount(() => backListener?.remove())
+onBeforeUnmount(() => { backListener?.remove(); resumeListener?.remove() })
 </script>
 
 <style>

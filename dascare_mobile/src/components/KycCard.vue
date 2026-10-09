@@ -24,7 +24,7 @@ import { computed } from 'vue'
 const props = defineProps({
   status: { type: Number, default: 0 },
   // What the user is trying to reach, for the "unlock" wording.
-  feature: { type: String, default: 'request history, live tracking and medical records' },
+  feature: { type: String, default: 'your request history and medical records' },
 })
 
 const tone = computed(() => {

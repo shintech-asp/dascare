@@ -64,6 +64,9 @@ npm run assets            # python3 scripts/generate_icons.py (needs Pillow)
 - **Phase 3** – Emergency SOS (guest or logged in): automatic GPS, one-tap send, optional details
   (patients, description, address, barangay, landmark, up to 3 photos), manual map pin, "already reported"
   notice with Request separately, offline error with Call 911.
+- **Phase 4** – Home with the live active request, My Requests (filters, linked labels), live tracking
+  (dispatch steps, responding unit, ambulance on the map, status history; refreshes every 15 s and on app
+  resume, pull to refresh), Notifications with an unread badge, guests track their SOS from Welcome.
 
 ## Notes
 

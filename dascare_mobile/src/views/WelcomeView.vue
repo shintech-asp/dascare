@@ -38,6 +38,23 @@
       </RouterLink>
     </section>
 
+    <!-- Guest SOS requests sent from this phone (keys saved by the SOS screen) -->
+    <section v-if="guestRequests.length" class="relative mt-4 overflow-hidden rounded-3xl border border-base-300 bg-base-100 dark:border-white/10 dark:bg-[#071829]">
+      <p class="px-5 pb-1 pt-4 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-white/45">Your emergency requests</p>
+      <RouterLink v-for="r in guestRequests.slice(0, 3)" :key="r.id" :to="{ name: 'Track', params: { id: r.id } }" class="tap flex items-center gap-3 border-t border-slate-100 px-5 py-3.5 no-underline first-of-type:border-t-0 dark:border-white/5">
+        <span class="relative grid h-9 w-9 flex-shrink-0 place-items-center rounded-xl bg-red-50 dark:bg-red-500/10">
+          <span v-if="isActiveStatus(statuses[r.id])" class="absolute inset-0 animate-ping rounded-xl bg-red-500/15 [animation-duration:2.2s]"></span>
+          <Icon icon="lucide:siren" width="16" class="relative text-red-600 dark:text-red-300" />
+        </span>
+        <span class="min-w-0 flex-1">
+          <span class="block font-mono text-xs font-semibold text-slate-700 dark:text-white/75">{{ r.reference_number }}</span>
+          <span class="block text-[0.7rem] text-slate-400 dark:text-white/35">{{ relativeTime(r.created_at) }}</span>
+        </span>
+        <span v-if="statuses[r.id]" class="rounded-full px-2.5 py-1 text-[0.65rem] font-bold" :class="statusBadgeClass(statuses[r.id])">{{ statusLabel(statuses[r.id]) }}</span>
+        <Icon icon="lucide:chevron-right" width="16" class="flex-shrink-0 text-slate-300 dark:text-white/20" />
+      </RouterLink>
+    </section>
+
     <section class="relative mt-auto space-y-3 pt-8">
       <RouterLink to="/login" class="tap flex w-full items-center justify-center rounded-2xl bg-slate-900 py-4 font-bold text-white no-underline dark:bg-white dark:text-slate-900">
         Log in
@@ -56,8 +73,25 @@
 </template>
 
 <script setup>
+import { onMounted, ref } from 'vue'
 import BrandLockup from '@/components/BrandLockup.vue'
+import api from '@/services/api'
 import { useTheme } from '@/composables/useTheme'
+import { useGuestKeys } from '@/composables/useGuestKeys'
+import { isActiveStatus, relativeTime, statusBadgeClass, statusLabel } from '@/utils/requestStatus'
 
 const { theme, toggleTheme } = useTheme()
+const { requests: guestRequests, load: loadGuestKeys } = useGuestKeys()
+const statuses = ref({})
+
+// Live status for the latest guest requests (detail.php accepts the guest key).
+onMounted(async () => {
+  await loadGuestKeys()
+  await Promise.all(guestRequests.value.slice(0, 3).map(async (r) => {
+    try {
+      const { data } = await api.get('/citizen/detail.php', { params: { id: r.id } })
+      statuses.value[r.id] = data.merged_into?.status ?? data.status
+    } catch { /* offline — show without a status */ }
+  }))
+})
 </script>

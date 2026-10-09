@@ -79,10 +79,11 @@ function mobileFindToken(PDO $pdo, string $plain, string $type): ?array
         SELECT t.id AS token_id, t.last_used_at,
                (t.last_used_at IS NULL OR t.last_used_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)) AS needs_touch,
                u.id, u.first_name, u.last_name, u.email, u.phone, u.account_status, u.email_verified_at,
-               ur.role
+               ur.role, COALESCE(k.status, 0) AS kyc_status
         FROM api_tokens t
         INNER JOIN users u ON u.id = t.user_id AND u.deleted_at IS NULL
         LEFT JOIN user_roles ur ON ur.user_id = u.id
+        LEFT JOIN kyc_verifications k ON k.user_id = u.id
         WHERE t.token_hash = ?
           AND t.token_type = ?
           AND t.revoked_at IS NULL
@@ -134,6 +135,10 @@ function mobileAuthBootstrap(PDO $pdo): void
             $_SESSION['user_email'] = $row['email'];
             $_SESSION['user_phone'] = $row['phone'];
             $_SESSION['user_level'] = $row['role'];
+            // The web caches these in its cookie session (set by session.php);
+            // citizen/dashboard.php reads user_kyc_status from there.
+            $_SESSION['user_status'] = $row['account_status'];
+            $_SESSION['user_kyc_status'] = (int) $row['kyc_status'];
             $GLOBALS['DASCARE_MOBILE']['token_id'] = (int) $row['token_id'];
             if ((int) $row['needs_touch'] === 1) {
                 $pdo->prepare('UPDATE api_tokens SET last_used_at = NOW() WHERE id = ?')->execute([(int) $row['token_id']]);

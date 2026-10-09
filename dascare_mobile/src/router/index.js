@@ -22,6 +22,9 @@ const routes = [
   { path: '/verify-code', name: 'VerifyCode', component: () => import('@/views/auth/OtpView.vue'), meta: { guestOnly: true } },
   { path: '/forgot-password', name: 'ForgotPassword', component: () => import('@/views/auth/ForgotView.vue'), meta: { guestOnly: true } },
   { path: '/reset-password', name: 'ResetPassword', component: () => import('@/views/auth/ResetPasswordView.vue'), meta: { guestOnly: true } },
+  // Open to guests too: citizen/detail.php checks ownership (account, or the
+  // guest SOS key the app sends).
+  { path: '/track/:id', name: 'Track', component: () => import('@/views/TrackView.vue'), meta: { title: 'Request' } },
   { path: '/sos', name: 'Sos', component: () => import('@/views/SosView.vue'), meta: { title: 'Emergency SOS' } },
   { path: '/verify-identity', name: 'VerifyIdentity', component: () => import('@/views/VerifyIdentityView.vue'), meta: { auth: true, title: 'Verify identity' } },
   { path: '/legal/:slug', name: 'Legal', component: () => import('@/views/LegalView.vue'), meta: { title: 'Legal' } },

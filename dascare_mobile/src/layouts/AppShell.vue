@@ -40,14 +40,26 @@
 </template>
 
 <script setup>
-import { defineComponent, h } from 'vue'
+import { defineComponent, h, onBeforeUnmount, onMounted } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import BrandLockup from '@/components/BrandLockup.vue'
 import { useTheme } from '@/composables/useTheme'
+import { useUnreadCount } from '@/composables/useUnreadCount'
 
 const route = useRoute()
 const { theme, toggleTheme } = useTheme()
+const unread = useUnreadCount()
+
+// Unread badge on the Alerts tab — polled like the web's sidebar badges.
+let badgeTimer = null
+const onResume = () => unread.refresh()
+onMounted(() => {
+  unread.refresh()
+  badgeTimer = setInterval(() => { if (!document.hidden) unread.refresh() }, 30000)
+  window.addEventListener('dascare:resume', onResume)
+})
+onBeforeUnmount(() => { clearInterval(badgeTimer); window.removeEventListener('dascare:resume', onResume) })
 
 const leftTabs = [
   { name: 'Home', tab: 'home', label: 'Home', icon: 'lucide:house' },
@@ -68,7 +80,12 @@ const TabLink = defineComponent({
         replace: true,
         class: ['tap flex flex-col items-center gap-0.5 py-1 no-underline transition-colors', active ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-white/50'],
       }, () => [
-        h(Icon, { icon: props.tab.icon, width: 22 }),
+        h('span', { class: 'relative' }, [
+          h(Icon, { icon: props.tab.icon, width: 22 }),
+          props.tab.tab === 'notifications' && unread.count.value > 0
+            ? h('span', { class: 'absolute -right-2 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-red-600 px-1 text-[9px] font-black leading-none text-white ring-2 ring-white dark:ring-[#050e1a]' }, unread.count.value > 9 ? '9+' : String(unread.count.value))
+            : null,
+        ]),
         h('span', { class: 'text-[10px] font-semibold' }, props.tab.label),
       ])
     }

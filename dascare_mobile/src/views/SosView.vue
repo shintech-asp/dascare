@@ -44,6 +44,9 @@
         </p>
 
         <div class="mt-5 space-y-2">
+          <RouterLink :to="{ name: 'Track', params: { id: result.id } }" replace class="tap flex w-full items-center justify-center gap-2 rounded-2xl bg-red-600 py-3.5 font-bold text-white no-underline shadow-lg shadow-red-600/25">
+            <Icon icon="lucide:radar" width="18" /> Track this request
+          </RouterLink>
           <RouterLink :to="isGuest ? '/welcome' : '/home'" replace class="tap flex w-full items-center justify-center rounded-2xl bg-slate-900 py-3.5 font-bold text-white no-underline dark:bg-white dark:text-slate-900">Done</RouterLink>
           <a href="tel:911" class="tap flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-red-200 py-3 text-sm font-bold text-red-700 no-underline dark:border-red-500/25 dark:text-red-300">
             <Icon icon="lucide:phone-call" width="16" /> Also call 911

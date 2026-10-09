@@ -24,7 +24,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET') {
     exit;
 }
 
-if (!isset($_SESSION['user_id']) || ($_SESSION['user_level'] ?? '') !== 'citizen') {
+// Viewable by the citizen who filed it, or by a guest holding that request's
+// key — the DASCARE Android app sends guest SOS keys in X-Guest-Tokens, which
+// reusables/mobile_auth.php maps to $_SESSION['guest_request_ids'].
+$isCitizen = isset($_SESSION['user_id']) && ($_SESSION['user_level'] ?? '') === 'citizen';
+$guestRequestIds = array_values(array_filter(array_map('intval', (array) ($_SESSION['guest_request_ids'] ?? []))));
+
+if (!$isCitizen && !$guestRequestIds) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Please sign in to view this request.']);
     exit;
@@ -37,7 +43,8 @@ if (!$requestId) {
     exit;
 }
 
-$userId = (int) $_SESSION['user_id'];
+$userId = $isCitizen ? (int) $_SESSION['user_id'] : 0;
+$guestPlaceholders = $guestRequestIds ? implode(',', array_fill(0, count($guestRequestIds), '?')) : '0';
 
 // Human labels for dispatch_assignments.assignment_status — mirrors the
 // STATUS_LABELS map on the frontend, just for the ambulance sub-object.
@@ -79,10 +86,11 @@ try {
             ec.name AS emergency_category_name
         FROM emergency_requests er
         INNER JOIN emergency_categories ec ON ec.id = er.emergency_category_id
-        WHERE er.id = ? AND er.requester_user_id = ?
+        WHERE er.id = ?
+          AND (er.requester_user_id = ? OR (er.requester_user_id IS NULL AND er.id IN ($guestPlaceholders)))
         LIMIT 1
     ");
-    $stmt->execute([$requestId, $userId]);
+    $stmt->execute([$requestId, $userId, ...$guestRequestIds]);
     $request = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$request) {
