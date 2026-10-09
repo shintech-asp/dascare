@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../cors.php';
 require_once __DIR__ . '/../../db/db.php';
+require_once __DIR__ . '/../../reusables/realtime.php';
 require_once __DIR__ . '/../../reusables/platform_guard.php';
 header('Content-Type: application/json');
 $actor=requirePlatformExecutive($pdo,'organizations.organizations.read');
@@ -15,7 +16,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if($org['application_status']!=='approved') platformJsonError(422,'Only approved organizations can be managed from this page.');
     try{$pdo->beginTransaction();$note = $reason !== '' ? $reason : null; $pdo->prepare('UPDATE organizations SET status=?,verification_note=? WHERE id=?')->execute([$status,$note,$id]);
         $pdo->prepare("INSERT INTO audit_logs (user_id,organization_id,action,entity_type,entity_id,old_values,new_values,ip_address,user_agent) VALUES (?,?,?,?,?,?,?,?,?)")->execute([$actor,$id,'platform.organization_status.update','organization',$id,json_encode(['status'=>$org['status']]),json_encode(['status'=>$status,'reason'=>$reason]),$_SERVER['REMOTE_ADDR']??null,substr($_SERVER['HTTP_USER_AGENT']??'',0,255)]);
-        if(!empty($org['primary_admin_user_id'])){$title=$status==='active'?'Organization Reactivated':'Organization Status Updated';$msg=$status==='active'?'Your organization has been reactivated and operational access is available.':'Your organization status is now '.ucfirst($status).'.'.($reason!==''?' Reason: '.$reason:'');$pdo->prepare("INSERT INTO notifications (user_id,notification_type,title,message,related_type,related_id,dedup_key) VALUES (?,?,?,?,?,?,?)")->execute([(int)$org['primary_admin_user_id'],'organization_status',$title,$msg,'organization',$id,'org-status-'.$id.'-'.$status.'-'.time()]);}
+        if(!empty($org['primary_admin_user_id'])){$title=$status==='active'?'Organization Reactivated':'Organization Status Updated';$msg=$status==='active'?'Your organization has been reactivated and operational access is available.':'Your organization status is now '.ucfirst($status).'.'.($reason!==''?' Reason: '.$reason:'');realtimeNotifyUsers($pdo,[(int)$org['primary_admin_user_id']]);$pdo->prepare("INSERT INTO notifications (user_id,notification_type,title,message,related_type,related_id,dedup_key) VALUES (?,?,?,?,?,?,?)")->execute([(int)$org['primary_admin_user_id'],'organization_status',$title,$msg,'organization',$id,'org-status-'.$id.'-'.$status.'-'.time()]);}
         $pdo->commit();echo json_encode(['success'=>true,'message'=>'Organization status updated.']);
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();error_log('Platform org manage failed: '.$e->getMessage());platformJsonError(500,'Unable to update organization status.');}
     exit;

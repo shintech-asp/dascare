@@ -48,6 +48,7 @@ try {
 
         if (!empty($offer['requester_user_id'])) {
             $notify = $pdo->prepare("INSERT INTO notifications (user_id, notification_type, title, message, related_type, related_id, dedup_key) VALUES (?, 'dispatch_update', 'Rescue Organization Accepted', ?, 'emergency_request', ?, ?) ON DUPLICATE KEY UPDATE message=VALUES(message), read_at=NULL, created_at=CURRENT_TIMESTAMP");
+            realtimeNotifyUsers($pdo, [(int)$offer['requester_user_id']]);
             $notify->execute([(int)$offer['requester_user_id'], 'A rescue organization accepted ' . $offer['reference_number'] . ' and is preparing an ambulance and crew.', (int)$offer['emergency_request_id'], 'incident-accepted:' . $offer['emergency_request_id']]);
         }
         // DASCARE app (no-op without Firebase): the requester's phone, plus

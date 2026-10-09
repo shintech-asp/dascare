@@ -280,6 +280,7 @@ function dssNotifyOrganization(PDO $pdo, int $organizationId, int $offerId, arra
     foreach ($userIds as $userId) {
         $notify->execute([$userId, $title, $message, $offerId, 'incident_offer:' . $offerId . ':user:' . $userId]);
     }
+    realtimeNotifyUsers($pdo, $userIds);
 }
 
 function dssCreateOfferForRecommendation(PDO $pdo, array $recommendation, array $request): array

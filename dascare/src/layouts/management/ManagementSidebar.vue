@@ -182,6 +182,8 @@ import { Icon } from '@iconify/vue'
 import { useSession } from '@/composables/useSession'
 import { useAlert } from '@/composables/useAlert'
 import { fetchSidebarBadges } from '@/services/sidebarBadges'
+import { useLiveUpdates } from '@/composables/useLiveUpdates'
+import { ownRequestChannels, realtimeChannels } from '@/services/realtime'
 
 const props = defineProps({
   workspace: { type: Object, required: true },
@@ -195,7 +197,6 @@ const alert = useAlert()
 const { user, organization, platform, logout: sessionLogout, hasAnyPermission, hasAllPermissions } = useSession()
 const collapsed = ref(false)
 const badges = ref({})
-let badgeInterval = null
 
 
 const badgeFor = (path) => Number(badges.value?.[path] || 0)
@@ -306,14 +307,22 @@ const logout = async () => {
   }
 }
 
+// Live updates: offers/missions (org), city incidents + review queues
+// (platform) and notifications re-count the badges (GPS pings and fleet edits
+// ignored). The 60 s poll while live also keeps the server's lazy overdue
+// flags moving; 15 s without live updates.
+useLiveUpdates(() => refreshBadges(), {
+  channels: () => [realtimeChannels.value?.user, realtimeChannels.value?.org, realtimeChannels.value?.platform],
+  onEvent: (msg) => (['ambulance.location', 'fleet.updated'].includes(msg.name) ? false : undefined),
+  debounceMs: 800, pollMs: 15000, livePollMs: 60000,
+})
+
 onMounted(() => {
   refreshBadges()
-  badgeInterval = setInterval(refreshBadges, 15_000)
   window.addEventListener('sidebar-badges-updated', refreshBadges)
 })
 
 onUnmounted(() => {
-  if (badgeInterval) clearInterval(badgeInterval)
   window.removeEventListener('sidebar-badges-updated', refreshBadges)
 })
 </script>

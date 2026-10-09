@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../cors.php';
 require_once __DIR__ . '/../../db/db.php';
+require_once __DIR__ . '/../../reusables/realtime.php';
 require_once __DIR__ . '/../../reusables/password_helpers.php';
 
 header('Content-Type: application/json');
@@ -88,6 +89,7 @@ try {
     foreach ($notifyUsers as $notifyUser) {
         $notify->execute([$notifyUser, $memberName . ' accepted the invitation and joined as ' . $invite['role_name'] . '.', $memberId, 'member_join_' . $memberId . '_' . $notifyUser]);
     }
+    realtimeNotifyUsers($pdo, $notifyUsers);
 
     $audit = $pdo->prepare("
         INSERT INTO audit_logs (user_id, organization_id, action, entity_type, entity_id, new_values, ip_address, user_agent)

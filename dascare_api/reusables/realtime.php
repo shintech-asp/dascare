@@ -115,6 +115,29 @@ function realtimeFleetChanged(PDO $pdo, int $organizationId, ?int $ambulanceId =
     realtimeQueue($pdo, realtimeChannel('platform'), 'fleet.updated', $data);
 }
 
+/** These users got (or lost) a notification: their bell and unread badges re-load. */
+function realtimeNotifyUsers(PDO $pdo, array $userIds, string $event = 'notification.created'): void
+{
+    foreach (array_unique(array_map('intval', $userIds)) as $userId) {
+        if ($userId > 0) realtimeQueue($pdo, realtimeChannel('user', $userId), $event, []);
+    }
+}
+
+/** Every active account with this role got a notification (e.g. all platform executives). */
+function realtimeNotifyRole(PDO $pdo, string $role): void
+{
+    if (!realtimeEnabled($pdo)) return;
+    $stmt = $pdo->prepare("SELECT u.id FROM users u INNER JOIN user_roles ur ON ur.user_id = u.id AND ur.role = ? WHERE u.deleted_at IS NULL AND u.account_status = 'active'");
+    $stmt->execute([$role]);
+    realtimeNotifyUsers($pdo, $stmt->fetchAll(PDO::FETCH_COLUMN));
+}
+
+/** A platform work queue changed (organization applications, KYC reviews): sidebar counts re-load. */
+function realtimePlatformBadgesChanged(PDO $pdo, string $queue): void
+{
+    realtimeQueue($pdo, realtimeChannel('platform'), 'badges.updated', ['queue' => $queue]);
+}
+
 /** Turn realtimeRequestChanged() calls into queued channel events. */
 function realtimeResolveRequestEvents(PDO $pdo): void
 {

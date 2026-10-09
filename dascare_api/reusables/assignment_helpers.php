@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/realtime.php';
 require_once __DIR__ . '/organization_rbac.php';
 require_once __DIR__ . '/push.php';
 
@@ -43,6 +44,7 @@ function assignmentNotifyUser(PDO $pdo, int $userId, string $type, string $title
 {
     $stmt=$pdo->prepare("INSERT INTO notifications (user_id,notification_type,title,message,related_type,related_id,dedup_key) VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE title=VALUES(title),message=VALUES(message),read_at=NULL,created_at=CURRENT_TIMESTAMP");
     $stmt->execute([$userId,$type,$title,$message,$relatedType,$relatedId,$dedup]);
+    realtimeNotifyUsers($pdo,[$userId]);
     // Also to the DASCARE app on this user's phone, if any (no-op without Firebase).
     pushQueueUser($pdo,$userId,$title,$message,['type'=>$type,'related_type'=>$relatedType,'related_id'=>$relatedId],$dedup);
 }

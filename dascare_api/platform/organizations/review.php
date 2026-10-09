@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../cors.php';
 require_once __DIR__ . '/../../db/db.php';
+require_once __DIR__ . '/../../reusables/realtime.php';
 require_once __DIR__ . '/../../reusables/platform_guard.php';
 
 header('Content-Type: application/json');
@@ -84,6 +85,8 @@ try {
         $dedupKey = 'org_review_' . $organizationId . '_' . $action . '_' . md5((string) $current['updated_at'] . '|' . $note);
         $notify = $pdo->prepare("\n            INSERT INTO notifications\n                (user_id, notification_type, title, message, related_type, related_id, dedup_key)\n            VALUES (?, ?, ?, ?, 'organization_application', ?, ?)\n            ON DUPLICATE KEY UPDATE\n                title = VALUES(title), message = VALUES(message), read_at = NULL, created_at = CURRENT_TIMESTAMP\n        ");
         $notify->execute([$adminUserId, $notification['type'], $notification['title'], $notification['message'], $organizationId, $dedupKey]);
+        realtimeNotifyUsers($pdo, [(int) $adminUserId]);
+        realtimePlatformBadgesChanged($pdo, 'applications');
     }
 
     $oldValues = json_encode([

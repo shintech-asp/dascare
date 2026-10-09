@@ -13,6 +13,7 @@
  */
 
 require_once __DIR__ . '/../session.php';
+require_once __DIR__ . '/../reusables/realtime.php';
 
 header('Content-Type: application/json');
 
@@ -37,5 +38,6 @@ $stmt = $pdo->prepare("
     WHERE id = ? AND user_id = ?
 ");
 $stmt->execute([$notifId, $userId]);
+if ($stmt->rowCount() > 0) realtimeNotifyUsers($pdo, [$userId], 'notification.read'); // other tabs/devices update their badge
 
 echo json_encode(['success' => $stmt->rowCount() > 0]);

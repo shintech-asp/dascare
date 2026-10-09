@@ -9,6 +9,7 @@
  */
 
 require_once __DIR__ . '/../session.php';
+require_once __DIR__ . '/../reusables/realtime.php';
 
 header('Content-Type: application/json');
 
@@ -25,6 +26,7 @@ $stmt = $pdo->prepare("
     WHERE user_id = ? AND read_at IS NULL
 ");
 $stmt->execute([$userId]);
+if ($stmt->rowCount() > 0) realtimeNotifyUsers($pdo, [$userId], 'notification.read'); // other tabs/devices update their badge
 
 // Nothing to update (everything was already read) is still a success —
 // only an actual query failure should read as false, and PDO would have

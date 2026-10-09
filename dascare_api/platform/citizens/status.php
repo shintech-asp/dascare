@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../cors.php';
 require_once __DIR__ . '/../../db/db.php';
+require_once __DIR__ . '/../../reusables/realtime.php';
 require_once __DIR__ . '/../../reusables/platform_guard.php';
 require_once __DIR__ . '/../../reusables/push.php';
 
@@ -50,6 +51,7 @@ try {
     $dedupKey = 'citizen_account_status_' . $userId . '_' . $newStatus . '_' . date('YmdHi');
     $notify = $pdo->prepare("\n        INSERT INTO notifications (user_id, notification_type, title, message, related_type, related_id, dedup_key)\n        VALUES (?, ?, ?, ?, 'citizen_account', ?, ?)\n        ON DUPLICATE KEY UPDATE message = VALUES(message), read_at = NULL, created_at = CURRENT_TIMESTAMP\n    ");
     $notify->execute([$userId, $notificationData[0], $notificationData[1], $message, $userId, $dedupKey]);
+    realtimeNotifyUsers($pdo, [$userId]);
     // DASCARE app on the citizen's phone (no-op without Firebase).
     pushQueueUser($pdo, $userId, $notificationData[1], $message, ['type' => $notificationData[0], 'related_type' => 'citizen_account', 'related_id' => $userId], $dedupKey);
 

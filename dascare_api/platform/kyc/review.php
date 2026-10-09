@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../cors.php';
 require_once __DIR__ . '/../../db/db.php';
+require_once __DIR__ . '/../../reusables/realtime.php';
 require_once __DIR__ . '/../../reusables/platform_guard.php';
 require_once __DIR__ . '/../../reusables/push.php';
 
@@ -90,6 +91,8 @@ try {
         $citizenId,
         $dedupKey,
     ]);
+    realtimeNotifyUsers($pdo, [$citizenId]);
+    realtimePlatformBadgesChanged($pdo, 'kyc');
     // DASCARE app on the citizen's phone (no-op without Firebase).
     pushQueueUser($pdo, $citizenId, $notification['title'], $notification['message'], ['type' => $notification['type'], 'related_type' => 'kyc_verification', 'related_id' => $citizenId], $dedupKey);
 

@@ -40,26 +40,24 @@
 </template>
 
 <script setup>
-import { defineComponent, h, onBeforeUnmount, onMounted } from 'vue'
+import { defineComponent, h, onMounted } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import BrandLockup from '@/components/BrandLockup.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useUnreadCount } from '@/composables/useUnreadCount'
+import { useLiveUpdates } from '@/composables/useLiveUpdates'
+import { realtimeChannels } from '@/services/realtime'
 
 const route = useRoute()
 const { theme, toggleTheme } = useTheme()
 const unread = useUnreadCount()
 
-// Unread badge on the Alerts tab — polled like the web's sidebar badges.
-let badgeTimer = null
-const onResume = () => unread.refresh()
-onMounted(() => {
-  unread.refresh()
-  badgeTimer = setInterval(() => { if (!document.hidden) unread.refresh() }, 30000)
-  window.addEventListener('dascare:resume', onResume)
-})
-onBeforeUnmount(() => { clearInterval(badgeTimer); window.removeEventListener('dascare:resume', onResume) })
+// Unread badge on the Alerts tab: updates the moment a notification arrives
+// or is read elsewhere (live updates), refreshes on app resume, and polls
+// every 30 s while live updates are unavailable.
+useLiveUpdates(() => unread.refresh(), { channels: () => [realtimeChannels.value?.user], events: ['notification.created', 'notification.read'], pollMs: 30000, livePollMs: 120000 })
+onMounted(() => unread.refresh())
 
 const leftTabs = [
   { name: 'Home', tab: 'home', label: 'Home', icon: 'lucide:house' },

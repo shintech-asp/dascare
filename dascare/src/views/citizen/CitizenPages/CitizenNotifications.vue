@@ -155,6 +155,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { fetchNotifications as fetchNotificationList, markAllNotificationsRead, markNotificationRead } from '@/services/notifications'
+import { useLiveUpdates } from '@/composables/useLiveUpdates'
+import { realtimeChannels } from '@/services/realtime'
 
 const router = useRouter()
 
@@ -246,8 +248,8 @@ const relativeTime = (s) => {
 
 /* ================= Fetch / actions =================
    Same endpoints as before — this is a UI redesign only, no API changes. */
-const fetchNotifications = async () => {
-  loading.value = true
+const fetchNotifications = async (silent = false) => {
+  if (!silent) loading.value = true
   loadError.value = ''
   try {
     notifications.value = await fetchNotificationList()
@@ -295,5 +297,8 @@ const handleClick = async (n) => {
   }
 }
 
-onMounted(fetchNotifications)
+// Live updates: new notifications appear without a reload.
+useLiveUpdates(() => fetchNotifications(true), { channels: () => [realtimeChannels.value?.user], events: ['notification.created', 'notification.read'], pollMs: 30000, livePollMs: 120000 })
+
+onMounted(() => fetchNotifications())
 </script>

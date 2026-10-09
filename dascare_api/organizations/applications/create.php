@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../cors.php';
 require_once __DIR__ . '/../../db/db.php';
+require_once __DIR__ . '/../../reusables/realtime.php';
 require_once __DIR__ . '/../../reusables/password_helpers.php';
 require_once __DIR__ . '/../../reusables/rate_limit.php';
 require_once __DIR__ . '/../../reusables/email_helper.php';
@@ -283,6 +284,8 @@ try {
         $organizationId,
         'org_application_submitted_' . $organizationId,
     ]);
+    realtimeNotifyRole($pdo, 'platform_executive_admin');
+    realtimePlatformBadgesChanged($pdo, 'applications');
 
     $pdo->commit();
 } catch (Throwable $e) {

@@ -52,7 +52,8 @@ import PullToRefresh from '@/components/PullToRefresh.vue'
 import SkeletonList from '@/components/SkeletonList.vue'
 import * as ui from '@/components/ui/styles'
 import api, { apiMessage } from '@/services/api'
-import { useLiveRefresh } from '@/composables/useLiveRefresh'
+import { useLiveUpdates } from '@/composables/useLiveUpdates'
+import { realtimeChannels } from '@/services/realtime'
 import { useUnreadCount } from '@/composables/useUnreadCount'
 import { relativeTime } from '@/utils/requestStatus'
 
@@ -106,6 +107,6 @@ async function markAll() {
   try { await api.post('/notifications/mark_all_read.php', {}) } catch { load() }
 }
 
-useLiveRefresh(load, { intervalMs: 30000 })
+useLiveUpdates(load, { channels: () => [realtimeChannels.value?.user], events: ['notification.created', 'notification.read'], pollMs: 30000, livePollMs: 120000 })
 load()
 </script>

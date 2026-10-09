@@ -164,6 +164,8 @@ import { useSession } from '@/composables/useSession'
 import { useTheme } from '@/composables/useTheme'
 import { useAlert } from '@/composables/useAlert'
 import { fetchNotifications, markAllNotificationsRead, markNotificationRead } from '@/services/notifications'
+import { useLiveUpdates } from '@/composables/useLiveUpdates'
+import { ownRequestChannels, realtimeChannels } from '@/services/realtime'
 
 const props = defineProps({
   workspace: { type: Object, required: true },
@@ -183,7 +185,6 @@ const unreadCount = ref(0)
 const notificationsLoading = ref(false)
 const notificationSaving = ref(false)
 const notificationError = ref('')
-let notificationInterval = null
 
 const currentPage = computed(() => route.meta?.title || props.workspace.title)
 const initials = computed(() => (user.value?.name || '?').split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join(''))
@@ -293,15 +294,17 @@ const logout = async () => {
   }
 }
 
+// Live updates: the bell re-loads the moment a notification arrives or is
+// read on another tab/device; polls every 15 s without live updates.
+useLiveUpdates(() => loadNotifications(), { channels: () => [realtimeChannels.value?.user], events: ['notification.created', 'notification.read'], pollMs: 15000, livePollMs: 120000 })
+
 onMounted(() => {
   loadNotifications()
-  notificationInterval = setInterval(loadNotifications, 15_000)
   window.addEventListener('click', closeMenus)
   window.addEventListener('notifications-updated', loadNotifications)
 })
 
 onUnmounted(() => {
-  clearInterval(notificationInterval)
   window.removeEventListener('click', closeMenus)
   window.removeEventListener('notifications-updated', loadNotifications)
 })

@@ -186,6 +186,8 @@ import { Icon } from '@iconify/vue'
 import { useAlert } from '@/composables/useAlert'
 import { useSession } from '@/composables/useSession'
 import { fetchNotifications, markAllNotificationsRead, markNotificationRead } from '@/services/notifications'
+import { useLiveUpdates } from '@/composables/useLiveUpdates'
+import { ownRequestChannels, realtimeChannels } from '@/services/realtime'
 
 defineProps({ sidebarOpen: { type: Boolean, default: false } })
 defineEmits(['toggle-sidebar'])
@@ -199,7 +201,6 @@ const notificationsOpen = ref(false)
 const accountOpen = ref(false)
 const notifications = ref([])
 const unreadCount = ref(0)
-let notificationInterval = null
 
 const currentPageLabel = computed(() => route.meta?.title || 'Dashboard')
 
@@ -284,15 +285,17 @@ const handleWindowClick = () => {
   accountOpen.value = false
 }
 
+// Live updates: the bell re-loads the moment a notification arrives or is
+// read on another tab/device; polls every 15 s without live updates.
+useLiveUpdates(() => loadNotifications(), { channels: () => [realtimeChannels.value?.user], events: ['notification.created', 'notification.read'], pollMs: 15000, livePollMs: 120000 })
+
 onMounted(() => {
   loadNotifications()
-  notificationInterval = setInterval(loadNotifications, 15_000)
   window.addEventListener('click', handleWindowClick)
   window.addEventListener('notifications-updated', loadNotifications)
 })
 
 onUnmounted(() => {
-  clearInterval(notificationInterval)
   window.removeEventListener('click', handleWindowClick)
   window.removeEventListener('notifications-updated', loadNotifications)
 })

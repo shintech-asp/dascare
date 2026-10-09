@@ -7,6 +7,7 @@
  */
 
 require_once __DIR__ . '/../session.php';
+require_once __DIR__ . '/../reusables/realtime.php';
 
 header('Content-Type: application/json');
 
@@ -38,6 +39,7 @@ $stmt->execute([$notifId, $userId]);
 // double-click (already read) still reports success instead of a
 // false "failed" the second time.
 if ($stmt->rowCount() > 0) {
+    realtimeNotifyUsers($pdo, [$userId], 'notification.read'); // other tabs/devices update their badge
     echo json_encode(['success' => true]);
     exit;
 }

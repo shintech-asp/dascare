@@ -23,6 +23,7 @@
 // three requires below if dascare's actual paths/helpers differ.
 require '../cors.php';
 require_once __DIR__ . '/../db/db.php'; // must expose a PDO instance as $pdo
+require_once __DIR__ . '/../reusables/realtime.php';
 require_once __DIR__ . '/../reusables/rate_limit.php';
 
 header('Content-Type: application/json');
@@ -387,6 +388,8 @@ try {
         $userId,
         'kyc_submission_pending_' . $userId,
     ]);
+    realtimeNotifyRole($pdo, 'platform_executive_admin');
+    realtimePlatformBadgesChanged($pdo, 'kyc');
 
     $pdo->commit();
 } catch (Throwable $e) {

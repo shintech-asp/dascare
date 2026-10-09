@@ -255,6 +255,8 @@ import { getSession, useSession } from '@/composables/useSession'
 import { useAlert } from '@/composables/useAlert'
 import { useToast } from '@/composables/useToast'
 import { fetchSidebarBadges } from '@/services/sidebarBadges'
+import { useLiveUpdates } from '@/composables/useLiveUpdates'
+import { ownRequestChannels, realtimeChannels } from '@/services/realtime'
 
 const props = defineProps({ open: { type: Boolean, default: false } })
 const emit = defineEmits(['update:open'])
@@ -273,7 +275,6 @@ const { logout: sessionLogout } = useSession()
 const collapsed = ref(false)
 const currentUser = ref(null)
 const badges = ref({})
-let badgeInterval = null
 
 // Settings lives in the footer now (grouped with Logout), so it's no
 // longer part of the main nav list.
@@ -332,16 +333,22 @@ const logout = async () => {
   }
 }
 
+// Live updates: notification and request-status changes re-count the badges
+// (GPS pings ignored); polls every 15 s without live updates.
+useLiveUpdates(() => fetchBadgeCounts(), {
+  channels: () => [realtimeChannels.value?.user, ...ownRequestChannels()],
+  onEvent: (msg) => (msg.name === 'ambulance.location' ? false : undefined),
+  debounceMs: 800, pollMs: 15000, livePollMs: 60000,
+})
+
 onMounted(() => {
   fetchCurrentUser()
   fetchBadgeCounts()
-  badgeInterval = setInterval(fetchBadgeCounts, 15_000)
   window.addEventListener('notifications-updated', fetchBadgeCounts)
   window.addEventListener('sidebar-badges-updated', fetchBadgeCounts)
 })
 
 onUnmounted(() => {
-  if (badgeInterval) clearInterval(badgeInterval)
   window.removeEventListener('notifications-updated', fetchBadgeCounts)
   window.removeEventListener('sidebar-badges-updated', fetchBadgeCounts)
 })
