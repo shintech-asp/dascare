@@ -11,8 +11,11 @@ try {
     $stmt = $pdo->prepare("SELECT da.id, da.assignment_status, da.emergency_request_id,
             er.reference_number, er.severity, er.address_text, er.barangay, er.latitude incident_latitude, er.longitude incident_longitude,
             a.id ambulance_id, a.unit_code, a.plate_number, a.ambulance_type, a.status ambulance_status,
-            a.last_latitude, a.last_longitude, a.last_accuracy_m, a.last_location_at
+            a.last_latitude, a.last_longitude, a.last_accuracy_m, a.last_location_at,
+            TIMESTAMPDIFF(SECOND, a.last_location_at, NOW()) AS location_age_db,
+            o.name AS organization_name, o.latitude AS station_latitude, o.longitude AS station_longitude
         FROM dispatch_assignments da
+        JOIN organizations o ON o.id = da.organization_id
         JOIN emergency_requests er ON er.id = da.emergency_request_id
         JOIN ambulances a ON a.id = da.ambulance_id
         WHERE da.organization_id = ?
@@ -43,11 +46,17 @@ try {
         foreach (['incident_latitude','incident_longitude','last_latitude','last_longitude','last_accuracy_m'] as $key) {
             $m[$key] = $m[$key] !== null ? (float) $m[$key] : null;
         }
-        $age = $m['last_location_at'] ? max(0, time() - strtotime($m['last_location_at'])) : null;
+        // Age on the DB clock (PHP's timezone differs from MariaDB's).
+        $age = $m['location_age_db'] !== null ? max(0, (int) $m['location_age_db']) : null;
+        unset($m['location_age_db']);
+        $m['station'] = $m['station_latitude'] !== null && $m['station_longitude'] !== null
+            ? ['latitude' => (float) $m['station_latitude'], 'longitude' => (float) $m['station_longitude'], 'name' => $m['organization_name']]
+            : null;
+        unset($m['station_latitude'], $m['station_longitude']);
         $m['location_age_seconds'] = $age;
         $m['location_stale'] = $age === null || $age > $staleAfter;
         $m['assigned_to_current_user'] = !empty($assignedToCurrent[$m['id']]);
-        $m['route'] = routingForAssignment($pdo, $m['id']);
+        $m['route'] = routingEnsureForAssignment($pdo, $m['id']);
     }
     unset($m);
 

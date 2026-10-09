@@ -146,6 +146,27 @@ function routingRefresh(PDO $pdo, int $assignmentId, float $originLat, float $or
     return routingForAssignment($pdo, $assignmentId);
 }
 
+/**
+ * The route for an assignment, computing the first one if it has none yet
+ * (e.g. a unit assigned before any GPS ping or status change). Later updates
+ * come from routingRefreshAndAnnounceLater(); this never re-routes a stored one.
+ */
+function routingEnsureForAssignment(PDO $pdo, int $assignmentId): ?array
+{
+    $route = routingForAssignment($pdo, $assignmentId);
+    if ($route) return $route;
+    $stmt = $pdo->prepare('SELECT a.last_latitude, a.last_longitude FROM dispatch_assignments da INNER JOIN ambulances a ON a.id = da.ambulance_id WHERE da.id = ?');
+    $stmt->execute([$assignmentId]);
+    $pos = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$pos || $pos['last_latitude'] === null || $pos['last_longitude'] === null) return null;
+    try {
+        return routingRefresh($pdo, $assignmentId, (float) $pos['last_latitude'], (float) $pos['last_longitude']);
+    } catch (Throwable $e) {
+        error_log('Routing on first view failed: ' . $e->getMessage());
+        return null;
+    }
+}
+
 /** The stored route for an assignment, formatted for screens (or null). */
 function routingForAssignment(PDO $pdo, int $assignmentId): ?array
 {

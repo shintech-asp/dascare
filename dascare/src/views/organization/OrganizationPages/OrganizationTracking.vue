@@ -67,10 +67,14 @@
               <div v-if="sharing" class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300">
                 <Icon icon="lucide:radio" width="16" class="mr-2 inline animate-pulse"/>Location sharing is active. DASCARE sends the latest browser GPS fix approximately every {{ intervalSeconds }} seconds.
               </div>
-              <div v-else-if="selected.assigned_to_current_user && canShare" class="rounded-2xl border border-base-300 bg-base-200/40 p-4 text-xs text-slate-500 dark:border-white/10 dark:bg-white/[.03] dark:text-white/45">If this device is inside the assigned ambulance, use <strong>Share This Device GPS</strong> during the mission. Keep the page open while responding.</div>
+              <!-- Assigned crew not sharing yet: the requester sees "Waiting for live location" until they do -->
+              <div v-else-if="selected.assigned_to_current_user && canShare" class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/20 dark:bg-amber-500/10">
+                <p class="text-sm font-semibold text-amber-900 dark:text-amber-200"><Icon icon="lucide:satellite-dish" width="16" class="mr-1.5 inline"/>Your GPS isn't being shared. The requester is waiting to see the ambulance move — start sharing from the phone inside the ambulance and keep this page open.</p>
+                <button class="rounded-xl bg-red-600 px-4 py-2.5 text-xs font-black text-white hover:bg-red-700" @click="startSharing"><Icon icon="lucide:locate-fixed" width="14" class="mr-1 inline"/>Start sharing GPS</button>
+              </div>
 
               <div class="h-[480px] w-full overflow-hidden rounded-2xl border border-base-300 dark:border-white/10">
-                <LiveMissionMap :key="selected.id" :incident="{ latitude: selected.incident_latitude, longitude: selected.incident_longitude }" :ambulance="selected.last_latitude != null ? { latitude: selected.last_latitude, longitude: selected.last_longitude } : null" :route="selected.route" />
+                <LiveMissionMap :key="selected.id" :incident="{ latitude: selected.incident_latitude, longitude: selected.incident_longitude }" :ambulance="selected.last_latitude != null ? { latitude: selected.last_latitude, longitude: selected.last_longitude } : null" :route="selected.route" :labels="mapLabels" :ambulance-seen-at="selected.seen_at ?? null" :station="selected.station" />
               </div>
             </div>
           </template>
@@ -102,11 +106,13 @@ const Stat = defineComponent({ props:{label:String,value:[String,Number],icon:St
 const pretty=v=>String(v||'').replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase())
 function relative(v){ if(!v)return'—'; const ms=Date.now()-new Date(String(v).replace(' ','T')).getTime(); const sec=Math.max(0,Math.floor(ms/1000)); if(sec<60)return`${sec}s ago`; const min=Math.floor(sec/60); if(min<60)return`${min}m ago`; return`${Math.floor(min/60)}h ago` }
 
-async function load(silent=false){ if(!silent)loading.value=true; error.value=''; try{ const d=await fetchLiveTracking(); missions.value=d.missions||[]; canShare.value=!!d.can_share_location; intervalSeconds.value=d.tracking_interval_seconds||15; if(!selectedId.value||!missions.value.some(m=>m.id===selectedId.value))selectedId.value=missions.value[0]?.id||null; }catch(e){error.value=e?.response?.data?.message||e.message||'Unable to load tracking.'}finally{loading.value=false} }
+async function load(silent=false){ if(!silent)loading.value=true; error.value=''; try{ const d=await fetchLiveTracking(); missions.value=(d.missions||[]).map(m=>({...m,seen_at:m.location_age_seconds!=null?Date.now()-m.location_age_seconds*1000:null})); canShare.value=!!d.can_share_location; intervalSeconds.value=d.tracking_interval_seconds||15; if(!selectedId.value||!missions.value.some(m=>m.id===selectedId.value))selectedId.value=missions.value[0]?.id||null; }catch(e){error.value=e?.response?.data?.message||e.message||'Unable to load tracking.'}finally{loading.value=false} }
 
 // Map: components/maps/LiveMissionMap.vue (MapLibre) — road route + ETA from
 // reusables/routing.php, ambulance gliding between fixes.
 watch(selectedId,()=>stopSharing())
+// Pin captions from the crew's point of view ("You are here" only for crew assigned to this unit).
+const mapLabels=computed(()=>{const m=selected.value;if(!m)return {};const dest=m.route?.destination;const toHospital=dest?.kind==='facility';return {ambulanceStale:m.assigned_to_current_user?'You last shared':'Last seen',waiting:m.assigned_to_current_user?'Share your GPS to go live':'Waiting for live location',station:`${m.unit_code} station`,ambulance:m.assigned_to_current_user?'You are here':m.unit_code,incident:toHospital?'Pickup point':'Destination',facility:toHospital&&dest.label?`Destination · ${dest.label}`:'Destination'}})
 // Turn-by-turn for the driver: the current destination (hospital while
 // transporting, otherwise the incident) opened in Google Maps or Waze.
 function navigateUrl(app){const d=selected.value?.route?.destination||{latitude:selected.value?.incident_latitude,longitude:selected.value?.incident_longitude};const ll=`${d.latitude},${d.longitude}`;return app==='waze'?`https://waze.com/ul?ll=${encodeURIComponent(ll)}&navigate=yes`:`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(ll)}&travelmode=driving`}
@@ -116,7 +122,7 @@ function stopSharing(){if(watchId!=null&&navigator.geolocation)navigator.geoloca
 
 // Live updates: crew GPS pings move the unit on the map as they arrive;
 // other org events re-fetch the list. Polls every 15 s without live updates.
-function applyLocation(d){const m=missions.value.find(x=>x.ambulance_id===Number(d.ambulance_id)&&x.id===Number(d.assignment_id));if(!m)return false;Object.assign(m,{last_latitude:d.latitude,last_longitude:d.longitude,last_accuracy_m:d.accuracy_m,last_location_at:new Date(d.sent_at||Date.now()).toISOString(),location_age_seconds:0,location_stale:false});return true}
+function applyLocation(d){const m=missions.value.find(x=>x.ambulance_id===Number(d.ambulance_id)&&x.id===Number(d.assignment_id));if(!m)return false;Object.assign(m,{last_latitude:d.latitude,last_longitude:d.longitude,last_accuracy_m:d.accuracy_m,last_location_at:new Date(d.sent_at||Date.now()).toISOString(),location_age_seconds:0,location_stale:false,seen_at:Date.now()});return true}
 const { live } = useLiveUpdates(load, { channels: () => [realtimeChannels.value?.org], onEvent: msg => { if (msg.name==='ambulance.location' && applyLocation(msg.data)) return false; if (msg.name==='route.updated') { const m=missions.value.find(x=>x.id===Number(msg.data?.assignment_id)); if (m) { m.route=msg.data.route; return false } } } })
 onMounted(()=>{load()})
 onUnmounted(()=>{stopSharing()})

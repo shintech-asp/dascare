@@ -137,7 +137,10 @@ try {
             a.last_longitude,
             a.last_accuracy_m,
             a.last_location_at,
+            TIMESTAMPDIFF(SECOND, a.last_location_at, NOW()) AS location_age_seconds,
             o.name AS organization_name,
+            o.latitude AS station_latitude,
+            o.longitude AS station_longitude,
             da.id AS assignment_id,
             da.assignment_status
         FROM dispatch_assignments da
@@ -159,10 +162,15 @@ try {
             'longitude' => $assignment['last_longitude'] !== null ? (float) $assignment['last_longitude'] : null,
             'accuracy_m' => $assignment['last_accuracy_m'] !== null ? (float) $assignment['last_accuracy_m'] : null,
             'location_at' => $assignment['last_location_at'],
-            'location_age_seconds' => $assignment['last_location_at'] ? max(0, time() - strtotime($assignment['last_location_at'])) : null,
-            'location_stale' => !$assignment['last_location_at'] || (time() - strtotime($assignment['last_location_at'])) > 45,
+            // Age on the DB clock (PHP's timezone differs from MariaDB's).
+            'location_age_seconds' => $assignment['location_age_seconds'] !== null ? max(0, (int) $assignment['location_age_seconds']) : null,
+            'location_stale' => $assignment['location_age_seconds'] === null || (int) $assignment['location_age_seconds'] > 60,
+            // The unit's base, shown while it has no GPS position at all.
+            'station' => $assignment['station_latitude'] !== null && $assignment['station_longitude'] !== null
+                ? ['latitude' => (float) $assignment['station_latitude'], 'longitude' => (float) $assignment['station_longitude'], 'name' => $assignment['organization_name']]
+                : null,
             // Road route + ETA to where the unit is heading (reusables/routing.php), or null.
-            'route' => routingForAssignment($pdo, (int) $assignment['assignment_id']),
+            'route' => routingEnsureForAssignment($pdo, (int) $assignment['assignment_id']),
         ];
     };
     $result['ambulance'] = $loadAmbulance($requestId);

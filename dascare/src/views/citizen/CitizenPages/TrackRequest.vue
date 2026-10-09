@@ -186,6 +186,9 @@
                   :linked="request.merged_into"
                   :ambulance="isActive && ambulancePos ? request.ambulance : null"
                   :route="isActive ? request.ambulance?.route : null"
+                  :labels="mapLabels"
+                  :ambulance-seen-at="request.ambulance?.seen_at ?? null"
+                  :station="isActive ? request.ambulance?.station : null"
                 />
               </div>
               <div v-if="ambulancePos" class="mt-2 flex flex-wrap items-center gap-2 text-[0.68rem] text-slate-400 dark:text-white/30">
@@ -420,6 +423,27 @@ const stageClass = (i) => {
 // Map — components/maps/LiveMissionMap.vue (MapLibre): incident, linked
 // report, the ambulance gliding between GPS fixes, road route + ETA.
 // ------------------------------------------------------------------
+// Pin captions from the requester's point of view.
+const mapLabels = computed(() => {
+  const amb = request.value?.ambulance
+  const dest = amb?.route?.destination
+  const toHospital = dest?.kind === 'facility'
+  return {
+    incident: toHospital ? 'Pickup point' : 'You are here',
+    linked: 'Emergency reported here',
+    ambulance: amb?.unit_code ? `Ambulance · ${amb.unit_code}` : 'Ambulance',
+    facility: toHospital && dest.label ? `Destination · ${dest.label}` : 'Destination',
+    eta: toHospital ? '' : 'to you',
+    waiting: 'Waiting for live location',
+    waitingDetail: 'Ambulance last seen',
+  }
+})
+// When the ambulance's position was recorded, on this device's clock (the
+// server sends its age, measured on the DB clock) — drives "Last seen …".
+function stampSeenAt(amb) {
+  if (amb) amb.seen_at = amb.location_age_seconds != null ? Date.now() - amb.location_age_seconds * 1000 : null
+  return amb
+}
 const ambulancePos = computed(() => {
   const a = request.value?.ambulance
   return a?.latitude != null && a?.longitude != null ? [a.latitude, a.longitude] : null
@@ -436,6 +460,7 @@ const fetchRequest = async (silent = false) => {
       params: { id: route.params.id },
       withCredentials: true,
     })
+    stampSeenAt(res.data?.ambulance)
     request.value = res.data
   } catch (err) {
     console.error(err)
@@ -465,6 +490,7 @@ function applyAmbulanceLocation(data) {
     accuracy_m: data.accuracy_m,
     location_at: new Date(data.sent_at || Date.now()).toISOString(),
     location_stale: false,
+    seen_at: Date.now(),
   })
   now.value = Date.now()
   return true
