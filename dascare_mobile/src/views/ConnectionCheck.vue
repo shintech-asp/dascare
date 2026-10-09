@@ -31,6 +31,26 @@
       </button>
     </section>
 
+    <!-- Live updates (Ably): instant tracking/status instead of 15 s refreshes -->
+    <section class="mt-4 rounded-3xl border border-base-300 bg-base-100 p-6 shadow-sm dark:border-white/10 dark:bg-[#071829]">
+      <p class="text-[0.68rem] font-black uppercase tracking-[0.16em] text-red-600 dark:text-red-300">Live updates</p>
+      <div class="mt-3 flex items-center gap-4">
+        <span class="grid h-12 w-12 flex-shrink-0 place-items-center rounded-2xl" :class="liveTile">
+          <Icon :icon="liveIcon" width="22" :class="['connecting', 'initialized'].includes(realtimeState) ? 'animate-spin' : ''" />
+        </span>
+        <div class="min-w-0">
+          <p class="text-sm font-black text-slate-800 dark:text-white/85">{{ liveHeadline }}</p>
+          <p class="mt-0.5 text-xs text-slate-500 dark:text-white/45">{{ liveDetail }}</p>
+        </div>
+      </div>
+      <dl v-if="liveTest" class="mt-4 space-y-2 border-t border-base-300 pt-4 text-xs dark:border-white/10">
+        <div class="flex justify-between gap-4"><dt class="font-bold text-slate-400">Test</dt><dd class="text-right font-semibold" :class="liveTest.ok ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'">{{ liveTest.ok ? `Received in ${liveTest.ms} ms` : liveTest.message }}</dd></div>
+      </dl>
+      <button v-if="isLoggedIn" type="button" :disabled="liveTesting || realtimeState === 'disabled'" class="tap mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-base-300 px-4 py-3 text-sm font-bold text-slate-700 disabled:opacity-60 dark:border-white/10 dark:text-white/75" @click="testLive">
+        <Icon icon="lucide:radio-tower" width="16" :class="liveTesting ? 'animate-pulse' : ''" /> {{ liveTesting ? 'Testing…' : 'Test live updates' }}
+      </button>
+    </section>
+
     <section v-if="state === 'failed'" class="mt-4 rounded-3xl border border-amber-200 bg-amber-50 p-5 text-xs leading-5 text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
       <p class="font-black">Can't reach the API? Check:</p>
       <ul class="mt-2 list-disc space-y-1 pl-4">
@@ -50,6 +70,8 @@ import { computed, onMounted, ref } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import api, { API_BASE_URL } from '@/services/api'
 import ScreenHeader from '@/components/ScreenHeader.vue'
+import { connectRealtime, realtimeState, runRealtimeTest } from '@/services/realtime'
+import { useSession } from '@/composables/useSession'
 
 const state = ref('checking') // checking | ok | failed
 const latencyMs = ref(null)
@@ -92,5 +114,29 @@ const statusText = computed(() => ({
   failed: 'text-red-700 dark:text-red-300',
 })[state.value])
 
-onMounted(check)
+// --- Live updates ---
+const { isLoggedIn } = useSession()
+const liveTesting = ref(false)
+const liveTest = ref(null)
+const liveHeadline = computed(() => ({
+  connected: 'Connected', disabled: 'Off on this server', idle: 'Not in use yet',
+  initialized: 'Connecting…', connecting: 'Connecting…', disconnected: 'Reconnecting…', suspended: 'Offline', failed: 'Unavailable',
+})[realtimeState.value] || realtimeState.value)
+const liveDetail = computed(() => ({
+  connected: 'Tracking and status changes arrive instantly.',
+  disabled: 'Screens refresh every 15 seconds instead.',
+  idle: 'Starts when there is a request to follow. Screens refresh every 15 seconds until then.',
+  failed: 'Screens refresh every 15 seconds instead.',
+})[realtimeState.value] || 'Screens refresh every 15 seconds until connected.')
+const liveIcon = computed(() => realtimeState.value === 'connected' ? 'lucide:radio-tower' : (['connecting', 'initialized'].includes(realtimeState.value) ? 'lucide:loader-circle' : 'lucide:refresh-cw'))
+const liveTile = computed(() => realtimeState.value === 'connected'
+  ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300'
+  : 'bg-base-200 text-slate-400 dark:bg-white/5 dark:text-white/40')
+async function testLive() {
+  liveTesting.value = true
+  liveTest.value = null
+  try { liveTest.value = await runRealtimeTest() } finally { liveTesting.value = false }
+}
+
+onMounted(() => { check(); connectRealtime() })
 </script>

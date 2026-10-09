@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { setGuestKeys } from '@/services/api'
 import { getItem, setItem } from '@/services/storage'
+import { refreshRealtimeAccess } from '@/services/realtime'
 
 /**
  * Private keys for emergency requests sent as a GUEST from this phone
@@ -26,6 +27,7 @@ async function add(entry) {
   requests.value = [entry, ...requests.value.filter((r) => r.id !== entry.id)].slice(0, MAX)
   setGuestKeys(requests.value.map((r) => r.token))
   await setItem(KEY, requests.value)
+  refreshRealtimeAccess() // the new request's live channel
 }
 
 export function useGuestKeys() {

@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import api from '@/services/api'
+import { resetRealtime } from '@/services/realtime'
 
 const user = ref(null)
 const organization = ref(null)
@@ -7,6 +8,16 @@ const platform = ref(null)
 const csrfToken = ref(null)
 const ready = ref(false)
 let inFlight = null
+let realtimeUserId = null
+
+// Which live-update channels are allowed depends on who is signed in.
+function syncRealtimeIdentity() {
+  const id = user.value?.id ?? null
+  if (id !== realtimeUserId) {
+    realtimeUserId = id
+    resetRealtime()
+  }
+}
 
 const dashboardByRole = {
   technical_super_admin: '/system',
@@ -23,6 +34,7 @@ export function clearSessionCache() {
   csrfToken.value = null
   ready.value = false
   inFlight = null
+  syncRealtimeIdentity()
 }
 
 export function getSession() {
@@ -58,6 +70,7 @@ export function useSession() {
         platform.value = data.loggedIn ? (data.platform ?? null) : null
         csrfToken.value = data.csrf_token ?? null
         ready.value = true
+        syncRealtimeIdentity()
         return user.value
       })
       .catch(() => {
@@ -66,6 +79,7 @@ export function useSession() {
         platform.value = null
         csrfToken.value = null
         ready.value = true
+        syncRealtimeIdentity()
         return null
       })
       .finally(() => { inFlight = null })

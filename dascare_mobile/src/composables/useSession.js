@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import api, { onTokenInvalid, setAuthToken } from '@/services/api'
 import { getItem, removeItem, setItem } from '@/services/storage'
 import { disablePushForAccount, enablePush } from '@/services/push'
+import { resetRealtime } from '@/services/realtime'
 
 /**
  * Signed-in citizen for the app (singleton state, like the web's
@@ -24,6 +25,7 @@ async function clearLocal() {
   token.value = null
   user.value = null
   setAuthToken(null)
+  resetRealtime() // live-update channels belong to the account
   await removeItem(TOKEN_KEY)
 }
 
@@ -50,6 +52,7 @@ async function fetchSession() {
 async function adoptToken(newToken, newUser) {
   token.value = newToken
   setAuthToken(newToken)
+  resetRealtime()
   await setItem(TOKEN_KEY, newToken)
   user.value = newUser
   await fetchSession()
