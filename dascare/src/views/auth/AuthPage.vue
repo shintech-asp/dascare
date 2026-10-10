@@ -481,6 +481,9 @@
 </template>
 
 <script setup>
+// Images must be imported so the production build bundles them (a plain '../img/…' string only works on the dev server).
+import logoBgUrl from '../../../img/logoo-bg.jpg'
+import authBgUrl from '../../../img/2.png'
 import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useRouter, useRoute } from 'vue-router'
@@ -493,7 +496,7 @@ import api from '@/services/api'
 const router = useRouter()
 const route = useRoute()
 
-const LOGO_SRC = '../../img/logoo-bg.jpg' // TODO: replace with actual logo path
+const LOGO_SRC = logoBgUrl
 const logoFailed = ref(false)
 
 // ------------------------------------------------------------------
@@ -504,7 +507,7 @@ const logoFailed = ref(false)
 // same @error → *Failed flip used for the logo, instead of leaving a
 // broken-image icon sitting behind the form.
 // ------------------------------------------------------------------
-const AUTH_BG_SRC = '../../img/2.png' // TODO: set a real background photo path when available
+const AUTH_BG_SRC = authBgUrl
 const bgFailed = ref(false)
 // ------------------------------------------------------------------
 // Background siren lights — same motif as Hero.vue: 3 spots that

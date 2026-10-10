@@ -199,6 +199,8 @@
 </template>
 
 <script setup>
+// Images must be imported so the production build bundles them (a plain '../img/…' string only works on the dev server).
+import heroImageUrl from '../../../img/hero.png'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useGuestRequestLimit } from '@/composables/useGuestRequestLimit'
@@ -210,7 +212,7 @@ const alert = useAlert()
 
 // Optional real photo for the right column — leave unset to show the placeholder.
 const props = defineProps({
-  heroImageSrc: { type: String, default: '../../img/hero.png' }
+  heroImageSrc: { type: String, default: heroImageUrl }
 })
 
 // Background siren lights — 3 spots that flicker briefly then move to new

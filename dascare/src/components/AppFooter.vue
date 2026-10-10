@@ -154,6 +154,8 @@
 </template>
 
 <script setup>
+// Images must be imported so the production build bundles them (a plain '../img/…' string only works on the dev server).
+import logoBgUrl from '../../img/logoo-bg.jpg'
 import { nextTick, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -188,7 +190,7 @@ async function requestAssistance() {
 /* ---------------------------------------------------------------- */
 /*  Brand logo — same source + fallback behavior as AppHeader.vue    */
 /* ---------------------------------------------------------------- */
-const LOGO_SRC = '../../img/logoo-bg.jpg' // TODO: replace with actual logo path
+const LOGO_SRC = logoBgUrl
 const logoFailed = ref(false)
 
 /* ---------------------------------------------------------------- */

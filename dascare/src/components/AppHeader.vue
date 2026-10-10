@@ -247,6 +247,8 @@
   </header>
 </template>
 <script setup>
+// Images must be imported so the production build bundles them (a plain '../img/…' string only works on the dev server).
+import logoBgUrl from '../../img/logoo-bg.jpg'
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useSession } from '@/composables/useSession'
@@ -260,7 +262,7 @@ const { user, logout, dashboardPath } = useSession()
 /*  Brand logo — swap LOGO_SRC for the real asset path when ready.   */
 /*  Falls back to the inline ambulance icon if the image 404s.       */
 /* ---------------------------------------------------------------- */
-const LOGO_SRC = '../../img/logoo-bg.jpg' // TODO: replace with actual logo path
+const LOGO_SRC = logoBgUrl
 const logoFailed = ref(false)
 
 /* ---------------------------------------------------------------- */
