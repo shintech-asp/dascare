@@ -140,7 +140,7 @@ async function renderMap(){
     if(map){ map.remove(); map=null; marker=null }
     const startLat=form.value.latitude ?? 14.3294; const startLng=form.value.longitude ?? 120.9367
     map=L.map(mapContainer.value,{zoomControl:true,maxBounds:[[14.24,120.85],[14.42,121.02]]}).setView([startLat,startLng],form.value.latitude===null?13:15)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors &copy; CARTO'}).addTo(map)
     if(form.value.latitude!==null) marker=L.marker([form.value.latitude,form.value.longitude]).addTo(map)
     map.on('click',(e)=>{ if(!editing.value) return; const {lat,lng}=e.latlng; if(lat<14.26||lat>14.40||lng<120.87||lng>121.00){ toast.warning?.('Choose a location inside Dasmariñas City.'); return } form.value.latitude=lat; form.value.longitude=lng; if(marker) marker.setLatLng([lat,lng]); else marker=L.marker([lat,lng]).addTo(map) })
     setTimeout(()=>map?.invalidateSize(),60)

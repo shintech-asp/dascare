@@ -14,5 +14,11 @@
  */
 function dascareUploadsDir(string $sub): string
 {
+    // On the server: a private folder outside the web root (config/app.json
+    // "uploads_dir") — files are only served through permission-checked
+    // endpoints such as platform/kyc/media.php.
+    require_once __DIR__ . '/app_config.php';
+    $base = appConfig('uploads_dir');
+    if (is_string($base) && $base !== '') return rtrim($base, '/') . '/' . trim($sub, '/') . '/';
     return dirname(__DIR__, 2) . '/dascare/uploads/' . trim($sub, '/') . '/';
 }

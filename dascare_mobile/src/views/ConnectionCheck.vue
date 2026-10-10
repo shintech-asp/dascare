@@ -54,7 +54,7 @@
     <section v-if="state === 'failed'" class="mt-4 rounded-3xl border border-amber-200 bg-amber-50 p-5 text-xs leading-5 text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
       <p class="font-black">Can't reach the API? Check:</p>
       <ul class="mt-2 list-disc space-y-1 pl-4">
-        <li>XAMPP Apache and MySQL are running on your Mac.</li>
+        <li>Local testing: XAMPP Apache and MySQL are running on your Mac. Live site: check this phone's internet connection.</li>
         <li>Emulator: <span class="font-mono">.env</span> uses <span class="font-mono">http://10.0.2.2/…</span></li>
         <li>Real phone: same Wi-Fi as the Mac, and <span class="font-mono">.env</span> uses the Mac's Wi-Fi IP.</li>
         <li>After editing <span class="font-mono">.env</span>, run <span class="font-mono">npm run sync</span> and press Run again.</li>
@@ -79,7 +79,7 @@ const errorText = ref('')
 const platformLabel = Capacitor.isNativePlatform() ? `Android app (${Capacitor.getPlatform()})` : 'Browser preview'
 
 // Read-only public endpoint that already exists; proves the app can reach
-// XAMPP and that CORS lets it through. No backend changes needed for this.
+// the server and that CORS lets it through. No backend changes needed for this.
 async function check() {
   state.value = 'checking'
   latencyMs.value = null
@@ -99,7 +99,7 @@ async function check() {
 const headline = computed(() => ({ checking: 'Checking…', ok: 'Connected to DASCARE API', failed: 'Not connected' })[state.value])
 const detail = computed(() => ({
   checking: 'Contacting the server.',
-  ok: 'The app can reach your XAMPP server.',
+  ok: 'The app can reach the DASCARE server.',
   failed: errorText.value,
 })[state.value])
 const statusIcon = computed(() => ({ checking: 'lucide:loader-circle', ok: 'lucide:circle-check-big', failed: 'lucide:wifi-off' })[state.value])

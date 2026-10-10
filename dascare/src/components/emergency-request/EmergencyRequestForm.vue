@@ -555,8 +555,8 @@ async function initManualMap() {
       minZoom: 12,
     }).setView(form.latitude ? [form.latitude, form.longitude] : DASMARINAS_CENTER, form.latitude ? 16 : 13)
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
       maxZoom: 19,
     }).addTo(leafletMap)
 

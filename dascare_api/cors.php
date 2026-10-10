@@ -1,8 +1,15 @@
 <?php
+require_once __DIR__ . '/reusables/app_config.php';
+// PHP's own clock (config/app.json "timezone", e.g. "Asia/Manila"). Unset locally.
+if (is_string(appConfig('timezone')) && in_array(appConfig('timezone'), timezone_identifiers_list(), true)) {
+    date_default_timezone_set(appConfig('timezone'));
+}
+
 // ----------------------------------
 // SESSION COOKIE CONFIG (CRITICAL)
 // ----------------------------------
 ini_set('session.cookie_httponly', '1');
+if (appConfig('secure_cookies', false)) ini_set('session.cookie_secure', '1');
 ini_set('session.cookie_samesite', 'Lax');
 ini_set('session.use_strict_mode', '1');
 
@@ -18,6 +25,8 @@ $allowed_origins = [
     'http://localhost',
     'http://localhost:5180'
 ];
+// The deployed site's own origin(s), from config/app.json.
+$allowed_origins = array_merge($allowed_origins, (array) appConfig('allowed_origins', []));
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 

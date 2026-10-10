@@ -92,7 +92,7 @@ onMounted(() => {
   const bounds = L.latLngBounds(DASMARINAS_BOUNDS)
   map = L.map(mapEl.value, { maxBounds: bounds.pad(0.05), maxBoundsViscosity: 1, minZoom: 12, attributionControl: true })
     .setView(props.lat ? [props.lat, props.lng] : DASMARINAS_CENTER, props.lat ? 16 : 13)
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 19 }).addTo(map)
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 19 }).addTo(map)
   L.rectangle(bounds, { color: '#dc2626', weight: 1, fillOpacity: 0.02, dashArray: '4 4' }).addTo(map)
   if (props.lat && props.lng) marker = L.marker([props.lat, props.lng], { icon: pinIcon }).addTo(map)
   map.on('click', (e) => {

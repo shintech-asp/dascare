@@ -471,7 +471,7 @@ async function initMap() {
   try {
     const L = await loadLeaflet()
     map = L.map(mapContainer.value, { zoomControl: true, maxBounds: DASMARINAS_BOUNDS }).setView(DASMARINAS_CENTER, 13)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors &copy; CARTO' }).addTo(map)
     L.rectangle(DASMARINAS_BOUNDS, { color: '#1976D2', weight: 1, fillOpacity: 0.02, dashArray: '4 4' }).addTo(map)
     map.on('click', ({ latlng }) => setMapPoint(latlng.lat, latlng.lng))
     setTimeout(() => map?.invalidateSize(), 80)
