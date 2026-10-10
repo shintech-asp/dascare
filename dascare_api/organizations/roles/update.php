@@ -51,9 +51,11 @@ try {
     $link = $pdo->prepare('INSERT INTO org_role_permissions (role_id, permission_id) VALUES (?, ?)');
     foreach ($permissionIds as $pid) $link->execute([$roleId, $pid]);
 
-    logOrganizationRbac($pdo, $ctx, 'org_roles', $roleId, $isSystem ? 'update_permissions' : 'update',
+    // rbac_audit_log.action is an enum (create/update/delete/assign/revoke):
+    // a starter role's permission edit is an 'update', marked in new_values.
+    logOrganizationRbac($pdo, $ctx, 'org_roles', $roleId, 'update',
         ['role_name'=>$role['role_name'],'description'=>$role['description'],'permission_ids'=>$oldIds],
-        ['role_name'=>$name,'description'=>$description ?: null,'permission_ids'=>$permissionIds]);
+        ['role_name'=>$name,'description'=>$description ?: null,'permission_ids'=>$permissionIds] + ($isSystem ? ['change'=>'starter_role_permissions'] : []));
     $pdo->commit();
     echo json_encode(['success'=>true,'message'=>$isSystem ? 'Starter role permissions updated.' : 'Role updated.']);
 } catch (Throwable $e) {

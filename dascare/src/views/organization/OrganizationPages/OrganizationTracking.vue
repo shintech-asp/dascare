@@ -72,9 +72,11 @@
                 <p class="text-sm font-semibold text-amber-900 dark:text-amber-200"><Icon icon="lucide:satellite-dish" width="16" class="mr-1.5 inline"/>Your GPS isn't being shared. The requester is waiting to see the ambulance move — start sharing from the phone inside the ambulance and keep this page open.</p>
                 <button class="rounded-xl bg-red-600 px-4 py-2.5 text-xs font-black text-white hover:bg-red-700" @click="startSharing"><Icon icon="lucide:locate-fixed" width="14" class="mr-1 inline"/>Start sharing GPS</button>
               </div>
+              <!-- Assigned to the mission, but their org role can't share location (dispatch.tracking.update) -->
+              <div v-else-if="selected.assigned_to_current_user && !canShare" class="rounded-2xl border border-base-300 bg-base-200/40 p-4 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[.03] dark:text-white/60"><Icon icon="lucide:shield-alert" width="16" class="mr-1.5 inline text-amber-600"/>You're on this mission's crew, but your role can't share ambulance GPS. Ask an organization admin to tick <strong>Dispatch → Tracking → update</strong> for your role in <strong>Roles &amp; Permissions</strong>, or share from a Driver / EMT / Rescuer account in the ambulance.</div>
 
               <div class="h-[480px] w-full overflow-hidden rounded-2xl border border-base-300 dark:border-white/10">
-                <LiveMissionMap :key="selected.id" :incident="{ latitude: selected.incident_latitude, longitude: selected.incident_longitude }" :ambulance="selected.last_latitude != null ? { latitude: selected.last_latitude, longitude: selected.last_longitude } : null" :route="selected.route" :labels="mapLabels" :ambulance-seen-at="selected.seen_at ?? null" :station="selected.station" />
+                <LiveMissionMap :key="selected.id" :incident="{ latitude: selected.incident_latitude, longitude: selected.incident_longitude }" :ambulance="selected.last_latitude != null ? { latitude: selected.last_latitude, longitude: selected.last_longitude } : null" :route="selected.route" :labels="mapLabels" :ambulance-seen-at="selected.seen_at ?? null" :station="selected.station" :waiting-clickable="canShareSelected && !sharing" @waiting-click="startSharing" />
               </div>
             </div>
           </template>
@@ -98,7 +100,7 @@ import { realtimeChannels } from '@/services/realtime'
 const alert = useAlert()
 const missions = ref([]), selectedId = ref(null), loading = ref(false), error = ref('')
 const canShare = ref(false), intervalSeconds = ref(15), sharing = ref(false)
-let watchId = null, lastSentAt = 0
+let watchId = null, lastSentAt = 0, lastPos = null, heartbeat = null
 const selected = computed(() => missions.value.find(m => m.id === selectedId.value) || missions.value[0] || null)
 const canShareSelected = computed(() => !!selected.value?.assigned_to_current_user && canShare.value)
 
@@ -112,13 +114,22 @@ async function load(silent=false){ if(!silent)loading.value=true; error.value=''
 // reusables/routing.php, ambulance gliding between fixes.
 watch(selectedId,()=>stopSharing())
 // Pin captions from the crew's point of view ("You are here" only for crew assigned to this unit).
-const mapLabels=computed(()=>{const m=selected.value;if(!m)return {};const dest=m.route?.destination;const toHospital=dest?.kind==='facility';return {ambulanceStale:m.assigned_to_current_user?'You last shared':'Last seen',waiting:m.assigned_to_current_user?'Share your GPS to go live':'Waiting for live location',station:`${m.unit_code} station`,ambulance:m.assigned_to_current_user?'You are here':m.unit_code,incident:toHospital?'Pickup point':'Destination',facility:toHospital&&dest.label?`Destination · ${dest.label}`:'Destination'}})
+const mapLabels=computed(()=>{const m=selected.value;if(!m)return {};const dest=m.route?.destination;const toHospital=dest?.kind==='facility';const crew=canShareSelected.value;return {ambulanceStale:crew?'You last shared':'Last seen',waiting:crew?'Share your GPS to go live':'Waiting for live location',station:`${m.unit_code} station`,ambulance:crew?'You are here':m.unit_code,incident:toHospital?'Pickup point':'Destination',facility:toHospital&&dest.label?`Destination · ${dest.label}`:'Destination'}})
 // Turn-by-turn for the driver: the current destination (hospital while
 // transporting, otherwise the incident) opened in Google Maps or Waze.
 function navigateUrl(app){const d=selected.value?.route?.destination||{latitude:selected.value?.incident_latitude,longitude:selected.value?.incident_longitude};const ll=`${d.latitude},${d.longitude}`;return app==='waze'?`https://waze.com/ul?ll=${encodeURIComponent(ll)}&navigate=yes`:`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(ll)}&travelmode=driving`}
 
-function startSharing(){if(!navigator.geolocation){alert.error('Geolocation is not supported by this browser.');return}if(!canShareSelected.value){alert.error('Only assigned field responders can share this ambulance location.');return}sharing.value=true;watchId=navigator.geolocation.watchPosition(async pos=>{const now=Date.now();if(now-lastSentAt<intervalSeconds.value*1000-1000)return;lastSentAt=now;try{await pushAmbulanceLocation({assignment_id:selected.value.id,latitude:pos.coords.latitude,longitude:pos.coords.longitude,accuracy_m:pos.coords.accuracy,speed_kph:pos.coords.speed!=null?pos.coords.speed*3.6:null,heading_degrees:pos.coords.heading});if(!live.value)await load(true)}catch(e){alert.error(e?.response?.data?.message||e.message||'Location update failed.');stopSharing()}},err=>{alert.error(err.message||'Unable to read GPS.');stopSharing()},{enableHighAccuracy:true,maximumAge:5000,timeout:15000})}
-function stopSharing(){if(watchId!=null&&navigator.geolocation)navigator.geolocation.clearWatch(watchId);watchId=null;sharing.value=false;lastSentAt=0}
+// Share this device's GPS for the selected mission. Starting a watch makes the
+// browser ask for location permission; once a site is blocked it won't ask
+// again by itself, so explain how to re-allow it instead of failing silently.
+const GPS_BLOCKED_HELP='Location is blocked for this site. Allow it in the browser: tap the icon left of the address bar (ⓘ / lock) → Permissions → Location → Allow, then tap Start sharing again.'
+async function startSharing(){if(!navigator.geolocation){alert.error('Geolocation is not supported by this browser.');return}if(!window.isSecureContext){alert.error('Location sharing needs a secure page (https://, or localhost). Open DASCARE over HTTPS on this device.');return}if(!canShareSelected.value){alert.error('Only assigned field responders can share this ambulance location.');return}try{const p=await navigator.permissions?.query({name:'geolocation'});if(p?.state==='denied'){alert.error(GPS_BLOCKED_HELP,'Location blocked');return}}catch{/* Permissions API unavailable: just try */}stopSharing();sharing.value=true;watchId=navigator.geolocation.watchPosition(pos=>{lastPos=pos;sendPosition(pos)},err=>{stopSharing();if(err.code===1)alert.error(GPS_BLOCKED_HELP,'Location blocked');else if(err.code===3)alert.error('No GPS fix yet. Move near a window or outdoors, then tap Start sharing again.','No GPS signal');else alert.error(err.message||'Unable to read GPS.')},{enableHighAccuracy:true,maximumAge:5000,timeout:20000});startHeartbeat()}
+// One GPS fix to the server (throttled to the tracking interval).
+async function sendPosition(pos){const now=Date.now();if(now-lastSentAt<intervalSeconds.value*1000-1000)return;lastSentAt=now;try{await pushAmbulanceLocation({assignment_id:selected.value.id,latitude:pos.coords.latitude,longitude:pos.coords.longitude,accuracy_m:pos.coords.accuracy,speed_kph:pos.coords.speed!=null?pos.coords.speed*3.6:null,heading_degrees:pos.coords.heading});if(!live.value)await load(true)}catch(e){alert.error(e?.response?.data?.message||e.message||'Location update failed.');stopSharing()}}
+// Browsers only report GPS when the position changes, so a parked ambulance
+// would look "stale" to the requester. Re-send the last fix every interval.
+function startHeartbeat(){clearInterval(heartbeat);heartbeat=setInterval(()=>{if(lastPos&&sharing.value)sendPosition(lastPos)},intervalSeconds.value*1000)}
+function stopSharing(){clearInterval(heartbeat);heartbeat=null;lastPos=null;if(watchId!=null&&navigator.geolocation)navigator.geolocation.clearWatch(watchId);watchId=null;sharing.value=false;lastSentAt=0}
 
 // Live updates: crew GPS pings move the unit on the map as they arrive;
 // other org events re-fetch the list. Polls every 15 s without live updates.

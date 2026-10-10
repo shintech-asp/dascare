@@ -3,9 +3,13 @@
     <div ref="mapEl" class="h-full w-full"></div>
 
     <!-- No live GPS: say so instead of an ETA from an old position -->
-    <div
+    <component
+      :is="waitingClickable ? 'button' : 'div'"
       v-if="waiting"
-      class="pointer-events-none absolute left-2.5 top-2.5 max-w-[75%] rounded-2xl border border-amber-200 bg-base-100/95 px-3 py-2 shadow-md backdrop-blur dark:border-amber-500/30 dark:bg-[#071829]/95"
+      :type="waitingClickable ? 'button' : undefined"
+      class="absolute left-2.5 top-2.5 max-w-[75%] rounded-2xl border border-amber-200 bg-base-100/95 px-3 py-2 text-left shadow-md backdrop-blur dark:border-amber-500/30 dark:bg-[#071829]/95"
+      :class="waitingClickable ? 'cursor-pointer transition hover:border-amber-400 hover:shadow-lg active:scale-[0.98]' : 'pointer-events-none'"
+      @click="waitingClickable && emit('waiting-click')"
     >
       <p class="flex items-center gap-1.5 text-sm font-black text-slate-900 dark:text-white">
         <Icon icon="lucide:satellite-dish" width="15" class="text-amber-600 dark:text-amber-300" /> {{ labels.waiting || 'Waiting for live location' }}
@@ -13,7 +17,10 @@
       <p class="mt-1 text-[0.65rem] font-semibold text-slate-500 dark:text-white/45">
         {{ hasAmbulancePosition ? `${labels.waitingDetail || 'Last seen'} ${seenAgo}` : 'No GPS shared yet — showing the station' }}
       </p>
-    </div>
+      <p v-if="waitingClickable" class="mt-1.5 inline-flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-1 text-[0.65rem] font-black text-white">
+        <Icon icon="lucide:locate-fixed" width="12" /> Tap to share GPS
+      </p>
+    </component>
 
     <!-- ETA card -->
     <div
@@ -81,7 +88,10 @@ const props = defineProps({
   ambulanceSeenAt: { type: Number, default: null },
   // The unit's base { latitude, longitude, name } — shown while it has no GPS position at all.
   station: { type: Object, default: null },
+  // Make the "Waiting for live location" card a button (crew: start sharing GPS).
+  waitingClickable: { type: Boolean, default: false },
 })
+const emit = defineEmits(['waiting-click'])
 const STALE_AFTER_MS = 60 * 1000
 
 const STYLES = { light: 'https://tiles.openfreemap.org/styles/liberty', dark: 'https://tiles.openfreemap.org/styles/dark' }

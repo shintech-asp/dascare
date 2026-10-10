@@ -33,6 +33,22 @@ async function fetchAuth() {
   return data
 }
 
+// Coming back to the foreground (app resumed / tab visible again): reconnect
+// now. After a long background the connection is "suspended" and Ably would
+// otherwise wait up to 30 s before retrying, leaving screens on polling.
+let foregroundWatched = false
+function watchForeground() {
+  if (foregroundWatched || typeof window === 'undefined') return
+  foregroundWatched = true
+  const reconnect = () => {
+    if (!client || document.hidden) return
+    if (['disconnected', 'suspended', 'failed'].includes(client.connection.state)) client.connection.connect()
+  }
+  window.addEventListener('dascare:resume', reconnect)
+  document.addEventListener('visibilitychange', reconnect)
+  window.addEventListener('online', reconnect)
+}
+
 /** Channel name for one emergency request (null until the server sent the prefix). */
 export function requestChannel(id) {
   const prefix = realtimeChannels.value?.prefix
@@ -99,6 +115,7 @@ async function ensureClient() {
     created.connection.on((change) => {
       if (client === created) realtimeState.value = change.current
     })
+    watchForeground()
     client = created
     realtimeState.value = created.connection.state
     return created
@@ -142,7 +159,18 @@ export function subscribe(name, handler, onStatus = () => {}) {
       if (cancelled) return
       channel.subscribe(handler)
       onStatus(true)
-    } catch {
+    } catch (err) {
+      // A transient attach failure (e.g. the channel was mid-detach): try once more.
+      if (!cancelled && !CAPABILITY_ERRORS.includes(err?.code)) {
+        try {
+          await new Promise((r) => setTimeout(r, 1000))
+          if (cancelled) return
+          channel = await attach(name)
+          channel.subscribe(handler)
+          onStatus(true)
+          return
+        } catch { /* fall through */ }
+      }
       listeners.get(name)?.delete(handler) // not allowed / failed: the screen keeps polling
       onStatus(false)
     }
@@ -156,7 +184,14 @@ export function subscribe(name, handler, onStatus = () => {}) {
     if (channel) channel.unsubscribe(handler)
     if (!set.size) {
       listeners.delete(name)
-      if (client) client.channels.get(name).detach().catch(() => {})
+      // Detach a little later, and only if no screen picked the channel up in
+      // the meantime: when navigating, the next screen often subscribes to the
+      // same channel while this one is unmounting, and detaching under it
+      // would make its attach fail (leaving it on polling).
+      const c = client
+      setTimeout(() => {
+        if (c && c === client && !listeners.has(name)) c.channels.get(name).detach().catch(() => {})
+      }, 3000)
     }
   }
 }
