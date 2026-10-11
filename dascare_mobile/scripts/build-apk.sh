@@ -59,6 +59,6 @@ if [ "$publish_web" = "--web" ]; then
   size=$(stat -f%z "$web_dir/DASCARE.apk")
   printf '{"version":"%s","size_bytes":%s,"built_at":"%s","api":"%s"}\n' "$version" "$size" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$api" > "$web_dir/app.json"
   # Apache (XAMPP / production): send .apk as an Android package, not "zip".
-  printf 'AddType application/vnd.android.package-archive .apk\n<IfModule mod_headers.c>\n  <FilesMatch "\\.apk$">\n    Header set Content-Disposition "attachment"\n  </FilesMatch>\n</IfModule>\n' > "$web_dir/.htaccess"
+  printf 'AddType application/vnd.android.package-archive .apk\n<IfModule mod_headers.c>\n  <FilesMatch "\\.apk$">\n    Header set Content-Disposition "attachment"\n    Header set Cache-Control "no-cache, must-revalidate"\n  </FilesMatch>\n</IfModule>\n' > "$web_dir/.htaccess"
   echo "Published to the web: dascare/public/downloads/DASCARE.apk"
 fi

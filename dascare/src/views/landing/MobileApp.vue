@@ -177,7 +177,8 @@ const rightTabs = [
 const APK_PATH = 'downloads/DASCARE.apk'
 const app = ref(null)
 const loading = ref(true)
-const apkUrl = `${import.meta.env.BASE_URL}${APK_PATH}`
+// ?v=<version>: each release gets a fresh URL, so the hosting CDN never serves an older cached APK.
+const apkUrl = computed(() => `${import.meta.env.BASE_URL}${APK_PATH}${app.value?.version ? `?v=${encodeURIComponent(app.value.version)}` : ''}`)
 const sizeLabel = computed(() => (app.value?.size_bytes ? `${(app.value.size_bytes / 1e6).toFixed(1)} MB` : ''))
 
 onMounted(async () => {
