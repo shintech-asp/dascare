@@ -19,6 +19,10 @@ try {
             PDO::ATTR_EMULATE_PREPARES => false
         ]
     );
+    // Talk to MariaDB in the tables' collation (utf8mb4_general_ci, as in
+    // dascare.sql). Hostinger's server default is utf8mb4_unicode_ci, and
+    // mixing the two fails on e.g. NULLIF(?, '') ("Illegal mix of collations").
+    $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_general_ci");
     // Server DB clock may be UTC; DASCARE's timestamps are Philippine time
     // (config/app.json "db.time_zone", e.g. "+08:00"). Unset locally.
     $dbTimeZone = appConfig('db.time_zone');
