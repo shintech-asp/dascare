@@ -8,6 +8,9 @@
 
       <KycCard :status="kycStatus" />
 
+      <!-- SOS first; when a request is active, its tracking card leads -->
+      <SosHero v-if="!active" />
+
       <!-- Active request (same source as the web dashboard: citizen/dashboard.php) -->
       <RouterLink v-if="active" :to="{ name: 'Track', params: { id: active.id } }" class="tap relative block overflow-hidden rounded-3xl border border-red-200 bg-base-100 p-5 no-underline shadow-sm dark:border-red-500/20 dark:bg-[#071829]">
         <div class="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-red-500/10 blur-3xl"></div>
@@ -30,36 +33,13 @@
           <span class="flex items-center gap-1 font-bold text-red-600 dark:text-red-300">Track live <Icon icon="lucide:chevron-right" width="14" /></span>
         </div>
       </RouterLink>
-
-      <!-- Primary action -->
-      <RouterLink to="/sos" class="tap relative block overflow-hidden rounded-3xl bg-gradient-to-br from-red-600 to-red-700 p-5 text-white no-underline shadow-lg shadow-red-600/30 dark:shadow-red-950/40">
-        <div class="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl"></div>
-        <div class="relative flex items-center gap-4">
-          <span class="relative grid h-16 w-16 flex-shrink-0 place-items-center rounded-full bg-white/15">
-            <span class="absolute inset-0 animate-ping rounded-full bg-white/20"></span>
-            <Icon icon="lucide:siren" width="30" class="relative" />
-          </span>
-          <div>
-            <p class="text-lg font-black leading-tight">{{ active ? 'Another emergency?' : 'Need an ambulance?' }}</p>
-            <p class="mt-1 text-xs leading-5 text-white/85">Tap to send an emergency request with your location.</p>
-          </div>
-          <Icon icon="lucide:chevron-right" width="22" class="ml-auto flex-shrink-0 text-white/80" />
-        </div>
-      </RouterLink>
+      <SosHero v-if="active" compact />
 
       <div v-if="loading && !active" :class="[ui.card, 'space-y-3 p-5']" aria-busy="true">
         <div class="h-3 w-28 animate-pulse rounded bg-base-200 dark:bg-white/5"></div>
         <div class="h-4 w-3/4 animate-pulse rounded bg-base-200 dark:bg-white/5"></div>
         <div class="h-1.5 w-full animate-pulse rounded-full bg-base-200 dark:bg-white/5"></div>
       </div>
-      <section v-else-if="!active" :class="[ui.card, 'p-5']">
-        <h3 class="text-sm font-black text-slate-900 dark:text-white">Active request</h3>
-        <div class="mt-4 rounded-2xl border border-dashed border-slate-300 p-6 text-center dark:border-white/15">
-          <Icon icon="lucide:truck" width="22" class="mx-auto text-slate-300 dark:text-white/20" />
-          <p class="mt-2 text-xs font-semibold text-slate-400 dark:text-white/35">{{ loading ? 'Checking…' : 'No active request' }}</p>
-          <p class="mt-1 text-[0.68rem] text-slate-400 dark:text-white/25">When you send an SOS, the responding unit shows up here.</p>
-        </div>
-      </section>
 
       <!-- Recent requests (history needs a verified ID, like the web) -->
       <section v-if="isVerified && recent.length" :class="[ui.card, 'overflow-hidden']">
@@ -81,6 +61,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import KycCard from '@/components/KycCard.vue'
+import SosHero from '@/components/SosHero.vue'
 import PullToRefresh from '@/components/PullToRefresh.vue'
 import RequestRow from '@/components/RequestRow.vue'
 import * as ui from '@/components/ui/styles'

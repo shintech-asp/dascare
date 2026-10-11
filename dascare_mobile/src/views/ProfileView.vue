@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-4 px-4 pt-4">
+  <div class="space-y-3 px-4 pt-2">
     <section :class="[ui.card, 'p-5']">
       <div class="flex items-center gap-4">
         <span class="grid h-14 w-14 flex-shrink-0 place-items-center rounded-2xl bg-red-50 text-lg font-black text-red-600 dark:bg-red-500/10 dark:text-red-300">{{ initials }}</span>
@@ -15,6 +15,7 @@
     </section>
 
     <!-- Emergency information + account -->
+    <p class="px-2 pt-2 text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-white/35">Emergency &amp; account</p>
     <section :class="[ui.card, 'divide-y divide-base-300 dark:divide-white/10']">
       <RouterLink :to="{ name: 'MedicalRecords' }" class="tap flex items-center gap-3 p-4 no-underline">
         <span class="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-300"><Icon icon="lucide:heart-pulse" width="20" /></span>
@@ -35,6 +36,7 @@
     </section>
 
     <!-- Identity verification -->
+    <p class="px-2 pt-2 text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-white/35">Verification</p>
     <RouterLink :to="{ name: 'VerifyIdentity' }" :class="[ui.card, 'tap flex items-center gap-3 p-4 no-underline']">
       <span class="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl" :class="kyc.tile"><Icon :icon="kyc.icon" width="20" /></span>
       <div class="min-w-0 flex-1">
@@ -45,9 +47,9 @@
     </RouterLink>
 
     <!-- Appearance — same Light / Dark / System choice as the web settings -->
-    <section :class="[ui.card, 'p-4']">
-      <p class="text-sm font-bold text-slate-900 dark:text-white">Appearance</p>
-      <div class="mt-3 grid grid-cols-3 gap-2 rounded-2xl bg-base-200 p-1 dark:bg-white/5">
+    <p class="px-2 pt-2 text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-white/35">Appearance</p>
+    <section :class="[ui.card, 'p-2']">
+      <div class="grid grid-cols-3 gap-2 rounded-2xl bg-base-200 p-1 dark:bg-white/5">
         <button v-for="opt in themeOptions" :key="opt.value" type="button" class="tap flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-colors"
           :class="themePreference === opt.value ? 'bg-base-100 text-red-600 shadow-sm dark:bg-[#0d2943] dark:text-red-300' : 'text-slate-500 dark:text-white/50'"
           @click="applyTheme(opt.value)">
@@ -56,6 +58,7 @@
       </div>
     </section>
 
+    <p class="px-2 pt-2 text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-white/35">About &amp; support</p>
     <section :class="[ui.card, 'divide-y divide-base-300 dark:divide-white/10']">
       <RouterLink :to="{ name: 'Legal', params: { slug: 'terms-of-service' } }" class="tap flex items-center gap-3 p-4 no-underline">
         <Icon icon="lucide:scroll-text" width="18" class="text-slate-400" />
@@ -78,11 +81,12 @@
       </button>
     </section>
 
-    <p class="pb-2 text-center text-[0.65rem] font-semibold text-slate-400 dark:text-white/30">DASCARE mobile v1.0.0</p>
+    <p class="pb-2 text-center text-[0.65rem] font-semibold text-slate-400 dark:text-white/30">DASCARE mobile v{{ appVersion }}</p>
   </div>
 </template>
 
 <script setup>
+const appVersion = __APP_VERSION__ // package.json version (vite.config.js define)
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import * as ui from '@/components/ui/styles'
