@@ -59,4 +59,14 @@ if (($_SERVER['HTTP_X_DASCARE_CLIENT'] ?? '') === 'mobile') {
     mobileAuthBootstrap($pdo);
 } elseif (session_status() === PHP_SESSION_NONE) {
     session_start();
+    // Guests on the website track their SOS with the private key saved in
+    // their browser (X-Guest-Tokens), exactly like the app.
+    if (($_SERVER['HTTP_X_GUEST_TOKENS'] ?? '') !== '') {
+        require_once __DIR__ . '/db/db.php';
+        require_once __DIR__ . '/reusables/mobile_auth.php';
+        $webGuestIds = guestRequestIdsFromHeader($pdo) ?? [];
+        $_SESSION['guest_request_ids'] = array_values(array_unique(array_merge(
+            array_map('intval', (array) ($_SESSION['guest_request_ids'] ?? [])), $webGuestIds
+        )));
+    }
 }

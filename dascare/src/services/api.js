@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { guestTokensHeader } from '@/services/guestRequests'
 
 /**
  * Single API client for the entire DASCARE frontend.
@@ -27,6 +28,14 @@ const api = axios.create({
     Accept: 'application/json',
     'Content-Type': 'application/json'
   }
+})
+
+// Guest SOS keys saved in this browser (services/guestRequests.js) unlock
+// tracking of those requests without an account (dascare_api cors.php).
+api.interceptors.request.use((config) => {
+  const tokens = guestTokensHeader()
+  if (tokens) config.headers['X-Guest-Tokens'] = tokens
+  return config
 })
 
 export default api

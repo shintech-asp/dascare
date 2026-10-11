@@ -555,11 +555,12 @@ $response = [
     'mergedInto' => $merge['merged'] ? $merge['primary'] : null,
 ];
 
-// Android app only (X-Dascare-Client: mobile, see reusables/mobile_auth.php):
-// a guest SOS gets a private key so the same phone can track the request and
-// say "not my emergency" later without an account. Web responses are
-// unchanged. A failure here must never fail the emergency itself.
-if ($isGuest && function_exists('isMobileAppRequest') && isMobileAppRequest()) {
+// Every guest SOS (app or website) gets a private key so that phone/browser —
+// or anyone the guest shares the tracking link with — can follow the request
+// and say "not my emergency" later without an account. Sent as X-Guest-Tokens
+// (reusables/mobile_auth.php). A failure here must never fail the emergency.
+require_once __DIR__ . '/../reusables/mobile_auth.php';
+if ($isGuest) {
     try {
         $response['guestAccessToken'] = mobileIssueGuestRequestToken($pdo, $requestId);
     } catch (Throwable $e) {

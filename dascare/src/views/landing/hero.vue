@@ -54,6 +54,20 @@
           </button>
         </div>
 
+        <!-- Guest requests sent from this browser (newest 3) with live status. -->
+        <div v-if="myRequests.length" class="mt-3 overflow-hidden rounded-2xl border border-base-300 bg-base-100 dark:border-white/10 dark:bg-white/5">
+          <p class="px-4 pt-3 text-[0.65rem] font-bold uppercase tracking-wider text-slate-500 dark:text-white/40">Your emergency requests</p>
+          <RouterLink v-for="r in myRequests" :key="r.id" :to="{ name: 'GuestTrack', params: { id: r.id } }"
+            class="flex items-center gap-3 px-4 py-2.5 no-underline hover:bg-base-200 dark:hover:bg-white/5">
+            <span class="h-2 w-2 flex-shrink-0 rounded-full" :class="r.active ? 'animate-pulse bg-red-500' : 'bg-slate-300 dark:bg-white/20'"></span>
+            <span class="min-w-0 flex-1">
+              <span class="block truncate font-mono text-xs font-bold text-slate-700 dark:text-white/80">{{ r.reference_number || 'Request #' + r.id }}</span>
+              <span class="block text-[0.7rem] text-slate-500 dark:text-white/40">{{ r.statusText || 'Tap to track' }}</span>
+            </span>
+            <span class="flex items-center gap-0.5 text-xs font-bold text-red-600 dark:text-red-300">Track <Icon icon="lucide:chevron-right" width="14" /></span>
+          </RouterLink>
+        </div>
+
         <!-- The count below is a soft, device-level heads-up — the real
              (phone-keyed) threshold only ever adds a dispatcher check; it
              never blocks a submission. See useGuestRequestLimit.js. -->
@@ -154,9 +168,27 @@
               exactly like any other request.
             </p>
 
-            <p class="mt-3 text-xs text-slate-500 dark:text-white/40">
-              Guest requests aren't saved to an account, so this reference number is the only way to
-              follow up.
+            <!-- Guest tracking: this browser keeps the request's private key
+                 (services/guestRequests.js); the link carries it to another device. -->
+            <div v-if="resultTrackingUrl" class="mt-4 rounded-2xl border border-base-300 p-4 text-left dark:border-white/10">
+              <p class="text-sm font-bold text-slate-900 dark:text-white">Follow the ambulance live</p>
+              <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-white/45">
+                See the status and the ambulance on a map — no account needed. This browser remembers
+                the request; copy the link to open it on another phone.
+              </p>
+              <div class="mt-3 flex flex-col gap-2 sm:flex-row">
+                <RouterLink :to="{ name: 'GuestTrack', params: { id: submittedResult.id } }" @click="closeGuestModal"
+                  class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white no-underline hover:bg-red-700">
+                  <Icon icon="lucide:map-pin" width="16" /> Track this request
+                </RouterLink>
+                <button type="button" @click="copyTrackingLink(resultTrackingUrl)"
+                  class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-[#f3ecdd] dark:border-white/15 dark:text-white dark:hover:bg-white/5">
+                  <Icon :icon="linkCopied ? 'lucide:check' : 'lucide:link'" width="16" /> {{ linkCopied ? 'Copied' : 'Copy link' }}
+                </button>
+              </div>
+            </div>
+            <p v-else class="mt-3 text-xs text-slate-500 dark:text-white/40">
+              Keep the reference number to follow up.
               <RouterLink to="/register" class="underline decoration-2 underline-offset-2">Create a free account</RouterLink>
               to track requests going forward.
             </p>
@@ -207,6 +239,8 @@ import { useGuestRequestLimit } from '@/composables/useGuestRequestLimit'
 import EmergencyRequestForm from '@/components/emergency-request/EmergencyRequestForm.vue'
 import { unmergeOwnReport } from '@/services/dispatchOperations'
 import { useAlert } from '@/composables/useAlert'
+import api from '@/services/api'
+import { guestRequests, guestTrackingUrl } from '@/services/guestRequests'
 
 const alert = useAlert()
 
@@ -257,9 +291,44 @@ async function requestSeparately() {
   }
 }
 
+// ---- Guest tracking (key saved by EmergencyRequestForm on submit) ----
+const resultTrackingUrl = computed(() => (submittedResult.value?.id ? guestTrackingUrl(submittedResult.value.id) : null))
+const linkCopied = ref(false)
+async function copyTrackingLink(url) {
+  try {
+    await navigator.clipboard.writeText(url)
+    linkCopied.value = true
+    setTimeout(() => { linkCopied.value = false }, 2000)
+  } catch {
+    window.prompt('Copy this tracking link:', url)
+  }
+}
+
+const STATUS_TEXT = {
+  submitted: 'Submitted', validating: 'Being reviewed', verified: 'Verified', assigned: 'Ambulance assigned',
+  acknowledged: 'Crew acknowledged', responding: 'Ambulance on the way', on_scene: 'Ambulance on scene',
+  transporting: 'Transporting to hospital', completed: 'Completed', cancelled: 'Cancelled', rejected: 'Rejected',
+  duplicate: 'Linked to a nearby report', false_alarm: 'Closed (false alarm)',
+}
+const CLOSED = ['completed', 'cancelled', 'rejected', 'false_alarm']
+const statuses = ref({}) // id → status, from citizen/detail.php (the saved keys unlock it)
+const myRequests = computed(() => guestRequests.value.slice(0, 3).map((r) => {
+  const st = statuses.value[r.id]
+  return { ...r, statusText: st ? STATUS_TEXT[st] || st : '', active: st ? !CLOSED.includes(st) : false }
+}))
+async function loadMyRequestStatuses() {
+  await Promise.all(guestRequests.value.slice(0, 3).map(async (r) => {
+    try {
+      const { data } = await api.get('/citizen/detail.php', { params: { id: r.id } })
+      statuses.value = { ...statuses.value, [r.id]: data?.merged_into?.status || data?.status }
+    } catch { /* expired / removed: leave it as "Tap to track" */ }
+  }))
+}
+
 function onGuestSubmitted(result) {
   separated.value = false
   submittedResult.value = result
+  loadMyRequestStatuses()
   // create.php returns the guest's authoritative (phone-keyed) status on a
   // successful submit — apply it locally so the count updates instantly.
   if (result?.guestStatus) applySubmissionResult(result.guestStatus)
@@ -275,6 +344,7 @@ function onOpenGuestModal() {
 
 onMounted(() => {
   fetchStatus()
+  loadMyRequestStatuses()
 
   const pendingGuestModal = sessionStorage.getItem('dascare:open-guest-modal')
   if (pendingGuestModal) {

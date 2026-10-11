@@ -165,6 +165,8 @@ const routes = [
       { path: 'join-organization', name: 'JoinOrganization', component: JoinOrganization, meta: { title: 'Join Organization', guestOnly: true } },
       { path: 'about', name: 'About', component: About, meta: { title: 'About' } },
       { path: 'terms-of-service', name: 'TermsOfService', component: TermsOfService, meta: { title: 'Terms of Service' } },
+      // Guest SOS tracking (no account): /track/:id#key=<private key>
+      { path: 'track/:id(\\d+)', name: 'GuestTrack', component: TrackRequest, meta: { title: 'Track request', guestTracking: true } },
       { path: 'privacy-policy', name: 'PrivacyPolicy', component: PrivacyPolicy, meta: { title: 'Privacy Policy' } },
     ],
   },
@@ -210,7 +212,8 @@ const router = createRouter({
   routes,
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) return savedPosition
-    if (to.hash) {
+    // A guest tracking link's #key=… is data, not a section anchor.
+    if (to.hash && !to.meta.guestTracking) {
       // Landing-page section anchors (#decision-support, #roles,
       // #mobile-app, ...) only exist on LandingView — when navigating to
       // them from a different route, that component hasn't mounted (and

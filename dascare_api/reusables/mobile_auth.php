@@ -151,23 +151,34 @@ function mobileAuthBootstrap(PDO $pdo): void
 
     // Guest SOS keys → the same $_SESSION['guest_request_ids'] that
     // citizen/unmerge.php already checks for same-session web guests.
+    $guestIds = guestRequestIdsFromHeader($pdo);
+    if ($guestIds !== null) $_SESSION['guest_request_ids'] = $guestIds;
+}
+
+/**
+ * Request ids unlocked by the private guest keys in the X-Guest-Tokens header
+ * (comma-separated), or null when the header is absent. Used by the app
+ * (mobileAuthBootstrap) and by guests on the website (cors.php), so guest
+ * tracking works the same on both.
+ */
+function guestRequestIdsFromHeader(PDO $pdo): ?array
+{
     $guestHeader = mobileRequestHeader('X-Guest-Tokens');
-    if ($guestHeader !== '') {
-        $keys = array_slice(array_filter(array_map('trim', explode(',', $guestHeader))), 0, MOBILE_MAX_GUEST_TOKENS);
-        if ($keys) {
-            try {
-                $ph = implode(',', array_fill(0, count($keys), '?'));
-                $stmt = $pdo->prepare("SELECT emergency_request_id FROM guest_request_tokens WHERE token_hash IN ($ph)");
-                $stmt->execute(array_map('mobileTokenHash', $keys));
-                $_SESSION['guest_request_ids'] = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
-            } catch (Throwable $e) {
-                error_log('Mobile guest token lookup failed: ' . $e->getMessage());
-            }
-        }
+    if ($guestHeader === '') return null;
+    $keys = array_slice(array_filter(array_map('trim', explode(',', $guestHeader))), 0, MOBILE_MAX_GUEST_TOKENS);
+    if (!$keys) return [];
+    try {
+        $ph = implode(',', array_fill(0, count($keys), '?'));
+        $stmt = $pdo->prepare("SELECT emergency_request_id FROM guest_request_tokens WHERE token_hash IN ($ph)");
+        $stmt->execute(array_map('mobileTokenHash', $keys));
+        return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    } catch (Throwable $e) {
+        error_log('Guest token lookup failed: ' . $e->getMessage());
+        return [];
     }
 }
 
-/** Create the private key for a guest SOS sent from the app; returns it. */
+/** Create the private key for a guest SOS (app or website); returns it. */
 function mobileIssueGuestRequestToken(PDO $pdo, int $requestId): string
 {
     $plain = 'dcg_' . bin2hex(random_bytes(32));

@@ -8,9 +8,17 @@
         style="background: radial-gradient(ellipse at top left, rgba(220,38,38,0.06), transparent 55%);"
       ></div>
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative">
-        <RouterLink to="/citizen/requests" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-white/45 hover:text-red-600 dark:hover:text-red-300 mb-4 no-underline">
-          <Icon icon="lucide:arrow-left" width="14" /> Back to My Requests
-        </RouterLink>
+        <div class="flex items-center justify-between gap-3 mb-4">
+          <RouterLink :to="isGuestView ? '/' : '/citizen/requests'" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-white/45 hover:text-red-600 dark:hover:text-red-300 no-underline">
+            <Icon icon="lucide:arrow-left" width="14" /> {{ isGuestView ? 'Back to home' : 'Back to My Requests' }}
+          </RouterLink>
+          <!-- Guest: the link (with its private key) is the only way back here
+               from another device, so make it easy to keep or share. -->
+          <button v-if="isGuestView && request && trackingUrl" type="button" @click="copyLink"
+            class="inline-flex items-center gap-1.5 rounded-full border border-base-300 dark:border-white/10 px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-white/60 hover:border-red-300 hover:text-red-600 dark:hover:text-red-300">
+            <Icon :icon="copied ? 'lucide:check' : 'lucide:link'" width="13" /> {{ copied ? 'Link copied' : 'Copy tracking link' }}
+          </button>
+        </div>
 
         <div v-if="request" class="flex flex-wrap items-start justify-between gap-4">
           <div class="flex items-start gap-4 min-w-0">
@@ -267,13 +275,15 @@
       <div v-else class="rounded-3xl border border-dashed border-slate-300 dark:border-white/15 py-16 text-center">
         <Icon icon="lucide:file-x" width="28" class="mx-auto text-slate-300 dark:text-white/20 mb-3" />
         <p class="text-sm font-semibold text-slate-500 dark:text-white/40">Request not found</p>
+        <p v-if="isGuestView" class="mt-1 max-w-sm mx-auto px-4 text-xs text-slate-400 dark:text-white/30">
+          Open the tracking link from the browser you sent the request with — the link carries the private key for that request.
+        </p>
       </div>
     </div>
   </section>
 </template>
 
 <script setup>
-import axios from 'axios'
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
@@ -282,10 +292,13 @@ import { useAlert } from '@/composables/useAlert'
 import { useLiveUpdates } from '@/composables/useLiveUpdates'
 import LiveBadge from '@/components/realtime/LiveBadge.vue'
 import LiveMissionMap from '@/components/maps/LiveMissionMap.vue'
-import { requestChannel } from '@/services/realtime'
+import { refreshRealtimeAccess, requestChannel } from '@/services/realtime'
+import api from '@/services/api'
+import { guestTokenFor, guestTrackingUrl, rememberGuestRequest } from '@/services/guestRequests'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL
 const route = useRoute()
+// Public /track/:id page for guest requests (no account; private key only).
+const isGuestView = computed(() => !!route.meta.guestTracking)
 
 const loading = ref(true)
 const request = ref(null)
@@ -456,19 +469,22 @@ const fetchRequest = async (silent = false) => {
   if (!silent) loading.value = true
   loadError.value = ''
   try {
-    const res = await axios.get(`${API_BASE}/citizen/detail.php`, {
-      params: { id: route.params.id },
-      withCredentials: true,
-    })
+    // Shared client: also sends the guest keys saved in this browser.
+    const res = await api.get('/citizen/detail.php', { params: { id: route.params.id } })
     stampSeenAt(res.data?.ambulance)
     request.value = res.data
+    if (isGuestView.value && guestKey.value && res.data?.reference_number) {
+      rememberGuestRequest({ id: res.data.id, token: guestKey.value, reference_number: res.data.reference_number })
+    }
   } catch (err) {
     console.error(err)
     if (!silent) request.value = null
     // 404 just means "not found / not yours" — the existing empty state
     // already covers that. Anything else (network/server error) gets its
     // own message so it isn't mistaken for a bad request id.
-    if (err.response?.status !== 404) {
+    // A guest without this request's key gets 401 — same "not found" hint.
+    const notFound = err.response?.status === 404 || (isGuestView.value && err.response?.status === 401)
+    if (!notFound) {
       loadError.value = err.response?.data?.message || 'Could not load this request. Please try again.'
     }
   } finally {
@@ -514,7 +530,33 @@ const { live } = useLiveUpdates(() => fetchRequest(true), {
   },
 })
 
+// Guest tracking link: /track/:id#key=… — keep the key in this browser and
+// drop it from the address bar (screenshots / screen sharing).
+const guestKey = ref(null)
+const trackingUrl = computed(() => (request.value ? guestTrackingUrl(request.value.id) : null))
+const copied = ref(false)
+async function copyLink() {
+  try {
+    await navigator.clipboard.writeText(trackingUrl.value)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 2000)
+  } catch {
+    window.prompt('Copy this tracking link:', trackingUrl.value)
+  }
+}
+
 onMounted(async () => {
+  if (isGuestView.value) {
+    const key = new URLSearchParams(window.location.hash.slice(1)).get('key')
+    if (key) {
+      guestKey.value = key
+      rememberGuestRequest({ id: route.params.id, token: key })
+      history.replaceState(history.state, '', window.location.pathname + window.location.search)
+      refreshRealtimeAccess() // the new key may unlock this request's live channel
+    } else {
+      guestKey.value = guestTokenFor(route.params.id)
+    }
+  }
   await fetchRequest()
   clockTimer = setInterval(() => { now.value = Date.now() }, 30000)
 })
