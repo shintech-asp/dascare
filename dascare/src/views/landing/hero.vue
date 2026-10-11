@@ -62,7 +62,7 @@
             <span class="h-2 w-2 flex-shrink-0 rounded-full" :class="r.active ? 'animate-pulse bg-red-500' : 'bg-slate-300 dark:bg-white/20'"></span>
             <span class="min-w-0 flex-1">
               <span class="block truncate font-mono text-xs font-bold text-slate-700 dark:text-white/80">{{ r.reference_number || 'Request #' + r.id }}</span>
-              <span class="block text-[0.7rem] text-slate-500 dark:text-white/40">{{ r.statusText || 'Tap to track' }}</span>
+              <span class="block text-[0.7rem] text-slate-500 dark:text-white/40"><template v-if="r.linkedTo">Linked to {{ r.linkedTo }} · </template>{{ r.statusText || 'Tap to track' }}</span>
             </span>
             <span class="flex items-center gap-0.5 text-xs font-bold text-red-600 dark:text-red-300">Track <Icon icon="lucide:chevron-right" width="14" /></span>
           </RouterLink>
@@ -311,16 +311,17 @@ const STATUS_TEXT = {
   duplicate: 'Linked to a nearby report', false_alarm: 'Closed (false alarm)',
 }
 const CLOSED = ['completed', 'cancelled', 'rejected', 'false_alarm']
-const statuses = ref({}) // id → status, from citizen/detail.php (the saved keys unlock it)
+const statuses = ref({}) // id → { status, linkedTo }, from citizen/detail.php (the saved keys unlock it)
 const myRequests = computed(() => guestRequests.value.slice(0, 3).map((r) => {
-  const st = statuses.value[r.id]
-  return { ...r, statusText: st ? STATUS_TEXT[st] || st : '', active: st ? !CLOSED.includes(st) : false }
+  // A dedup-linked report follows the incident it was linked to (like TrackRequest).
+  const st = statuses.value[r.id]?.status
+  return { ...r, linkedTo: statuses.value[r.id]?.linkedTo, statusText: st ? STATUS_TEXT[st] || st : '', active: st ? !CLOSED.includes(st) : false }
 }))
 async function loadMyRequestStatuses() {
   await Promise.all(guestRequests.value.slice(0, 3).map(async (r) => {
     try {
       const { data } = await api.get('/citizen/detail.php', { params: { id: r.id } })
-      statuses.value = { ...statuses.value, [r.id]: data?.merged_into?.status || data?.status }
+      statuses.value = { ...statuses.value, [r.id]: { status: data?.merged_into?.status || data?.status, linkedTo: data?.merged_into?.reference_number || null } }
     } catch { /* expired / removed: leave it as "Tap to track" */ }
   }))
 }
