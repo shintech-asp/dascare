@@ -36,9 +36,9 @@
             <Icon :icon="showPassword ? 'lucide:chevron-up' : 'lucide:chevron-down'" width="16" class="text-slate-400 dark:text-white/35" />
           </button>
           <div v-if="showPassword" class="mt-4 space-y-3">
-            <div><label :class="ui.label">Current password</label><input v-model="account.current_password" type="password" autocomplete="current-password" :class="ui.input" /></div>
-            <div><label :class="ui.label">New password</label><input v-model="account.new_password" type="password" autocomplete="new-password" :class="ui.input" /><PasswordStrength :password="account.new_password" /></div>
-            <div><label :class="ui.label">Confirm new password</label><input v-model="account.new_password_confirmation" type="password" autocomplete="new-password" :class="ui.input" /></div>
+            <div><label :class="ui.label">Current password</label><PasswordReveal v-slot="{ type }"><input v-model="account.current_password" :type="type" autocomplete="current-password" :class="[ui.input, '!pr-11']" /></PasswordReveal></div>
+            <div><label :class="ui.label">New password</label><PasswordReveal v-slot="{ type }"><input v-model="account.new_password" :type="type" autocomplete="new-password" :class="[ui.input, '!pr-11']" /></PasswordReveal><PasswordStrength :password="account.new_password" /></div>
+            <div><label :class="ui.label">Confirm new password</label><PasswordReveal v-slot="{ type }"><input v-model="account.new_password_confirmation" :type="type" autocomplete="new-password" :class="[ui.input, '!pr-11']" /></PasswordReveal></div>
           </div>
         </div>
 
@@ -72,7 +72,7 @@
           <h3 class="text-base font-black text-slate-900 dark:text-white">{{ pendingValue ? 'Enable two-factor authentication?' : 'Disable two-factor authentication?' }}</h3>
           <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-white/40">Confirm your password to {{ pendingValue ? 'turn on' : 'turn off' }} email verification codes at login.</p>
           <label :class="[ui.label, 'mt-4']">Current password</label>
-          <input ref="confirmInput" v-model="confirmPassword" type="password" autocomplete="current-password" required :class="ui.input" />
+          <PasswordReveal v-slot="{ type }"><input ref="confirmInput" v-model="confirmPassword" :type="type" autocomplete="current-password" required :class="[ui.input, '!pr-11']" /></PasswordReveal>
           <div class="mt-5 grid grid-cols-2 gap-3">
             <button type="button" :class="ui.secondaryButton" @click="closeConfirm">Cancel</button>
             <button type="submit" :disabled="savingTwoFactor || !confirmPassword" :class="ui.primaryButton">
@@ -89,6 +89,7 @@
 import { nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import ScreenHeader from '@/components/ScreenHeader.vue'
 import PasswordStrength from '@/components/PasswordStrength.vue'
+import PasswordReveal from '@/components/PasswordReveal.vue'
 import * as ui from '@/components/ui/styles'
 import api, { apiMessage } from '@/services/api'
 import { useSession } from '@/composables/useSession'

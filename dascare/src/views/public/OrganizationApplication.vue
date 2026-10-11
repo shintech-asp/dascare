@@ -67,8 +67,8 @@
                 <Field label="Last name"><input v-model.trim="form.last_name" class="field" autocomplete="family-name" maxlength="80" /></Field>
                 <Field label="Email address"><input v-model.trim="form.email" class="field" type="email" autocomplete="email" maxlength="190" /></Field>
                 <Field label="Mobile number" hint="PH mobile number, e.g. 09123456789"><input v-model.trim="form.phone" class="field" type="tel" maxlength="13" autocomplete="tel" /></Field>
-                <Field label="Password"><input v-model="form.password" class="field" type="password" autocomplete="new-password" /></Field>
-                <Field label="Confirm password"><input v-model="form.password_confirmation" class="field" type="password" autocomplete="new-password" /></Field>
+                <Field label="Password"><PasswordReveal v-slot="{ type }"><input v-model="form.password" class="field !pr-11" :type="type" autocomplete="new-password" /></PasswordReveal></Field>
+                <Field label="Confirm password"><PasswordReveal v-slot="{ type }"><input v-model="form.password_confirmation" class="field !pr-11" :type="type" autocomplete="new-password" /></PasswordReveal></Field>
               </div>
             </section>
 
@@ -245,6 +245,7 @@
 <script setup>
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
+import PasswordReveal from '@/components/forms/PasswordReveal.vue'
 import { useToast } from '@/composables/useToast'
 import { resendOrganizationApplicantOtp, submitOrganizationApplication, verifyOrganizationApplicantEmail } from '@/services/organizationApplications'
 

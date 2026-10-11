@@ -121,11 +121,11 @@
         <div class="mt-6 grid gap-4 sm:grid-cols-2">
           <div>
             <label class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-white/55">Current password</label>
-            <input v-model="passwordForm.current_password" type="password" required class="settings-input" />
+            <PasswordReveal v-slot="{ type }"><input v-model="passwordForm.current_password" :type="type" required class="settings-input !pr-11" /></PasswordReveal>
           </div>
           <div>
             <label class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-white/55">New password</label>
-            <input v-model="passwordForm.new_password" type="password" required minlength="10" class="settings-input" />
+            <PasswordReveal v-slot="{ type }"><input v-model="passwordForm.new_password" :type="type" required minlength="10" class="settings-input !pr-11" /></PasswordReveal>
           </div>
         </div>
         <button type="submit" :disabled="savingPassword" class="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-slate-800 disabled:opacity-50 dark:bg-white/10 dark:hover:bg-white/15">
@@ -140,6 +140,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import api from '@/services/api'
+import PasswordReveal from '@/components/forms/PasswordReveal.vue'
 import { useSession } from '@/composables/useSession'
 import { useTheme } from '@/composables/useTheme'
 import { useAlert } from '@/composables/useAlert'

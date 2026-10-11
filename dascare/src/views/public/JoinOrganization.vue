@@ -37,8 +37,8 @@
           </div>
 
           <div class="mt-6 space-y-4">
-            <label class="block"><span class="mb-1.5 block text-[0.68rem] font-black uppercase tracking-wide text-slate-400 dark:text-white/30">Create password</span><input v-model="password" class="field" type="password" autocomplete="new-password" /></label>
-            <label class="block"><span class="mb-1.5 block text-[0.68rem] font-black uppercase tracking-wide text-slate-400 dark:text-white/30">Confirm password</span><input v-model="passwordConfirmation" class="field" type="password" autocomplete="new-password" /></label>
+            <label class="block"><span class="mb-1.5 block text-[0.68rem] font-black uppercase tracking-wide text-slate-400 dark:text-white/30">Create password</span><PasswordReveal v-slot="{ type }"><input v-model="password" class="field !pr-11" :type="type" autocomplete="new-password" /></PasswordReveal></label>
+            <label class="block"><span class="mb-1.5 block text-[0.68rem] font-black uppercase tracking-wide text-slate-400 dark:text-white/30">Confirm password</span><PasswordReveal v-slot="{ type }"><input v-model="passwordConfirmation" class="field !pr-11" :type="type" autocomplete="new-password" /></PasswordReveal></label>
             <div class="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-xs leading-5 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200"><div class="flex gap-2"><Icon icon="lucide:shield-check" width="15" class="mt-0.5 shrink-0" /><span>Use at least 10 characters with uppercase, lowercase, a number, and a special character. Organization employees do not need citizen KYC.</span></div></div>
           </div>
 
@@ -54,6 +54,7 @@
 import { defineComponent, h, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
+import PasswordReveal from '@/components/forms/PasswordReveal.vue'
 import { acceptOrganizationInvitation, previewOrganizationInvitation } from '@/services/organizationManagement'
 
 const route=useRoute(); const token=String(route.query.token||'')

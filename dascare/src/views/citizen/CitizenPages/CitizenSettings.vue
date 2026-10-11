@@ -75,15 +75,15 @@
           <div v-if="showPasswordFields" class="mt-4 grid gap-4 sm:grid-cols-2">
             <div class="sm:col-span-2">
               <label class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-white/55">Current password</label>
-              <input v-model="account.current_password" type="password" autocomplete="current-password" class="settings-input" />
+              <PasswordReveal v-slot="{ type }"><input v-model="account.current_password" :type="type" autocomplete="current-password" class="settings-input !pr-11" /></PasswordReveal>
             </div>
             <div>
               <label class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-white/55">New password</label>
-              <input v-model="account.new_password" type="password" autocomplete="new-password" minlength="10" class="settings-input" />
+              <PasswordReveal v-slot="{ type }"><input v-model="account.new_password" :type="type" autocomplete="new-password" minlength="10" class="settings-input !pr-11" /></PasswordReveal>
             </div>
             <div>
               <label class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-white/55">Confirm new password</label>
-              <input v-model="account.new_password_confirmation" type="password" autocomplete="new-password" minlength="10" class="settings-input" />
+              <PasswordReveal v-slot="{ type }"><input v-model="account.new_password_confirmation" :type="type" autocomplete="new-password" minlength="10" class="settings-input !pr-11" /></PasswordReveal>
             </div>
             <p class="text-[0.68rem] text-slate-400 dark:text-white/30 sm:col-span-2">
               Use at least 10 characters with upper and lowercase letters, a number, and a symbol.
@@ -194,14 +194,16 @@
 
         <form class="mt-5" @submit.prevent="confirmTwoFactor">
           <label class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-white/55">Current password</label>
-          <input
-            v-model="twoFactorPassword"
-            type="password"
-            autocomplete="current-password"
-            required
-            autofocus
-            class="settings-input"
-          />
+          <PasswordReveal v-slot="{ type }">
+            <input
+              v-model="twoFactorPassword"
+              :type="type"
+              autocomplete="current-password"
+              required
+              autofocus
+              class="settings-input !pr-11"
+            />
+          </PasswordReveal>
 
           <div class="mt-5 flex gap-3">
             <button type="button" class="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-base-200 dark:border-white/10 dark:text-white/60 dark:hover:bg-white/5" @click="closeTwoFactorConfirm">
@@ -226,6 +228,7 @@
 import axios from 'axios'
 import { onMounted, reactive, ref } from 'vue'
 import { Icon } from '@iconify/vue'
+import PasswordReveal from '@/components/forms/PasswordReveal.vue'
 import { useSession } from '@/composables/useSession'
 import { useTheme } from '@/composables/useTheme'
 import { useAlert } from '@/composables/useAlert'
