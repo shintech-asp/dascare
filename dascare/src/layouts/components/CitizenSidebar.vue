@@ -164,34 +164,8 @@
       </RouterLink>
     </nav>
 
-    <!-- Footer: emergency hotline reminder, then Settings + Logout grouped
-         together as the account-management pair. -->
+    <!-- Footer: Settings + Logout grouped together as the account-management pair. -->
     <div class="px-3 pb-3 pt-2 border-t border-slate-200 dark:border-white/10 flex-shrink-0 flex flex-col gap-2">
-      <!-- Emergency hotline card -->
-      <div v-if="!collapsed"
-        class="rounded-2xl border border-red-200 bg-red-50/70 p-3 dark:border-red-500/25 dark:bg-red-500/10">
-        <div class="flex items-start gap-3">
-          <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-300">
-            <Icon icon="lucide:phone-call" width="17" />
-          </span>
-
-          <div class="min-w-0 flex-1">
-            <p class="text-[0.72rem] font-black uppercase tracking-[0.08em] text-red-600 dark:text-red-300">
-              Emergency?
-            </p>
-            <p class="mt-0.5 text-[0.68rem] leading-snug text-slate-600 dark:text-white/50">
-              Life-threatening situation?
-            </p>
-
-            <a href="tel:911"
-              class="mt-2.5 flex w-full items-center justify-center gap-2 rounded-full bg-red-600 px-4 py-2 text-[0.72rem] font-bold text-white no-underline shadow-md shadow-red-600/20 transition-colors hover:bg-red-700 dark:shadow-red-950/30">
-              <Icon icon="lucide:phone" width="14" />
-              Call 911 Now
-            </a>
-          </div>
-        </div>
-      </div>
-
       <RouterLink to="/citizen/settings" custom v-slot="{ navigate, href }">
         <a :href="href" @click="handleNavClick($event, navigate)" :title="collapsed ? 'Settings' : undefined"
           class="group flex items-center gap-3 rounded-2xl no-underline border border-slate-200 dark:border-white/10

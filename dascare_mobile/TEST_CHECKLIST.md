@@ -64,7 +64,7 @@ Tick **Pass** / **Fail** and note anything unexpected.
 | 4.5 | Within 5 minutes, send another SOS from **the same spot** (another phone/account). | "Linked to DAS-… — a unit is already being handled"; no second ambulance offer on the web. | ☐ / ☐ |
 | 4.6 | Tap **Not the same emergency? Request separately**. | "Done — dispatch is finding a separate unit"; on the web it becomes its own incident. | ☐ / ☐ |
 | 4.7 | Deny location when asked. | Clear message on how to turn location on; **Pin location manually** works. | ☐ / ☐ |
-| 4.8 | Turn on airplane mode → tap Request Rescue Now. | Red "No internet" banner with **Call 911**; "Couldn't send your request" with Try again / Call 911. | ☐ / ☐ |
+| 4.8 | Turn on airplane mode → tap Request Rescue Now. | Red "No internet" banner; "Couldn't send your request" with **Try again**. | ☐ / ☐ |
 
 ## 5. Tracking
 

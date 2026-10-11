@@ -50,10 +50,6 @@
         <RequestRow v-for="r in recent.slice(0, 3)" :key="r.id" :request="r" />
       </section>
 
-      <a href="tel:911" class="tap flex items-center gap-2.5 rounded-3xl border border-red-200 bg-red-50 p-4 no-underline dark:border-red-500/20 dark:bg-red-500/5">
-        <Icon icon="lucide:phone-call" width="16" class="flex-shrink-0 text-red-600 dark:text-red-400" />
-        <span class="text-xs font-bold text-red-700 dark:text-red-300">Life-threatening? Call your local emergency hotline too.</span>
-      </a>
     </div>
   </PullToRefresh>
 </template>

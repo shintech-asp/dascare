@@ -82,13 +82,13 @@ npm run assets            # python3 scripts/generate_icons.py (needs Pillow)
   with camera/gallery ID photo and map pin.
 - **Phase 3** – Emergency SOS (guest or logged in): automatic GPS, one-tap send, optional details
   (patients, description, address, barangay, landmark, up to 3 photos), manual map pin, "already reported"
-  notice with Request separately, offline error with Call 911.
+  notice with Request separately, offline error with Try again.
 - **Phase 4** – Home with the live active request, My Requests (filters, linked labels), live tracking
   (dispatch steps, responding unit, ambulance on the map, status history; refreshes every 15 s and on app
   resume, pull to refresh), Notifications with an unread badge, guests track their SOS from Welcome.
 - **Phase 5** – Emergency information (medical records, unlocked by a verified ID; shared with the crew on
   every SOS), Account & security (name, mobile number, password, two-factor).
-- **Phase 6** – No-internet banner with Call 911, plain permission-denied guidance (location asked once, never
+- **Phase 6** – No-internet banner, plain permission-denied guidance (location asked once, never
   re-prompted), loading placeholders, Android Back closes popups first, v1.0.0, `npm run apk`, test checklist.
 - **Phase 7** – Push notifications (Firebase): "Ambulance en route" etc. with the app closed, tap opens the
   request. Code is complete; turn it on with **[PUSH_SETUP.md](PUSH_SETUP.md)** (two Firebase files).

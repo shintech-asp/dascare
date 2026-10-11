@@ -48,9 +48,6 @@
             <Icon icon="lucide:radar" width="18" /> Track this request
           </RouterLink>
           <RouterLink :to="isGuest ? '/welcome' : '/home'" replace class="tap flex w-full items-center justify-center rounded-2xl bg-slate-900 py-3.5 font-bold text-white no-underline dark:bg-white dark:text-slate-900">Done</RouterLink>
-          <a href="tel:911" class="tap flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-red-200 py-3 text-sm font-bold text-red-700 no-underline dark:border-red-500/25 dark:text-red-300">
-            <Icon icon="lucide:phone-call" width="16" /> Also call 911
-          </a>
         </div>
       </section>
 
@@ -107,9 +104,8 @@
             <div v-if="sendError" ref="sendErrorEl" class="scroll-mt-24 rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-500/20 dark:bg-red-500/10">
               <p class="flex items-center gap-2 text-sm font-black text-red-800 dark:text-red-200"><Icon icon="lucide:wifi-off" width="16" /> Couldn't send your request</p>
               <p class="mt-1 text-xs leading-5 text-slate-600 dark:text-white/55">{{ sendError }}</p>
-              <div class="mt-3 grid grid-cols-2 gap-2">
-                <button type="button" class="tap rounded-xl bg-red-600 py-3 text-sm font-bold text-white" @click="submit">Try again</button>
-                <a href="tel:911" class="tap flex items-center justify-center gap-1.5 rounded-xl border-2 border-red-300 py-3 text-sm font-bold text-red-700 no-underline dark:border-red-500/30 dark:text-red-300"><Icon icon="lucide:phone-call" width="15" /> Call 911</a>
+              <div class="mt-3">
+                <button type="button" class="tap w-full rounded-xl bg-red-600 py-3 text-sm font-bold text-white" @click="submit">Try again</button>
               </div>
             </div>
 
@@ -450,7 +446,7 @@ async function submit() {
     Haptics.notification({ type: NotificationType.Error }).catch(() => {})
     sendError.value = err.server ? err.message : err.response
       ? apiMessage(err, 'Could not submit request — please try again.')
-      : 'No connection to DASCARE. Check your mobile data or Wi-Fi and try again — or call 911 now.'
+      : 'No connection to DASCARE. Check your mobile data or Wi-Fi and try again.'
     nextTick(() => sendErrorEl.value?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
   } finally {
     submitting.value = false

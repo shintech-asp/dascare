@@ -159,9 +159,6 @@
             </div>
           </section>
 
-          <a v-if="isActive" href="tel:911" class="tap flex items-center justify-center gap-2.5 rounded-3xl border border-red-200 bg-red-50 p-4 text-xs font-bold text-red-700 no-underline dark:border-red-500/20 dark:bg-red-500/5 dark:text-red-300">
-            <Icon icon="lucide:phone-call" width="16" /> Life-threatening? Call 911 too.
-          </a>
         </template>
 
         <div v-else class="rounded-3xl border border-dashed border-slate-300 py-16 text-center dark:border-white/15">
