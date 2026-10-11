@@ -27,41 +27,10 @@
           </li>
         </ul>
 
-        <!-- APK download. downloads/app.json + DASCARE.apk are published by
-             `npm run apk:web` in dascare_mobile/ (not stored in git). -->
-        <div class="mt-9 flex flex-wrap items-center gap-4">
-          <a
-            v-if="app"
-            :href="apkUrl"
-            download="DASCARE.apk"
-            class="inline-flex items-center gap-3 rounded-2xl bg-slate-900 px-5 py-3.5 text-white no-underline shadow-lg shadow-slate-900/20 transition-transform hover:-translate-y-0.5 dark:bg-white dark:text-slate-900"
-          >
-            <Icon icon="mdi:android" width="30" class="text-[#3ddc84]" />
-            <span class="flex flex-col leading-tight">
-              <span class="text-[11px] font-semibold uppercase tracking-wider opacity-70">Download for</span>
-              <span class="text-lg font-black">Android</span>
-            </span>
-            <Icon icon="lucide:download" width="20" class="ml-1 opacity-80" />
-          </a>
-          <span
-            v-else
-            class="inline-flex cursor-not-allowed items-center gap-3 rounded-2xl border border-dashed border-slate-300 px-5 py-3.5 text-slate-400 dark:border-white/15 dark:text-white/35"
-            title="Run `npm run apk:web` in dascare_mobile/ to publish the app"
-          >
-            <Icon icon="mdi:android" width="30" />
-            <span class="flex flex-col leading-tight">
-              <span class="text-[11px] font-semibold uppercase tracking-wider">Android app</span>
-              <span class="text-sm font-bold">{{ loading ? 'Checking…' : 'Not published yet' }}</span>
-            </span>
-          </span>
-
-          <p v-if="app" class="text-xs leading-5 text-slate-500 dark:text-white/45">
-            <span class="font-semibold text-slate-700 dark:text-white/70">Version {{ app.version }}</span>
-            · {{ sizeLabel }} · APK<br />
-            Android 7.0 or later. Chrome warns about any app from outside the Play Store —<br class="hidden sm:inline" />
-            tap <span class="font-semibold">Download anyway</span>, then allow installs from your browser.
-          </p>
-        </div>
+        <p class="mt-9 flex items-center gap-2 text-sm text-slate-500 dark:text-white/45">
+          <Icon icon="mdi:android" width="20" class="text-[#3ddc84]" />
+          Get it from <span class="font-semibold text-slate-700 dark:text-white/70">Download app</span> at the top of the page.
+        </p>
       </div>
 
       <!-- Phone mockup of the app's Home screen (same design as dascare_mobile) -->
@@ -145,7 +114,6 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import logoUrl from '../../../img/logoo.png'
 
@@ -173,20 +141,4 @@ const rightTabs = [
   { label: 'Profile', icon: 'lucide:circle-user-round' },
 ]
 
-// Published app info (version/size), written by `npm run apk:web`.
-const APK_PATH = 'downloads/DASCARE.apk'
-const app = ref(null)
-const loading = ref(true)
-// ?v=<version>: each release gets a fresh URL, so the hosting CDN never serves an older cached APK.
-const apkUrl = computed(() => `${import.meta.env.BASE_URL}${APK_PATH}${app.value?.version ? `?v=${encodeURIComponent(app.value.version)}` : ''}`)
-const sizeLabel = computed(() => (app.value?.size_bytes ? `${(app.value.size_bytes / 1e6).toFixed(1)} MB` : ''))
-
-onMounted(async () => {
-  try {
-    const res = await fetch(`${import.meta.env.BASE_URL}downloads/app.json`, { cache: 'no-store' })
-    if (res.ok) app.value = await res.json()
-  } catch { /* not published — show the placeholder */ } finally {
-    loading.value = false
-  }
-})
 </script>

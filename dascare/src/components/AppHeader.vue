@@ -81,6 +81,18 @@
           <span>Home</span>
         </RouterLink>
 
+        <!-- Android app (APK) download — shown once downloads/app.json is published -->
+        <a
+          v-if="appInfo"
+          :href="apkUrl"
+          download="DASCARE.apk"
+          :title="appTitle"
+          class="nav-home-hover group flex items-center gap-1.5 rounded-full px-3.5 py-2 font-medium text-slate-600 no-underline transition-colors hover:bg-slate-100 dark:text-white/80 dark:hover:bg-white/10"
+        >
+          <Icon icon="mdi:android" width="18" class="shrink-0 text-[#3ddc84]" />
+          <span>Download app</span>
+        </a>
+
         <div class="mx-2 h-6 w-px bg-slate-200 dark:bg-white/15" v-if="!isAuthPage"></div>
 
 
@@ -139,6 +151,17 @@
           <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none"><path d="M3 11.5 12 4l9 7.5M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span>Home</span>
         </RouterLink>
+        <a
+          v-if="appInfo"
+          :href="apkUrl"
+          download="DASCARE.apk"
+          :title="appTitle"
+          aria-label="Download the DASCARE Android app"
+          class="flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 no-underline dark:border-white/15 dark:text-white/80"
+        >
+          <Icon icon="mdi:android" width="16" class="shrink-0 text-[#3ddc84]" />
+          <span class="hidden min-[400px]:inline">Get the app</span>
+        </a>
         <label class="swap swap-rotate btn btn-ghost btn-sm btn-circle" aria-label="Toggle theme">
           <input type="checkbox" :checked="theme === 'dark'" @change="toggleTheme" />
           <svg class="swap-off h-5 w-5 fill-current text-amber-500 dark:text-amber-300" viewBox="0 0 24 24">
@@ -253,6 +276,8 @@ import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useSession } from '@/composables/useSession'
 import { useTheme } from '@/composables/useTheme'
+import { useAppDownload } from '@/composables/useAppDownload'
+import { Icon } from '@iconify/vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -284,6 +309,11 @@ function onScroll() {
 /*  Bottom nav is its own primary navigation on mobile, so it hides  */
 /*  on the auth pages (which render their own self-contained layout) */
 /* ---------------------------------------------------------------- */
+const { app: appInfo, apkUrl, sizeLabel: appSize } = useAppDownload()
+const appTitle = computed(() => appInfo.value
+  ? `DASCARE for Android · version ${appInfo.value.version}${appSize.value ? ` · ${appSize.value}` : ''} — Chrome may warn about apps from outside the Play Store: tap "Download anyway", then allow installs from your browser.`
+  : '')
+
 const isAuthPage = computed(() => ['Login', 'Register', 'OrganizationApplication'].includes(route.name))
 
 const landingSectionIds = ['how-it-works', 'decision-support', 'roles', 'mobile-app']
