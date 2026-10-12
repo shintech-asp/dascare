@@ -255,6 +255,12 @@
               <p class="text-[0.68rem] text-slate-400 dark:text-white/25 mt-1">A dispatcher is reviewing this request.</p>
             </div>
 
+            <!-- Requester cancel (citizen or guest key) until the crew is on scene -->
+            <button v-if="canCancel" type="button" @click="cancelOpen = true"
+              class="flex w-full items-center justify-center gap-2 rounded-3xl border border-base-300 bg-base-100 px-4 py-3 text-xs font-bold text-slate-600 hover:border-red-300 hover:text-red-600 dark:border-white/10 dark:bg-[#071829] dark:text-white/55 dark:hover:text-red-300">
+              <Icon icon="lucide:octagon-x" width="15" /> Cancel this request
+            </button>
+
             <!-- Life-threatening reminder — same voice as the Instant Rescue form -->
             <div v-if="isActive" class="rounded-3xl border border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/5 p-4 flex items-center gap-2.5">
               <Icon icon="lucide:phone-call" width="16" class="text-red-600 dark:text-red-400 flex-shrink-0" />
@@ -280,6 +286,8 @@
         </p>
       </div>
     </div>
+    <CloseRequestModal :open="cancelOpen" mode="requester" :reference="request?.reference_number || ''" :busy="cancelling"
+      @close="cancelOpen = false" @confirm="cancelRequest" />
   </section>
 </template>
 
@@ -287,7 +295,8 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import { unmergeOwnReport } from '@/services/dispatchOperations'
+import { cancelOwnRequest, unmergeOwnReport } from '@/services/dispatchOperations'
+import CloseRequestModal from '@/components/incidents/CloseRequestModal.vue'
 import { useAlert } from '@/composables/useAlert'
 import { useLiveUpdates } from '@/composables/useLiveUpdates'
 import LiveBadge from '@/components/realtime/LiveBadge.vue'
@@ -423,6 +432,25 @@ async function requestSeparately() {
     alert.error(err.response?.data?.message || err.message || 'Something went wrong. Please try again.', 'Error')
   } finally {
     unmerging.value = false
+  }
+}
+
+// Requester cancel — allowed until the crew is on scene (citizen/cancel.php).
+const REQUESTER_CANCELLABLE = ['submitted', 'validating', 'verified', 'assigned', 'acknowledged', 'responding', 'duplicate']
+const canCancel = computed(() => REQUESTER_CANCELLABLE.includes(request.value?.status))
+const cancelOpen = ref(false)
+const cancelling = ref(false)
+async function cancelRequest({ reason }) {
+  cancelling.value = true
+  try {
+    const data = await cancelOwnRequest(request.value.id, reason)
+    cancelOpen.value = false
+    alert.success(data.message, 'Request cancelled')
+    await fetchRequest(true)
+  } catch (err) {
+    alert.error(err.response?.data?.message || err.message || 'Something went wrong. Please try again.', 'Error')
+  } finally {
+    cancelling.value = false
   }
 }
 

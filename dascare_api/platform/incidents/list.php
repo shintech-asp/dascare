@@ -50,7 +50,9 @@ try {
             io.organization_id AS current_offer_organization_id, o.name AS current_offer_organization_name,
             accepted.id AS accepted_offer_id, accepted.organization_id AS accepted_organization_id,
             accepted_org.name AS accepted_organization_name,
-            er.merged_into_request_id, merged.reference_number AS merged_into_reference
+            er.merged_into_request_id, merged.reference_number AS merged_into_reference,
+            (SELECT CONCAT_WS('|', sl.created_at, sl.notes) FROM emergency_request_status_logs sl
+              WHERE sl.emergency_request_id = er.id AND sl.new_status = er.status ORDER BY sl.id DESC LIMIT 1) AS last_status_entry
         FROM emergency_requests er
         INNER JOIN emergency_categories ec ON ec.id = er.emergency_category_id
         LEFT JOIN dss_recommendation_runs dr ON dr.id = (

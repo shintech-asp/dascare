@@ -88,3 +88,22 @@ export async function unmergeOwnReport(requestId) {
   if (!data?.success) throw new Error(data?.message || 'Unable to request separately.')
   return data
 }
+
+// Closing a request before completion (dascare_api/reusables/request_close.php).
+export async function cancelOwnRequest(requestId, reason = '') {
+  const { data } = await api.post('/citizen/cancel.php', { id: requestId, reason })
+  if (!data?.success) throw new Error(data?.message || 'Unable to cancel this request.')
+  return data
+}
+
+export async function closeOrganizationIncident(requestId, status, reason) {
+  const { data } = await api.post('/organizations/incidents/close.php', { request_id: requestId, status, reason })
+  if (!data?.success) throw new Error(data?.message || 'Unable to close this incident.')
+  return data
+}
+
+export async function closePlatformIncident(requestId, status, reason) {
+  const { data } = await api.post('/platform/incidents/close.php', { request_id: requestId, status, reason })
+  if (!data?.success) throw new Error(data?.message || 'Unable to close this incident.')
+  return data
+}

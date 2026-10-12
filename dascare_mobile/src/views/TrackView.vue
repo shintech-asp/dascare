@@ -159,6 +159,10 @@
             </div>
           </section>
 
+          <!-- Requester cancel (account or guest key) until the crew is on scene -->
+          <button v-if="canCancel" type="button" class="tap flex w-full items-center justify-center gap-2 rounded-2xl border border-base-300 bg-base-100 py-3.5 text-sm font-bold text-slate-600 dark:border-white/10 dark:bg-[#071829] dark:text-white/55" @click="cancelOpen = true">
+            <Icon icon="lucide:octagon-x" width="16" /> Cancel this request
+          </button>
         </template>
 
         <div v-else class="rounded-3xl border border-dashed border-slate-300 py-16 text-center dark:border-white/15">
@@ -168,6 +172,7 @@
         </div>
       </main>
     </PullToRefresh>
+    <CloseRequestModal :open="cancelOpen" mode="requester" :reference="request?.reference_number || ''" :busy="cancelling" @close="cancelOpen = false" @confirm="cancelRequest" />
   </div>
 </template>
 
@@ -180,6 +185,7 @@ import { useRoute } from 'vue-router'
 import LiveMissionMap from '@/components/maps/LiveMissionMap.vue'
 import ScreenHeader from '@/components/ScreenHeader.vue'
 import PullToRefresh from '@/components/PullToRefresh.vue'
+import CloseRequestModal from '@/components/incidents/CloseRequestModal.vue'
 import * as ui from '@/components/ui/styles'
 import api, { apiMessage } from '@/services/api'
 import { useSession } from '@/composables/useSession'
@@ -309,6 +315,25 @@ async function requestSeparately() {
     toast.error(apiMessage(err, 'Something went wrong. Please try again.'), 'Error')
   } finally {
     unmerging.value = false
+  }
+}
+
+// Requester cancel — allowed until the crew is on scene (citizen/cancel.php, same as the web).
+const REQUESTER_CANCELLABLE = ['submitted', 'validating', 'verified', 'assigned', 'acknowledged', 'responding', 'duplicate']
+const canCancel = computed(() => REQUESTER_CANCELLABLE.includes(request.value?.status))
+const cancelOpen = ref(false)
+const cancelling = ref(false)
+async function cancelRequest({ reason }) {
+  cancelling.value = true
+  try {
+    const { data } = await api.post('/citizen/cancel.php', { id: request.value.id, reason })
+    cancelOpen.value = false
+    toast.success(data.message, 'Request cancelled')
+    await load(true)
+  } catch (err) {
+    toast.error(apiMessage(err, 'Something went wrong. Please try again.'), 'Error')
+  } finally {
+    cancelling.value = false
   }
 }
 
