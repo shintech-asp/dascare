@@ -20,6 +20,8 @@
 // works on a weak connection; OSM tiles still need internet.
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import L from 'leaflet'
+import 'maplibre-gl/dist/maplibre-gl.css'
+import '@maplibre/maplibre-gl-leaflet' // adds L.maplibreGL
 import { Geolocation } from '@capacitor/geolocation'
 import { isPermissionDenied, locationDeniedText } from '@/utils/permissions'
 
@@ -92,7 +94,9 @@ onMounted(() => {
   const bounds = L.latLngBounds(DASMARINAS_BOUNDS)
   map = L.map(mapEl.value, { maxBounds: bounds.pad(0.05), maxBoundsViscosity: 1, minZoom: 12, attributionControl: true })
     .setView(props.lat ? [props.lat, props.lng] : DASMARINAS_CENTER, props.lat ? 16 : 13)
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 19 }).addTo(map)
+  // OpenFreeMap vector style (same as the live maps), drawn inside Leaflet —
+  // free and keyless. CARTO's raster tiles now require an API key.
+  L.maplibreGL({ style: 'https://tiles.openfreemap.org/styles/liberty', attribution: '<a href="https://openfreemap.org">OpenFreeMap</a> &copy; OpenMapTiles Data from OpenStreetMap' }).addTo(map)
   L.rectangle(bounds, { color: '#dc2626', weight: 1, fillOpacity: 0.02, dashArray: '4 4' }).addTo(map)
   if (props.lat && props.lng) marker = L.marker([props.lat, props.lng], { icon: pinIcon }).addTo(map)
   map.on('click', (e) => {

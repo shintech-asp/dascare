@@ -17,6 +17,8 @@
         </router-view>
       </main>
     </div>
+    <!-- Crew: pop-up when assigned to a new mission (organization portal only) -->
+    <MissionAssignmentAlert v-if="workspaceKey === 'organization'" />
   </div>
 </template>
 
@@ -24,6 +26,7 @@
 import { computed, ref } from 'vue'
 import ManagementSidebar from './ManagementSidebar.vue'
 import ManagementTopbar from './ManagementTopbar.vue'
+import MissionAssignmentAlert from '@/components/organization/MissionAssignmentAlert.vue'
 import { dashboardWorkspaces } from '@/config/dashboardNavigation'
 
 const props = defineProps({

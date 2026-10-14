@@ -100,6 +100,7 @@
 </template>
 
 <script setup>
+import { addBasemap, loadLeaflet } from '@/services/basemap'
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { fetchOrganizationProfile, updateOrganizationProfile } from '@/services/organizationManagement'
@@ -127,12 +128,7 @@ function cancelEditing(){ if(original.value) form.value=JSON.parse(JSON.stringif
 function addArea(){ const v=newArea.value.trim(); if(v && !form.value.service_areas.some(a=>a.toLowerCase()===v.toLowerCase())) form.value.service_areas.push(v); newArea.value='' }
 function removeArea(area){ form.value.service_areas=form.value.service_areas.filter(a=>a!==area) }
 
-async function loadLeaflet(){
-  if(window.L) return window.L
-  if(!document.querySelector('link[data-dascare-leaflet]')){ const link=document.createElement('link'); link.rel='stylesheet'; link.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; link.dataset.dascareLeaflet='1'; document.head.appendChild(link) }
-  await new Promise((resolve,reject)=>{ const existing=document.querySelector('script[data-dascare-leaflet]'); if(existing){ if(window.L) return resolve(); existing.addEventListener('load',resolve,{once:true}); existing.addEventListener('error',reject,{once:true}); return } const script=document.createElement('script'); script.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; script.dataset.dascareLeaflet='1'; script.onload=resolve; script.onerror=reject; document.head.appendChild(script) })
-  return window.L
-}
+
 async function renderMap(){
   if(!mapContainer.value) return
   try{
@@ -140,7 +136,7 @@ async function renderMap(){
     if(map){ map.remove(); map=null; marker=null }
     const startLat=form.value.latitude ?? 14.3294; const startLng=form.value.longitude ?? 120.9367
     map=L.map(mapContainer.value,{zoomControl:true,maxBounds:[[14.24,120.85],[14.42,121.02]]}).setView([startLat,startLng],form.value.latitude===null?13:15)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors &copy; CARTO'}).addTo(map)
+    addBasemap(L, map)
     if(form.value.latitude!==null) marker=L.marker([form.value.latitude,form.value.longitude]).addTo(map)
     map.on('click',(e)=>{ if(!editing.value) return; const {lat,lng}=e.latlng; if(lat<14.26||lat>14.40||lng<120.87||lng>121.00){ toast.warning?.('Choose a location inside Dasmariñas City.'); return } form.value.latitude=lat; form.value.longitude=lng; if(marker) marker.setLatLng([lat,lng]); else marker=L.marker([lat,lng]).addTo(map) })
     setTimeout(()=>map?.invalidateSize(),60)

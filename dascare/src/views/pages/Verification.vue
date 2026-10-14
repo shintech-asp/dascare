@@ -386,6 +386,7 @@
 </template>
 
 <script setup>
+import { addBasemap, loadLeaflet } from '@/services/basemap'
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import axios from 'axios'
 import { Icon } from '@iconify/vue'
@@ -789,22 +790,7 @@ async function forwardGeocode() {
 }
 
 // ─── Map (Leaflet loaded from CDN, no npm dependency needed) ──
-function loadLeaflet() {
-  return new Promise((resolve, reject) => {
-    if (window.L) { resolve(window.L); return }
 
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
-    document.head.appendChild(link)
-
-    const script = document.createElement('script')
-    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-    script.onload = () => resolve(window.L)
-    script.onerror = () => reject(new Error('Failed to load map'))
-    document.head.appendChild(script)
-  })
-}
 
 function setPin(lat, lng) {
   latitude.value = lat
@@ -832,10 +818,7 @@ async function initMap() {
       minZoom: 11,
     }).setView(DASMARINAS_CENTER, 13)
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      maxZoom: 19,
-    }).addTo(leafletMap)
+    addBasemap(L, leafletMap)
 
     // Draw the Dasmariñas boundary box so it's visually obvious what's selectable
     L.rectangle(bounds, { color: '#1976D2', weight: 1, fillOpacity: 0.03, dashArray: '4 4' }).addTo(leafletMap)

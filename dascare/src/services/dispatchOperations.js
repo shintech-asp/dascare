@@ -107,3 +107,9 @@ export async function closePlatformIncident(requestId, status, reason) {
   if (!data?.success) throw new Error(data?.message || 'Unable to close this incident.')
   return data
 }
+
+/** Missions waiting for the signed-in crew member's acknowledgement (crew pop-up). */
+export async function fetchMyPendingMissions() {
+  const { data } = await api.get('/organizations/dispatch/missions/mine.php')
+  return data?.missions || []
+}

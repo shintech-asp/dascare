@@ -192,6 +192,7 @@
 </template>
 
 <script setup>
+import { addBasemap, loadLeaflet } from '@/services/basemap'
 import axios from 'axios'
 import { reactive, ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Icon } from '@iconify/vue'
@@ -356,20 +357,7 @@ async function openManualPin() {
   await initManualMap()
 }
 
-function loadLeaflet() {
-  return new Promise((resolve, reject) => {
-    if (window.L) { resolve(window.L); return }
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
-    document.head.appendChild(link)
-    const script = document.createElement('script')
-    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-    script.onload = () => resolve(window.L)
-    script.onerror = () => reject(new Error('Failed to load map'))
-    document.head.appendChild(script)
-  })
-}
+
 
 async function initManualMap() {
   try {
@@ -387,10 +375,7 @@ async function initManualMap() {
       minZoom: 12,
     }).setView(form.latitude ? [form.latitude, form.longitude] : DASMARINAS_CENTER, form.latitude ? 16 : 13)
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      maxZoom: 19,
-    }).addTo(leafletMap)
+    addBasemap(L, leafletMap)
 
     if (form.latitude) {
       mapMarker = L.marker([form.latitude, form.longitude]).addTo(leafletMap)

@@ -243,6 +243,7 @@
 </template>
 
 <script setup>
+import { addBasemap, loadLeaflet } from '@/services/basemap'
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import PasswordReveal from '@/components/forms/PasswordReveal.vue'
@@ -438,26 +439,7 @@ let map = null
 let marker = null
 const DASMARINAS_CENTER = [14.3294, 120.9367]
 const DASMARINAS_BOUNDS = [[14.26, 120.87], [14.40, 121.00]]
-function loadLeaflet() {
-  return new Promise((resolve, reject) => {
-    if (window.L) { resolve(window.L); return }
-    if (!document.querySelector('link[data-dascare-leaflet]')) {
-      const link = document.createElement('link')
-      link.rel = 'stylesheet'; link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; link.dataset.dascareLeaflet = '1'
-      document.head.appendChild(link)
-    }
-    const existing = document.querySelector('script[data-dascare-leaflet]')
-    if (existing) {
-      existing.addEventListener('load', () => resolve(window.L), { once: true })
-      existing.addEventListener('error', reject, { once: true })
-      return
-    }
-    const script = document.createElement('script')
-    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; script.dataset.dascareLeaflet = '1'
-    script.onload = () => resolve(window.L); script.onerror = reject
-    document.body.appendChild(script)
-  })
-}
+
 function setMapPoint(lat, lng, zoom = 16) {
   form.value.latitude = lat
   form.value.longitude = lng
@@ -472,7 +454,7 @@ async function initMap() {
   try {
     const L = await loadLeaflet()
     map = L.map(mapContainer.value, { zoomControl: true, maxBounds: DASMARINAS_BOUNDS }).setView(DASMARINAS_CENTER, 13)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors &copy; CARTO' }).addTo(map)
+    addBasemap(L, map)
     L.rectangle(DASMARINAS_BOUNDS, { color: '#1976D2', weight: 1, fillOpacity: 0.02, dashArray: '4 4' }).addTo(map)
     map.on('click', ({ latlng }) => setMapPoint(latlng.lat, latlng.lng))
     setTimeout(() => map?.invalidateSize(), 80)
