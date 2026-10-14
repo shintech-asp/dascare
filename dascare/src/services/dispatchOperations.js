@@ -113,3 +113,10 @@ export async function fetchMyPendingMissions() {
   const { data } = await api.get('/organizations/dispatch/missions/mine.php')
   return data?.missions || []
 }
+
+/** Live monitoring board for City-wide Incidents (platform/incidents/monitor.php). */
+export async function fetchIncidentMonitor() {
+  const { data } = await api.get('/platform/incidents/monitor.php')
+  if (!data?.success) throw new Error(data?.message || 'Unable to load the live monitor.')
+  return data
+}

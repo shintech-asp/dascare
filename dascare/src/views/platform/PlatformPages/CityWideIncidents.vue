@@ -21,6 +21,9 @@
         </article>
       </div>
 
+      <!-- Live monitoring board: map + urgency queue, updates in real time -->
+      <LiveIncidentMonitor @open="openIncident" />
+
       <section class="rounded-3xl border border-base-300 bg-base-100 shadow-sm dark:border-white/10 dark:bg-[#0d2943]">
         <div class="flex flex-col gap-3 border-b border-base-300 p-4 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
           <div class="relative w-full sm:max-w-md">
@@ -121,6 +124,7 @@ import { useAlert } from '@/composables/useAlert'
 import { useLiveUpdates } from '@/composables/useLiveUpdates'
 import { realtimeChannels } from '@/services/realtime'
 import LiveBadge from '@/components/realtime/LiveBadge.vue'
+import LiveIncidentMonitor from '@/components/incidents/LiveIncidentMonitor.vue'
 
 const alert = useAlert()
 const items = ref([]); const stats = ref({}); const pagination = ref({page:1,pages:1,total:0}); const loading = ref(false); const error = ref('')
