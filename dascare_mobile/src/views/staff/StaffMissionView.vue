@@ -36,7 +36,7 @@
           :class="a.secondary ? ui.secondaryButton : ui.primaryButton" @click="advance(a)">
           <Icon :icon="saving === a.status ? 'lucide:loader-circle' : a.icon" width="18" :class="saving === a.status ? 'animate-spin' : ''" /> {{ a.label }}
         </button>
-        <p v-if="mission.assignment_status === 'transporting'" class="text-center text-[0.7rem] text-slate-500 dark:text-white/45">Complete the receiving-facility handoff first, then finish the mission.</p>
+        <RouterLink v-if="mission.assignment_status === 'transporting'" :to="{ name: 'StaffHandoff', params: { id } }" class="block text-center text-[0.7rem] font-semibold text-slate-500 no-underline dark:text-white/45">Complete the receiving-facility handoff first, then finish the mission → <span class="text-red-600 dark:text-red-300">Facility handoff</span></RouterLink>
       </section>
 
       <!-- Map -->
@@ -79,6 +79,14 @@
         <button v-else type="button" :class="[sharingThis ? ui.secondaryButton : ui.primaryButton, 'mt-3']" @click="toggleSharing">
           <Icon :icon="sharingThis ? 'lucide:pause' : 'lucide:radio'" width="18" /> {{ sharingThis ? 'Stop sharing' : 'Start sharing location' }}
         </button>
+      </section>
+
+      <!-- Care: assessment / handoff / field report for this mission -->
+      <section v-if="careLinks.length" :class="[ui.card, 'grid gap-1 p-2']" :style="{ gridTemplateColumns: `repeat(${careLinks.length}, minmax(0, 1fr))` }">
+        <RouterLink v-for="c in careLinks" :key="c.name" :to="{ name: c.name, params: { id } }" class="tap flex flex-col items-center gap-1.5 rounded-2xl px-1 py-3 text-center no-underline">
+          <span class="grid h-10 w-10 place-items-center rounded-2xl bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-300"><Icon :icon="c.icon" width="19" /></span>
+          <span class="text-[0.68rem] font-semibold leading-tight text-slate-600 dark:text-white/60">{{ c.label }}</span>
+        </RouterLink>
       </section>
 
       <!-- Incident -->
@@ -167,6 +175,11 @@ const stepIndex = computed(() => STEPPER.indexOf(mission.value?.assignment_statu
 const canShare = computed(() => isMine.value && (canShareLocation.value || hasPermission('dispatch.tracking.update')))
 const sharingThis = computed(() => gpsState.value.assignmentId === id.value)
 const canClose = computed(() => canDispatch.value && hasPermission('incidents.emergency_requests.update') && isActive.value && mission.value?.assignment_status !== 'transporting')
+const careLinks = computed(() => [
+  hasPermission('incidents.patient_assessments.read') && { name: 'StaffAssessment', label: 'Patient assessment', icon: 'lucide:stethoscope' },
+  hasPermission('hospital.handoffs.read') && { name: 'StaffHandoff', label: 'Facility handoff', icon: 'lucide:handshake' },
+  hasPermission('incidents.incident_reports.read') && { name: 'StaffFieldReport', label: 'Field report', icon: 'lucide:notebook-pen' },
+].filter(Boolean))
 const sentAgo = computed(() => { const s = Math.max(0, Math.round((now.value - gpsState.value.lastSentAt) / 1000)); return s < 5 ? 'just now' : s < 60 ? `${s}s ago` : `${Math.floor(s / 60)} min ago` })
 
 const mapLabels = computed(() => {

@@ -63,6 +63,11 @@ const routes = [
   { path: '/staff/assign', name: 'StaffAssign', component: () => import('@/views/staff/StaffAssignView.vue'), meta: { auth: true, staff: true, title: 'Assign unit & crew' } },
   { path: '/staff/tracking', name: 'StaffTracking', component: () => import('@/views/staff/StaffTrackingView.vue'), meta: { auth: true, staff: true, title: 'Live Tracking' } },
   { path: '/staff/transports', name: 'StaffTransports', component: () => import('@/views/staff/StaffPlaceholderView.vue'), meta: { auth: true, staff: true, title: 'Scheduled Transport', icon: 'lucide:calendar-clock', description: 'Coordinate planned patient transport, reservations, readiness checks, conflicts, and rescheduling.' } },
+  { path: '/staff/missions/:id/assessment', name: 'StaffAssessment', component: () => import('@/views/staff/StaffAssessmentView.vue'), meta: { auth: true, staff: true, title: 'Patient assessment' } },
+  { path: '/staff/missions/:id/handoff', name: 'StaffHandoff', component: () => import('@/views/staff/StaffHandoffView.vue'), meta: { auth: true, staff: true, title: 'Facility handoff' } },
+  { path: '/staff/missions/:id/report', name: 'StaffFieldReport', component: () => import('@/views/staff/StaffFieldReportView.vue'), meta: { auth: true, staff: true, title: 'Field report' } },
+  { path: '/staff/care/:tool', name: 'StaffCarePicker', component: () => import('@/views/staff/StaffCarePickerView.vue'), meta: { auth: true, staff: true, title: 'Choose mission' } },
+  { path: '/staff/incidents', name: 'StaffIncidents', component: () => import('@/views/staff/StaffIncidentsView.vue'), meta: { auth: true, staff: true, title: 'Incident Records' } },
   { path: '/staff/missions/:id', name: 'StaffMission', component: () => import('@/views/staff/StaffMissionView.vue'), meta: { auth: true, staff: true, title: 'Mission' } },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]

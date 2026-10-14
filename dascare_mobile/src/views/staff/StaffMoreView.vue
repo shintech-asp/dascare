@@ -17,7 +17,7 @@
     <template v-for="g in groups" :key="g.group">
       <p class="px-2 pt-2 text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-white/35">{{ g.group }}</p>
       <section :class="[ui.card, 'divide-y divide-base-300 dark:divide-white/10']">
-        <component :is="s.route ? 'RouterLink' : 'div'" v-for="s in g.items" :key="s.key" :to="s.route ? { name: s.route } : undefined"
+        <component :is="s.route ? 'RouterLink' : 'div'" v-for="s in g.items" :key="s.key" :to="s.route || undefined"
           class="tap flex items-center gap-3 p-4 no-underline" :class="s.route ? '' : 'opacity-50'">
           <span class="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-300"><Icon :icon="s.icon" width="20" /></span>
           <span class="min-w-0 flex-1 text-sm font-bold text-slate-900 dark:text-white">{{ s.label }}</span>
@@ -73,7 +73,7 @@ import { useSession } from '@/composables/useSession'
 import { useTheme } from '@/composables/useTheme'
 import { useAlert } from '@/composables/useAlert'
 import { useToast } from '@/composables/useToast'
-import { STAFF_SECTIONS, STAFF_SECTION_ROUTES } from '@/config/staffSections'
+import { STAFF_SECTIONS, STAFF_SECTION_PARAMS, STAFF_SECTION_ROUTES } from '@/config/staffSections'
 
 const appVersion = __APP_VERSION__
 const router = useRouter()
@@ -92,7 +92,7 @@ const themeOptions = [
 ]
 
 const groups = computed(() => STAFF_SECTIONS
-  .map((g) => ({ group: g.group, items: g.items.filter((s) => hasPermission(...s.permissions)).map((s) => ({ ...s, route: STAFF_SECTION_ROUTES[s.key] || null })) }))
+  .map((g) => ({ group: g.group, items: g.items.filter((s) => hasPermission(...s.permissions)).map((s) => ({ ...s, route: STAFF_SECTION_PARAMS[s.key] || (STAFF_SECTION_ROUTES[s.key] ? { name: STAFF_SECTION_ROUTES[s.key] } : null) })) }))
   .filter((g) => g.items.length))
 
 async function signOut() {

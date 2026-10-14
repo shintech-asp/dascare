@@ -41,4 +41,11 @@ export const STAFF_SECTION_ROUTES = {
   assignments: 'StaffAssign',
   tracking: 'StaffTracking',
   transports: 'StaffTransports',
+  incidents: 'StaffIncidents',
+}
+/** Sections that need extra route params (More/Home pass these). */
+export const STAFF_SECTION_PARAMS = {
+  'field-reports': { name: 'StaffCarePicker', params: { tool: 'report' } },
+  assessments: { name: 'StaffCarePicker', params: { tool: 'assessment' } },
+  handoffs: { name: 'StaffCarePicker', params: { tool: 'handoff' } },
 }

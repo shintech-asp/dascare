@@ -49,7 +49,7 @@
           <RouterLink :to="{ name: 'StaffMore' }" replace class="py-1 text-xs font-bold text-red-600 no-underline dark:text-red-300">All sections</RouterLink>
         </div>
         <div class="grid grid-cols-4 gap-1 p-3">
-          <component :is="s.route ? 'RouterLink' : 'div'" v-for="s in quick" :key="s.key" :to="s.route ? { name: s.route } : undefined"
+          <component :is="s.route ? 'RouterLink' : 'div'" v-for="s in quick" :key="s.key" :to="s.route || undefined"
             class="tap flex flex-col items-center gap-1.5 rounded-2xl px-1 py-3 text-center no-underline" :class="s.route ? '' : 'opacity-40'">
             <span class="grid h-11 w-11 place-items-center rounded-2xl bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-300"><Icon :icon="s.icon" width="20" /></span>
             <span class="text-[0.65rem] font-semibold leading-tight text-slate-600 dark:text-white/60">{{ s.label }}</span>
@@ -71,7 +71,7 @@ import { useSession } from '@/composables/useSession'
 import { useToast } from '@/composables/useToast'
 import { useLiveUpdates } from '@/composables/useLiveUpdates'
 import { realtimeChannels } from '@/services/realtime'
-import { STAFF_SECTIONS, STAFF_SECTION_ROUTES } from '@/config/staffSections'
+import { STAFF_SECTIONS, STAFF_SECTION_PARAMS, STAFF_SECTION_ROUTES } from '@/config/staffSections'
 
 const { user, organization, hasPermission, isOrgAdmin } = useSession()
 const toast = useToast()
@@ -94,7 +94,7 @@ const tiles = computed(() => [
 // First 8 sections this member can open.
 const quick = computed(() => STAFF_SECTIONS.flatMap((g) => g.items)
   .filter((s) => hasPermission(...s.permissions))
-  .map((s) => ({ ...s, route: STAFF_SECTION_ROUTES[s.key] || null }))
+  .map((s) => ({ ...s, route: STAFF_SECTION_PARAMS[s.key] || (STAFF_SECTION_ROUTES[s.key] ? { name: STAFF_SECTION_ROUTES[s.key] } : null) }))
   .slice(0, 8))
 
 async function load() {
