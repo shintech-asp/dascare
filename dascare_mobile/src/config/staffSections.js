@@ -37,4 +37,8 @@ export const STAFF_SECTIONS = [
 /** Route name for a section once it's built in the app (filled in as Phase 4 progresses). */
 export const STAFF_SECTION_ROUTES = {
   missions: 'StaffMissions',
+  offers: 'StaffOffers',
+  assignments: 'StaffAssign',
+  tracking: 'StaffTracking',
+  transports: 'StaffTransports',
 }

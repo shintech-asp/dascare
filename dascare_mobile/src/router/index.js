@@ -54,11 +54,15 @@ const routes = [
       { path: '', redirect: '/staff/home' },
       { path: 'home', name: 'StaffHome', component: () => import('@/views/staff/StaffHomeView.vue'), meta: { tab: 'home', root: true } },
       { path: 'missions', name: 'StaffMissions', component: () => import('@/views/staff/StaffMissionsView.vue'), meta: { tab: 'missions', title: 'Missions' } },
+      { path: 'offers', name: 'StaffOffers', component: () => import('@/views/staff/StaffOffersView.vue'), meta: { tab: 'offers', title: 'Incident Offers' } },
       { path: 'alerts', name: 'StaffAlerts', component: () => import('@/views/NotificationsView.vue'), meta: { tab: 'notifications', title: 'Alerts' } },
       { path: 'more', name: 'StaffMore', component: () => import('@/views/staff/StaffMoreView.vue'), meta: { tab: 'more', title: 'More' } },
     ],
   },
   // Stacked staff screens (own ScreenHeader, no tab bar)
+  { path: '/staff/assign', name: 'StaffAssign', component: () => import('@/views/staff/StaffAssignView.vue'), meta: { auth: true, staff: true, title: 'Assign unit & crew' } },
+  { path: '/staff/tracking', name: 'StaffTracking', component: () => import('@/views/staff/StaffTrackingView.vue'), meta: { auth: true, staff: true, title: 'Live Tracking' } },
+  { path: '/staff/transports', name: 'StaffTransports', component: () => import('@/views/staff/StaffPlaceholderView.vue'), meta: { auth: true, staff: true, title: 'Scheduled Transport', icon: 'lucide:calendar-clock', description: 'Coordinate planned patient transport, reservations, readiness checks, conflicts, and rescheduling.' } },
   { path: '/staff/missions/:id', name: 'StaffMission', component: () => import('@/views/staff/StaffMissionView.vue'), meta: { auth: true, staff: true, title: 'Mission' } },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]

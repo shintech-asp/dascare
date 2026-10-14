@@ -87,7 +87,7 @@ const { hasPermission } = useSession()
 const ALL_TABS = [
   { name: 'StaffHome', tab: 'home', label: 'Home', icon: 'lucide:house' },
   { name: 'StaffMissions', tab: 'missions', label: 'Missions', icon: 'lucide:route', permissions: ['dispatch.dispatch_assignments.read'] },
-  { name: 'StaffOffers', tab: 'offers', label: 'Offers', icon: 'lucide:inbox', permissions: ['dispatch.dispatch_assignments.read', 'dispatch.dispatch_assignments.approve'], built: false },
+  { name: 'StaffOffers', tab: 'offers', label: 'Offers', icon: 'lucide:inbox', permissions: ['dispatch.dispatch_assignments.read', 'dispatch.dispatch_assignments.approve'] },
   { name: 'StaffAlerts', tab: 'notifications', label: 'Alerts', icon: 'lucide:bell' },
   { name: 'StaffMore', tab: 'more', label: 'More', icon: 'lucide:layout-grid' },
 ]
