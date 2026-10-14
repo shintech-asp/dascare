@@ -74,6 +74,12 @@ const routes = [
   { path: '/staff/fleet/:id', name: 'StaffUnit', component: () => import('@/views/staff/StaffUnitView.vue'), meta: { auth: true, staff: true, title: 'Ambulance' } },
   { path: '/staff/personnel', name: 'StaffPersonnel', component: () => import('@/views/staff/StaffPersonnelView.vue'), meta: { auth: true, staff: true, title: 'Personnel' } },
   { path: '/staff/duty', name: 'StaffDuty', component: () => import('@/views/staff/StaffDutyView.vue'), meta: { auth: true, staff: true, title: 'Duty & Availability' } },
+  { path: '/staff/roles', name: 'StaffRoles', component: () => import('@/views/staff/StaffRolesView.vue'), meta: { auth: true, staff: true, title: 'Roles & Permissions' } },
+  { path: '/staff/roles/:id', name: 'StaffRoleEdit', component: () => import('@/views/staff/StaffRoleEditView.vue'), meta: { auth: true, staff: true, title: 'Role' } },
+  { path: '/staff/profile', name: 'StaffOrgProfile', component: () => import('@/views/staff/StaffOrgProfileView.vue'), meta: { auth: true, staff: true, title: 'Organization Profile' } },
+  { path: '/staff/documents', name: 'StaffDocuments', component: () => import('@/views/staff/StaffDocumentsView.vue'), meta: { auth: true, staff: true, title: 'Documents & Credentials' } },
+  { path: '/staff/reports', name: 'StaffReports', component: () => import('@/views/staff/StaffReportsView.vue'), meta: { auth: true, staff: true, title: 'Reports & Analytics' } },
+  { path: '/staff/audit', name: 'StaffAudit', component: () => import('@/views/staff/StaffAuditView.vue'), meta: { auth: true, staff: true, title: 'Audit Log' } },
   { path: '/staff/missions/:id', name: 'StaffMission', component: () => import('@/views/staff/StaffMissionView.vue'), meta: { auth: true, staff: true, title: 'Mission' } },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]

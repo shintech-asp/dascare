@@ -2,7 +2,7 @@
  * Organization/barangay sections in the staff app — the same list and
  * permission keys as the web portal's sidebar (dascare/src/config/
  * dashboardNavigation.js, "organization" workspace). `route` is set once a
- * section exists in the app; the More tab shows the rest as "next step".
+ * section exists in the app; every section the web has now exists in the app (Phase 4).
  * Permissions are cosmetic here — the API checks every call.
  */
 export const STAFF_SECTIONS = [
@@ -46,6 +46,11 @@ export const STAFF_SECTION_ROUTES = {
   readiness: 'StaffReadiness',
   personnel: 'StaffPersonnel',
   duty: 'StaffDuty',
+  'access-control': 'StaffRoles',
+  profile: 'StaffOrgProfile',
+  documents: 'StaffDocuments',
+  reports: 'StaffReports',
+  audit: 'StaffAudit',
 }
 /** Sections that need extra route params (More/Home pass these). */
 export const STAFF_SECTION_PARAMS = {
