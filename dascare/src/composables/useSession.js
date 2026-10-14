@@ -5,6 +5,9 @@ import { resetRealtime } from '@/services/realtime'
 const user = ref(null)
 const organization = ref(null)
 const platform = ref(null)
+// Temporary (guest) account from session.php — set after a guest SOS or a
+// "log in with your request key"; not a login (user stays null).
+const temporary = ref(null)
 const csrfToken = ref(null)
 const ready = ref(false)
 let inFlight = null
@@ -31,6 +34,7 @@ export function clearSessionCache() {
   user.value = null
   organization.value = null
   platform.value = null
+  temporary.value = null
   csrfToken.value = null
   ready.value = false
   inFlight = null
@@ -68,6 +72,7 @@ export function useSession() {
         user.value = data.loggedIn ? data.user : null
         organization.value = data.loggedIn ? (data.organization ?? null) : null
         platform.value = data.loggedIn ? (data.platform ?? null) : null
+        temporary.value = data.loggedIn ? null : (data.temporary ?? null)
         csrfToken.value = data.csrf_token ?? null
         ready.value = true
         syncRealtimeIdentity()
@@ -77,6 +82,7 @@ export function useSession() {
         user.value = null
         organization.value = null
         platform.value = null
+        temporary.value = null
         csrfToken.value = null
         ready.value = true
         syncRealtimeIdentity()
@@ -92,6 +98,17 @@ export function useSession() {
     if (data.success && !data.requires_2fa) {
       ready.value = false
       await fetchSession(true)
+    }
+    return data
+  }
+
+  /** "Log in with your request key" (auth/temporary_login.php). */
+  const temporaryLogin = async (key) => {
+    const { data } = await api.post('/auth/temporary_login.php', { key })
+    if (data.success) {
+      temporary.value = data.temporary
+      user.value = null
+      resetRealtime() // the new session may follow different requests
     }
     return data
   }
@@ -127,12 +144,14 @@ export function useSession() {
     user,
     organization,
     platform,
+    temporary,
     csrfToken,
     ready,
     isAuthenticated,
     activePermissions,
     fetchSession,
     login,
+    temporaryLogin,
     register,
     logout,
     hasRole,

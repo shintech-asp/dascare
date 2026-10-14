@@ -255,6 +255,13 @@
               <p class="text-[0.68rem] text-slate-400 dark:text-white/25 mt-1">A dispatcher is reviewing this request.</p>
             </div>
 
+            <!-- Temporary (guest) account, request finished: offer to keep the history -->
+            <RouterLink v-if="isGuestView && temporary && !isActive" to="/my-emergency"
+              class="block rounded-3xl border border-emerald-200 bg-emerald-50 p-4 no-underline dark:border-emerald-500/20 dark:bg-emerald-500/5">
+              <p class="flex items-center gap-2 text-sm font-black text-emerald-800 dark:text-emerald-200"><Icon icon="lucide:user-round-plus" width="16" /> Keep your history?</p>
+              <p class="mt-1 text-xs leading-5 text-emerald-900/70 dark:text-emerald-100/60">This request is done. Complete your temporary account to keep it — otherwise it's deleted after a few days.</p>
+            </RouterLink>
+
             <!-- Requester cancel (citizen or guest key) until the crew is on scene -->
             <button v-if="canCancel" type="button" @click="cancelOpen = true"
               class="flex w-full items-center justify-center gap-2 rounded-3xl border border-base-300 bg-base-100 px-4 py-3 text-xs font-bold text-slate-600 hover:border-red-300 hover:text-red-600 dark:border-white/10 dark:bg-[#071829] dark:text-white/55 dark:hover:text-red-300">
@@ -297,6 +304,7 @@ import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { cancelOwnRequest, unmergeOwnReport } from '@/services/dispatchOperations'
 import CloseRequestModal from '@/components/incidents/CloseRequestModal.vue'
+import { useSession } from '@/composables/useSession'
 import { useAlert } from '@/composables/useAlert'
 import { useLiveUpdates } from '@/composables/useLiveUpdates'
 import LiveBadge from '@/components/realtime/LiveBadge.vue'
@@ -306,6 +314,7 @@ import api from '@/services/api'
 import { guestTokenFor, guestTrackingUrl, rememberGuestRequest } from '@/services/guestRequests'
 
 const route = useRoute()
+const { temporary } = useSession()
 // Public /track/:id page for guest requests (no account; private key only).
 const isGuestView = computed(() => !!route.meta.guestTracking)
 

@@ -219,6 +219,7 @@ $_SESSION['user_name']  = $user['first_name'] . ' ' . $user['last_name'];
 $_SESSION['user_email'] = $user['email'];
 $_SESSION['user_phone'] = $user['phone'];
 $_SESSION['user_level'] = $user['role'];
+unset($_SESSION['temp_account_id']); // a real sign-in replaces a temporary (guest) one
 
 // ==================================================
 // TRACK LAST LOGIN

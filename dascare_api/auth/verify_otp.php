@@ -118,4 +118,20 @@ if ($context === 'register') {
     $stmt->execute([$user['id']]);
 }
 
-echo json_encode(["success" => true]);
+// Registered from a temporary (guest) account's session: its emergency
+// requests become this new citizen's (reusables/temporary_accounts.php).
+$linkedRequests = 0;
+if ($context === 'register' && !empty($_SESSION['temp_account_id'])) {
+    require_once __DIR__ . '/../reusables/temporary_accounts.php';
+    $role = $pdo->prepare('SELECT role FROM user_roles WHERE user_id = ? LIMIT 1');
+    $role->execute([$user['id']]);
+    if ($role->fetchColumn() === 'citizen') {
+        try {
+            $linkedRequests = tempConvertToUser($pdo, (int) $user['id']);
+        } catch (Throwable $e) {
+            error_log('Temporary account conversion failed: ' . $e->getMessage());
+        }
+    }
+}
+
+echo json_encode(["success" => true, "linkedRequests" => $linkedRequests]);

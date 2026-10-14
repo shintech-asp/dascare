@@ -460,5 +460,19 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'])) {
         unset($_SESSION['platform']);
     }
 
+    // Temporary (guest) account — reusables/temporary_accounts.php. Not a
+    // login: loggedIn stays false, so guest-only pages keep working.
+    try {
+        require_once __DIR__ . '/reusables/temporary_accounts.php';
+        tempCleanupExpired($pdo); // at most once an hour
+        if (!empty($_SESSION['user_id'])) {
+            unset($_SESSION['temp_account_id']);
+        } elseif ($tempAccount = tempCurrentAccount($pdo)) {
+            $response['temporary'] = tempSessionInfo($pdo, $tempAccount);
+        }
+    } catch (Throwable $e) {
+        error_log('Temporary account session error: ' . $e->getMessage());
+    }
+
     echo json_encode($response);
 }

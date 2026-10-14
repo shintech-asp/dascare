@@ -165,6 +165,8 @@ const routes = [
       { path: 'join-organization', name: 'JoinOrganization', component: JoinOrganization, meta: { title: 'Join Organization', guestOnly: true } },
       { path: 'about', name: 'About', component: About, meta: { title: 'About' } },
       { path: 'terms-of-service', name: 'TermsOfService', component: TermsOfService, meta: { title: 'Terms of Service' } },
+      // Temporary (guest) account: key login + the guest's requests
+      { path: 'my-emergency', name: 'MyEmergency', component: () => import('@/views/public/MyEmergency.vue'), meta: { title: 'My emergency' } },
       // Guest SOS tracking (no account): /track/:id#key=<private key>
       { path: 'track/:id(\\d+)', name: 'GuestTrack', component: TrackRequest, meta: { title: 'Track request', guestTracking: true } },
       { path: 'privacy-policy', name: 'PrivacyPolicy', component: PrivacyPolicy, meta: { title: 'Privacy Policy' } },

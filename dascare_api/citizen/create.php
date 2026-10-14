@@ -568,4 +568,31 @@ if ($isGuest) {
     }
 }
 
+// Website guests (not the Android app, which keeps its own guest keys) are
+// signed into a temporary account: created on their first SOS, re-used for
+// the next ones. The login key is returned ONCE, here — see
+// reusables/temporary_accounts.php. A failure must never fail the emergency.
+if ($isGuest && ($_SERVER['HTTP_X_DASCARE_CLIENT'] ?? '') !== 'mobile') {
+    require_once __DIR__ . '/../reusables/temporary_accounts.php';
+    try {
+        $tempAccount = tempCurrentAccount($pdo);
+        if ($tempAccount) {
+            tempLinkRequest($pdo, (int) $tempAccount['id'], $requestId);
+            $response['temporaryAccount'] = ['created' => false, 'keyHint' => $tempAccount['key_hint']];
+        } else {
+            $created = tempCreateAccount($pdo, $requesterName !== '' && $requesterName !== 'Guest requester' ? $requesterName : null, $normalizedPhone !== '' ? $normalizedPhone : null);
+            tempLinkRequest($pdo, $created['id'], $requestId);
+            tempSignIn($pdo, $created['id']);
+            $response['temporaryAccount'] = [
+                'created' => true,
+                'loginKey' => $created['key'],
+                'keyHint' => substr(str_replace('-', '', $created['key']), -4),
+                'retentionDays' => tempRetentionDays($pdo),
+            ];
+        }
+    } catch (Throwable $e) {
+        error_log('Temporary account failed for request ' . $requestId . ': ' . $e->getMessage());
+    }
+}
+
 echo json_encode($response);

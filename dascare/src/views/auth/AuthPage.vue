@@ -206,12 +206,21 @@
                 <span class="cursor-pointer font-semibold text-red-600 hover:underline dark:text-red-400"
                   @click="switchTo(true)">Sign up</span>
               </p>
+              <p class="mt-2 text-center text-xs text-slate-400 dark:text-white/40">
+                Sent an SOS as a guest?
+                <RouterLink to="/my-emergency" class="font-semibold text-red-600 hover:underline dark:text-red-400">Log in with your request key</RouterLink>
+              </p>
             </form>
 
             <!-- ═══════════ SIGN UP ═══════════ -->
             <form v-else :key="'register'" class="flex flex-col" @submit.prevent="openRegisterConfirm">
               <h2 class="text-2xl font-black tracking-tight text-slate-950 dark:text-white">Create your account</h2>
               <p class="mt-1 text-sm text-slate-500 dark:text-[#a9c6e8]">Public sign-up creates a citizen account.</p>
+              <!-- Completing a temporary (guest) account: requests move in on email verification -->
+              <p v-if="temporary" class="mt-3 flex items-start gap-2 rounded-xl bg-emerald-50 px-3 py-2.5 text-xs leading-5 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200">
+                <Icon icon="lucide:history" width="15" class="mt-0.5 flex-shrink-0" />
+                <span>Completing your temporary account: your {{ temporary.requests?.length || '' }} emergency {{ temporary.requests?.length === 1 ? 'request moves' : 'requests move' }} into this account once you verify your email.</span>
+              </p>
 
               <div class="mt-5 grid grid-cols-2 gap-3">
                 <div>
@@ -521,6 +530,7 @@ let sirenNextId = 3
 let sirenTimer = null
 const {
   user,
+  temporary,
   fetchSession,
   login: sessionLogin,
   register: sessionRegister,
@@ -1001,7 +1011,13 @@ async function verifyOtp() {
 
       cleanupOtpState()
       await nextTick()
-      showSuccess('You can now log in.', 'Email verified')
+      const moved = Number(res.data.linkedRequests || 0)
+      if (moved) {
+        await fetchSession(true) // the temporary account is now closed
+        showSuccess(`${moved} emergency ${moved === 1 ? 'request was' : 'requests were'} added to your account. You can now log in.`, 'Account completed')
+      } else {
+        showSuccess('You can now log in.', 'Email verified')
+      }
       switchTo(false)
     } else {
       showError(res.data.message || 'The verification code is incorrect or expired.', 'Invalid code')
@@ -1062,6 +1078,17 @@ async function handleExitOtpClick() {
 // Lifecycle
 // ------------------------------------------------------------------
 onMounted(() => {
+  // Completing a temporary (guest) account: start from what the SOS gave us.
+  fetchSession(true).then(() => {
+    const t = temporary.value
+    if (!t) return
+    if (!registerPhone.value && t.phone) registerPhone.value = t.phone
+    if (!registerFirstName.value && !registerLastName.value && t.name) {
+      const parts = t.name.trim().split(/\s+/)
+      registerFirstName.value = parts.length > 1 ? parts.slice(0, -1).join(' ') : parts[0]
+      registerLastName.value = parts.length > 1 ? parts[parts.length - 1] : ''
+    }
+  }).catch(() => {})
   window.addEventListener('beforeunload', handleBeforeUnload)
   window.addEventListener('pagehide', handlePageHide)
 

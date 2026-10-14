@@ -37,6 +37,7 @@ const RATE_LIMIT_RULES = [
     'login_2fa_resend'    => [3, 600],
     'forgot_password'      => [3, 600],  // guards OTP-email spam on the forgot flow itself
     'register'              => [6, 3600], // 6 signups / hour per IP — throttles mass fake-account creation
+    'temporary_login'      => [8, 900],   // "log in with your request key" — per IP
     'emergency_request'    => [10, 1800], // 10 requests / 30 min (checked per-user AND per-IP) — generous enough for a genuinely bad night, tight enough to stop a dispatcher-flooding script
 ];
 

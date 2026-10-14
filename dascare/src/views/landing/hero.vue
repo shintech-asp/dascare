@@ -168,6 +168,26 @@
               exactly like any other request.
             </p>
 
+            <!-- Temporary account (reusables/temporary_accounts.php): the login
+                 key is shown ONCE, right here, after the guest's first SOS. -->
+            <div v-if="tempKey" class="mt-4 rounded-2xl border-2 border-dashed border-red-300 bg-red-50/60 p-4 text-left dark:border-red-500/30 dark:bg-red-500/5">
+              <p class="flex items-center gap-2 text-sm font-black text-slate-900 dark:text-white"><Icon icon="lucide:key-round" width="16" class="text-red-600" /> Save your login key</p>
+              <p class="mt-1 text-xs leading-5 text-slate-600 dark:text-white/55">
+                You're signed in to a <b>temporary account</b> for this emergency. To open it on another phone, go to
+                <b>My emergency</b> and enter this key. It's shown only once.
+              </p>
+              <div class="mt-3 flex items-center gap-2">
+                <span class="flex-1 select-all rounded-xl bg-white px-3 py-2.5 text-center font-mono text-lg font-black tracking-[0.15em] text-slate-900 dark:bg-white/10 dark:text-white">{{ tempKey }}</span>
+                <button type="button" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-white/15 dark:bg-white/5 dark:text-white" @click="copyKey">
+                  <Icon :icon="keyCopied ? 'lucide:check' : 'lucide:copy'" width="15" /> {{ keyCopied ? 'Copied' : 'Copy' }}
+                </button>
+              </div>
+            </div>
+            <p v-else-if="submittedResult.temporaryAccount" class="mt-3 text-xs text-slate-500 dark:text-white/45">
+              Added to your temporary account (key ending <span class="font-mono font-bold">{{ submittedResult.temporaryAccount.keyHint }}</span>) —
+              <RouterLink to="/my-emergency" class="font-bold text-red-600 underline dark:text-red-300" @click="closeGuestModal">My emergency</RouterLink>
+            </p>
+
             <!-- Guest tracking: this browser keeps the request's private key
                  (services/guestRequests.js); the link carries it to another device. -->
             <div v-if="resultTrackingUrl" class="mt-4 rounded-2xl border border-base-300 p-4 text-left dark:border-white/10">
@@ -241,6 +261,7 @@ import { unmergeOwnReport } from '@/services/dispatchOperations'
 import { useAlert } from '@/composables/useAlert'
 import api from '@/services/api'
 import { guestRequests, guestTrackingUrl } from '@/services/guestRequests'
+import { useSession } from '@/composables/useSession'
 
 const alert = useAlert()
 
@@ -291,6 +312,20 @@ async function requestSeparately() {
   }
 }
 
+// ---- Temporary account login key (shown once) ----
+const { fetchSession } = useSession()
+const tempKey = computed(() => submittedResult.value?.temporaryAccount?.loginKey || '')
+const keyCopied = ref(false)
+async function copyKey() {
+  try {
+    await navigator.clipboard.writeText(tempKey.value)
+    keyCopied.value = true
+    setTimeout(() => { keyCopied.value = false }, 2000)
+  } catch {
+    window.prompt('Copy your login key:', tempKey.value)
+  }
+}
+
 // ---- Guest tracking (key saved by EmergencyRequestForm on submit) ----
 const resultTrackingUrl = computed(() => (submittedResult.value?.id ? guestTrackingUrl(submittedResult.value.id) : null))
 const linkCopied = ref(false)
@@ -329,6 +364,7 @@ async function loadMyRequestStatuses() {
 function onGuestSubmitted(result) {
   separated.value = false
   submittedResult.value = result
+  if (result?.temporaryAccount) fetchSession(true) // header shows "My emergency"
   loadMyRequestStatuses()
   // create.php returns the guest's authoritative (phone-keyed) status on a
   // successful submit — apply it locally so the count updates instantly.

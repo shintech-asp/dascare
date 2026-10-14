@@ -81,6 +81,13 @@
           <span>Home</span>
         </RouterLink>
 
+        <!-- Temporary (guest) account: back to the guest's requests -->
+        <RouterLink v-if="temporary && !user" to="/my-emergency"
+          class="flex items-center gap-1.5 rounded-full bg-red-50 px-3.5 py-2 font-semibold text-red-700 no-underline ring-1 ring-red-200 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/25">
+          <Icon icon="lucide:siren" width="16" class="shrink-0" />
+          <span>My emergency</span>
+        </RouterLink>
+
         <!-- Android app (APK) download — shown once downloads/app.json is published -->
         <a
           v-if="appInfo"
@@ -150,6 +157,11 @@
         >
           <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none"><path d="M3 11.5 12 4l9 7.5M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span>Home</span>
+        </RouterLink>
+        <RouterLink v-if="temporary && !user" to="/my-emergency" aria-label="My emergency"
+          class="flex items-center gap-1 rounded-full bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 no-underline ring-1 ring-red-200 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/25">
+          <Icon icon="lucide:siren" width="15" class="shrink-0" />
+          <span class="hidden min-[400px]:inline">My emergency</span>
         </RouterLink>
         <a
           v-if="appInfo"
@@ -281,7 +293,7 @@ import { Icon } from '@iconify/vue'
 
 const router = useRouter()
 const route = useRoute()
-const { user, logout, dashboardPath } = useSession()
+const { user, temporary, logout, dashboardPath } = useSession()
 
 /* ---------------------------------------------------------------- */
 /*  Brand logo — swap LOGO_SRC for the real asset path when ready.   */
