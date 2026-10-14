@@ -185,16 +185,24 @@ const titleCase = (v = '') => String(v).replaceAll('_', ' ').replace(/\b\w/g, (c
 const severityDot = (v) => ({ critical: 'bg-red-600', high: 'bg-orange-500', moderate: 'bg-amber-400', low: 'bg-blue-400' }[v] || 'bg-slate-400')
 
 // ---------- data ----------
-let seenIds = null // null until the first load, so existing incidents don't ring
+// Emergencies this browser has already announced (kept across reloads), so a
+// request sent just before the page was opened/reloaded still gets its banner.
+const SEEN_KEY = 'dascare.monitorAnnounced'
+const ANNOUNCE_WINDOW_S = 10 * 60
+function readSeen() { try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')) } catch { return new Set() } }
+function saveSeen(ids) { try { localStorage.setItem(SEEN_KEY, JSON.stringify([...ids].slice(-300))) } catch { /* private mode */ } }
+const seenIds = readSeen()
 async function load() {
   try {
     const d = await fetchIncidentMonitor()
     const list = d.incidents || []
-    if (seenIds) {
-      const fresh = list.filter((i) => !seenIds.has(i.id))
-      if (fresh.length) { banner.value = fresh[fresh.length - 1]; chime() }
+    const fresh = list.filter((i) => !seenIds.has(i.id) && i.age_seconds < ANNOUNCE_WINDOW_S)
+    if (fresh.length) {
+      banner.value = fresh.reduce((a, b) => (b.age_seconds < a.age_seconds ? b : a)) // newest
+      chime()
     }
-    seenIds = new Set(list.map((i) => i.id))
+    list.forEach((i) => seenIds.add(i.id))
+    saveSeen(seenIds)
     incidents.value = list
     counts.value = d.counts || {}
     fleet.value = d.fleet || {}
@@ -269,22 +277,27 @@ let fitted = false
 function lngLat(o) { return o && o.latitude != null && o.longitude != null ? [Number(o.longitude), Number(o.latitude)] : null }
 
 function pinElement({ color, label, pulse = false, square = false, title = '' }) {
+  // The map positions the OUTER element itself (absolute + transform) — only
+  // size it; layout styles live on an inner wrapper, or pins drift on zoom.
   const el = document.createElement('div')
-  el.style.cssText = 'position:relative;width:18px;height:18px;cursor:pointer'
+  el.style.cssText = 'width:18px;height:18px;cursor:pointer'
   el.title = title
+  const inner = document.createElement('div')
+  inner.style.cssText = 'position:relative;width:100%;height:100%'
+  el.appendChild(inner)
   if (pulse) {
     const ring = document.createElement('span')
     ring.style.cssText = `position:absolute;inset:-7px;border-radius:9999px;background:${color};opacity:.25;animation:dascare-ping 1.6s cubic-bezier(0,0,.2,1) infinite`
-    el.appendChild(ring)
+    inner.appendChild(ring)
   }
   const dot = document.createElement('span')
   dot.style.cssText = `position:absolute;inset:0;border-radius:${square ? '5px' : '9999px'};background:${color};border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)`
-  el.appendChild(dot)
+  inner.appendChild(dot)
   if (label) {
     const cap = document.createElement('span')
     cap.textContent = label // textContent: no HTML from data
     cap.style.cssText = 'position:absolute;left:50%;bottom:calc(100% + 6px);transform:translateX(-50%);white-space:nowrap;border-radius:9999px;background:#fff;color:#0f172a;font:700 10px/1.2 system-ui,sans-serif;padding:3px 7px;box-shadow:0 1px 4px rgba(0,0,0,.25)'
-    el.appendChild(cap)
+    inner.appendChild(cap)
   }
   return el
 }
