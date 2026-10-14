@@ -42,6 +42,10 @@ export const STAFF_SECTION_ROUTES = {
   tracking: 'StaffTracking',
   transports: 'StaffTransports',
   incidents: 'StaffIncidents',
+  fleet: 'StaffFleet',
+  readiness: 'StaffReadiness',
+  personnel: 'StaffPersonnel',
+  duty: 'StaffDuty',
 }
 /** Sections that need extra route params (More/Home pass these). */
 export const STAFF_SECTION_PARAMS = {

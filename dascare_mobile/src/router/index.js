@@ -68,6 +68,12 @@ const routes = [
   { path: '/staff/missions/:id/report', name: 'StaffFieldReport', component: () => import('@/views/staff/StaffFieldReportView.vue'), meta: { auth: true, staff: true, title: 'Field report' } },
   { path: '/staff/care/:tool', name: 'StaffCarePicker', component: () => import('@/views/staff/StaffCarePickerView.vue'), meta: { auth: true, staff: true, title: 'Choose mission' } },
   { path: '/staff/incidents', name: 'StaffIncidents', component: () => import('@/views/staff/StaffIncidentsView.vue'), meta: { auth: true, staff: true, title: 'Incident Records' } },
+  { path: '/staff/fleet', name: 'StaffFleet', component: () => import('@/views/staff/StaffFleetView.vue'), meta: { auth: true, staff: true, title: 'Fleet' } },
+  { path: '/staff/readiness', name: 'StaffReadiness', component: () => import('@/views/staff/StaffFleetView.vue'), meta: { auth: true, staff: true, title: 'Maintenance & Readiness' } },
+  { path: '/staff/fleet/new', name: 'StaffUnitForm', component: () => import('@/views/staff/StaffUnitFormView.vue'), meta: { auth: true, staff: true, title: 'Ambulance' } },
+  { path: '/staff/fleet/:id', name: 'StaffUnit', component: () => import('@/views/staff/StaffUnitView.vue'), meta: { auth: true, staff: true, title: 'Ambulance' } },
+  { path: '/staff/personnel', name: 'StaffPersonnel', component: () => import('@/views/staff/StaffPersonnelView.vue'), meta: { auth: true, staff: true, title: 'Personnel' } },
+  { path: '/staff/duty', name: 'StaffDuty', component: () => import('@/views/staff/StaffDutyView.vue'), meta: { auth: true, staff: true, title: 'Duty & Availability' } },
   { path: '/staff/missions/:id', name: 'StaffMission', component: () => import('@/views/staff/StaffMissionView.vue'), meta: { auth: true, staff: true, title: 'Mission' } },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
