@@ -52,7 +52,7 @@ find dascare_api -name '*.php' -not -path '*/vendor/*' -exec php -l {} \; | grep
 
 The API is served by XAMPP Apache, not a PHP dev server. `dascare/.env` sets `VITE_API_BASE_URL=http://localhost/dascare_api`, so `dascare_api/` must be reachable at `htdocs/dascare_api`. In this checkout it actually lives at `htdocs/Dascare/dascare_api`, so either symlink it to `htdocs/dascare_api` or point the env var at `http://localhost/Dascare/dascare_api`. `dascare_api/.env.example` exists but nothing reads it. `cors.php` whitelists `localhost:5173`, `localhost:5174` and `127.0.0.1:5173`; any other dev origin has to be added there.
 
-Seeded dev accounts in the dump (`*@dascare.test`): techadmin, executive, orgadmin, dispatcher, citizen.
+Seeded dev accounts in the dump (`*@dascare.test`): techadmin, executive, orgadmin, dispatcher, citizen. Added 2026-10-14 on live + local (not in the dump): `sarno|avendano|magracia|beyonce|arceno.orgadmin@dascare.test` (password `Dascare2026!`), each the admin of its own active `city_rescue` org "<Name> Rescue Organization" with starter roles but no ambulances/crew yet.
 
 ## Architecture
 
