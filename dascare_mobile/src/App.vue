@@ -102,6 +102,14 @@ onMounted(async () => {
   await Promise.all([init(), useGuestKeys().load(), useNetwork().start()])
   initPush({
     onOpen: (data) => {
+      // Organization/barangay staff (Phase 4): missions, offers, closures.
+      if (useSession().isStaff.value) {
+        if (data.related_type === 'dispatch_assignment' && data.related_id) router.push({ name: 'StaffMission', params: { id: data.related_id } })
+        else if (data.related_type === 'incident_offer' || data.type === 'incident_offer') router.push({ name: 'StaffOffers' })
+        else if (data.related_type === 'emergency_request') router.push({ name: 'StaffMissions' })
+        else router.push({ name: 'StaffHome' })
+        return
+      }
       if (data.request_id || (data.related_type === 'emergency_request' && data.related_id)) {
         router.push({ name: 'Track', params: { id: data.request_id || data.related_id } })
       } else if (data.related_type === 'kyc_verification') {

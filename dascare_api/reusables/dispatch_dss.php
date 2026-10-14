@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/push.php';
 require_once __DIR__ . '/realtime.php';
 
 /**
@@ -278,7 +279,10 @@ function dssNotifyOrganization(PDO $pdo, int $organizationId, int $offerId, arra
         ON DUPLICATE KEY UPDATE title = VALUES(title), message = VALUES(message), read_at = NULL, created_at = CURRENT_TIMESTAMP
     ");
     foreach ($userIds as $userId) {
-        $notify->execute([$userId, $title, $message, $offerId, 'incident_offer:' . $offerId . ':user:' . $userId]);
+        $dedup = 'incident_offer:' . $offerId . ':user:' . $userId;
+        $notify->execute([$userId, $title, $message, $offerId, $dedup]);
+        // Staff app (Phase 4): admins/dispatchers get the offer on their phone (no-op without Firebase).
+        if (function_exists('pushQueueUser')) pushQueueUser($pdo, $userId, $title, $message, ['type' => 'incident_offer', 'related_type' => 'incident_offer', 'related_id' => $offerId], $dedup);
     }
     realtimeNotifyUsers($pdo, $userIds);
 }
