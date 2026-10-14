@@ -16,7 +16,8 @@
  * for the app unchanged. Web requests never send that header and take the
  * normal session_start() path.
  *
- * Tokens are only ever issued to active citizens (mobile/auth/login.php) and
+ * Tokens are only ever issued to active citizens and organization staff
+ * (MOBILE_APP_ROLES, mobile/auth/login.php) and
  * re-checked on every request, so a staff/admin account can't use the app
  * even with a token. An invalid/expired token never blocks a request — it
  * is treated as a guest (so an SOS still goes through) and the response
@@ -26,6 +27,10 @@
 const MOBILE_ACCESS_TTL_SECONDS = 60 * 24 * 3600; // 60 days, revocable via logout
 const MOBILE_2FA_TTL_SECONDS = 10 * 60;           // same 10 min as the web's 2FA window
 const MOBILE_MAX_GUEST_TOKENS = 20;
+// Who may sign in to the app: citizens, and organization/barangay staff
+// (their permissions are checked per endpoint by requireOrganizationAccess,
+// exactly as on the web). Platform/technical admins use the web portal.
+const MOBILE_APP_ROLES = ['citizen', 'organization_admin', 'organization_operational_user'];
 
 function mobileRequestHeader(string $name): string
 {
@@ -70,7 +75,7 @@ function mobileIssueToken(PDO $pdo, int $userId, string $type, ?string $deviceNa
 
 /**
  * Look up a live token of $type and its user. Returns null unless the token
- * exists, isn't revoked/expired, and belongs to an active, verified citizen.
+ * exists, isn't revoked/expired, and belongs to an active, verified app user (MOBILE_APP_ROLES).
  */
 function mobileFindToken(PDO $pdo, string $plain, string $type): ?array
 {
@@ -93,7 +98,7 @@ function mobileFindToken(PDO $pdo, string $plain, string $type): ?array
     $stmt->execute([mobileTokenHash($plain), $type]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$row) return null;
-    if ($row['role'] !== 'citizen' || $row['account_status'] !== 'active' || $row['email_verified_at'] === null) return null;
+    if (!in_array($row['role'], MOBILE_APP_ROLES, true) || $row['account_status'] !== 'active' || $row['email_verified_at'] === null) return null;
     return $row;
 }
 

@@ -66,13 +66,14 @@ if (!password_verify($password, $user['password_hash'])) {
 clearAttempts($pdo, 'login', $ip);
 clearAttempts($pdo, 'login', $email);
 
-// Citizens only. Checked after the password so this reveals nothing to
-// someone who doesn't already know the account's password.
-if ($user['role'] !== 'citizen') {
+// Citizens and organization/barangay staff (Phase 4). Platform and
+// technical administrators stay on the web portal. Checked after the
+// password so this reveals nothing to someone without the password.
+if (!in_array($user['role'], MOBILE_APP_ROLES, true)) {
     mobileJson(403, [
         'success' => false,
         'code' => 'STAFF_USE_WEB',
-        'message' => 'This app is for people requesting help. Staff and administrators, please sign in on the DASCARE web portal.',
+        'message' => 'Platform and technical administrators, please sign in on the DASCARE web portal.',
     ]);
 }
 if ($user['account_status'] !== 'active') {
