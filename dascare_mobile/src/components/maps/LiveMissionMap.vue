@@ -68,6 +68,11 @@
  * Follows the action (keeps everything in view) until the user pans or
  * zooms; then a Recenter button appears.
  *
+ * Base map: Mapbox navigation styles (live traffic on the roads) when
+ * VITE_MAPBOX_TOKEN is set; otherwise — or if Mapbox refuses the token, hits
+ * its free limit or doesn't load within a few seconds — the free OpenFreeMap
+ * styles via MapLibre. Both libraries share the same API.
+ *
  * Same file in dascare/src/components/maps/LiveMissionMap.vue (web) — keep in sync.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -95,6 +100,9 @@ const emit = defineEmits(['waiting-click'])
 const STALE_AFTER_MS = 60 * 1000
 
 const STYLES = { light: 'https://tiles.openfreemap.org/styles/liberty', dark: 'https://tiles.openfreemap.org/styles/dark' }
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || ''
+const MAPBOX_STYLES = { light: 'mapbox://styles/mapbox/navigation-day-v1', dark: 'mapbox://styles/mapbox/navigation-night-v1' }
+const MAPBOX_LOAD_TIMEOUT_MS = 8000
 const ROUTE_COLOR = '#2563eb'
 
 const { theme } = useTheme()
@@ -120,8 +128,10 @@ const seenAgo = computed(() => {
   const d = Math.round(h / 24)
   return `${d} day${d === 1 ? '' : 's'} ago`
 })
-let maplibregl = null
+let gl = null // mapbox-gl or maplibre-gl (same API)
+let engine = 'maplibre'
 let map = null
+let mapboxTimer = null
 let markers = {}
 let animFrame = null
 let shownAmbulance = null // [lng, lat] currently drawn
@@ -194,7 +204,7 @@ function setMarker(key, position, factory, label = '') {
   }
   markerLabels[key] = label
   if (markers[key]) markers[key].setLngLat(position)
-  else markers[key] = new maplibregl.Marker({ element: factory() }).setLngLat(position).addTo(map)
+  else markers[key] = new gl.Marker({ element: factory() }).setLngLat(position).addTo(map)
 }
 
 /** Where the ambulance is going (facility while transporting, else the incident / linked report). */
@@ -243,7 +253,7 @@ function fitAll(animate = true) {
     map.easeTo({ center: points[0], zoom: 15, duration: animate ? 600 : 0 })
     return
   }
-  const bounds = points.reduce((b, p) => b.extend(p), new maplibregl.LngLatBounds(points[0], points[0]))
+  const bounds = points.reduce((b, p) => b.extend(p), new gl.LngLatBounds(points[0], points[0]))
   map.fitBounds(bounds, { padding: { top: 130, bottom: 50, left: 60, right: 60 }, maxZoom: 16, duration: animate ? 800 : 0 })
 }
 
@@ -301,34 +311,91 @@ function setAmbulanceMarker(position) {
   setMarker('ambulance', position, () => dotElement(color, { pulse: !stale.value, size: 18, label: caption }), `${color}|${caption}`)
 }
 
+// ---------- map engine (Mapbox → free map fallback) ----------
+const styleFor = (t) => (engine === 'mapbox' ? MAPBOX_STYLES : STYLES)[t === 'dark' ? 'dark' : 'light']
+
+function mapboxUsable() {
+  if (!MAPBOX_TOKEN) return false
+  try { return sessionStorage.getItem('dascare.mapboxUnavailable') !== '1' } catch { return true }
+}
+
+async function loadEngine(useMapbox) {
+  if (useMapbox) {
+    const [mod] = await Promise.all([import('mapbox-gl'), import('mapbox-gl/dist/mapbox-gl.css')])
+    const lib = mod.default || mod
+    lib.accessToken = MAPBOX_TOKEN
+    return lib
+  }
+  const [mod] = await Promise.all([import('maplibre-gl'), import('maplibre-gl/dist/maplibre-gl.css')])
+  return mod.default || mod
+}
+
+function buildMap() {
+  map = new gl.Map({
+    container: mapEl.value,
+    style: styleFor(theme.value),
+    center: lngLat(props.incident) || [120.9367, 14.3294],
+    zoom: 14,
+    attributionControl: false,
+    ...(engine === 'mapbox' ? { projection: 'mercator' } : {}),
+  })
+  map.addControl(new gl.AttributionControl({ compact: true }))
+  map.addControl(new gl.NavigationControl({ showCompass: false }), 'top-right')
+  if (import.meta.env.DEV) window.__dascareLiveMap = map // dev-only: inspect from DevTools
+  map.on('style.load', addRouteLayers)
+  // A real user gesture stops auto-follow — not our own camera moves (no
+  // originalEvent) and not container resizes (originalEvent is a 'resize').
+  map.on('movestart', (e) => {
+    const type = e.originalEvent?.type
+    if (type && type !== 'resize') following.value = false
+  })
+  map.on('load', () => {
+    clearTimeout(mapboxTimer)
+    ready.value = true
+    syncMarkers()
+    moveAmbulance(lngLat(props.ambulance))
+    fitAll(false)
+  })
+  if (engine === 'mapbox') {
+    // Token refused / free limit reached / blocked → the free map instead.
+    map.on('error', (e) => {
+      const status = e?.error?.status
+      if (!ready.value && [401, 403, 429].includes(status)) fallBackToFreeMap(`Mapbox ${status}`)
+    })
+    mapboxTimer = setTimeout(() => { if (!ready.value) fallBackToFreeMap('Mapbox load timeout') }, MAPBOX_LOAD_TIMEOUT_MS)
+  }
+}
+
+async function fallBackToFreeMap(reason) {
+  if (engine !== 'mapbox' || !map) return
+  console.warn('Live map: using the free map instead —', reason)
+  try { sessionStorage.setItem('dascare.mapboxUnavailable', '1') } catch { /* private mode */ }
+  clearTimeout(mapboxTimer)
+  map.remove()
+  map = null
+  markers = {}
+  engine = 'maplibre'
+  try {
+    gl = await loadEngine(false)
+    if (mapEl.value) buildMap()
+  } catch (err) {
+    loadError.value = 'The map could not load. Check the internet connection.'
+    console.error('Live map failed to load', err)
+  }
+}
+
 // ---------- lifecycle ----------
 onMounted(async () => {
   try {
-    const mod = await import('maplibre-gl')
-    await import('maplibre-gl/dist/maplibre-gl.css')
-    maplibregl = mod.default || mod
-    map = new maplibregl.Map({
-      container: mapEl.value,
-      style: STYLES[theme.value === 'dark' ? 'dark' : 'light'],
-      center: lngLat(props.incident) || [120.9367, 14.3294],
-      zoom: 14,
-      attributionControl: { compact: true },
-    })
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
-    if (import.meta.env.DEV) window.__dascareLiveMap = map // dev-only: inspect from DevTools
-    map.on('style.load', addRouteLayers)
-    // A real user gesture stops auto-follow — not our own camera moves (no
-    // originalEvent) and not container resizes (originalEvent is a 'resize').
-    map.on('movestart', (e) => {
-      const type = e.originalEvent?.type
-      if (type && type !== 'resize') following.value = false
-    })
-    map.on('load', () => {
-      ready.value = true
-      syncMarkers()
-      moveAmbulance(lngLat(props.ambulance))
-      fitAll(false)
-    })
+    engine = mapboxUsable() ? 'mapbox' : 'maplibre'
+    try {
+      gl = await loadEngine(engine === 'mapbox')
+    } catch (err) {
+      if (engine !== 'mapbox') throw err
+      engine = 'maplibre' // Mapbox library failed to download
+      gl = await loadEngine(false)
+    }
+    buildMap()
   } catch (err) {
     loadError.value = 'The map could not load. Check the internet connection.'
     console.error('Live map failed to load', err)
@@ -337,6 +404,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  clearTimeout(mapboxTimer)
   cancelAnimationFrame(animFrame)
   clearInterval(clock)
   map?.remove()
@@ -371,7 +439,7 @@ watch(() => [props.station?.latitude, props.station?.longitude], () => { if (rea
 
 watch(theme, (t) => {
   if (!map) return
-  map.setStyle(STYLES[t === 'dark' ? 'dark' : 'light']) // route layers are re-added on style.load
+  map.setStyle(styleFor(t)) // route layers are re-added on style.load
 })
 </script>
 

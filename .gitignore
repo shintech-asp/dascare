@@ -36,3 +36,6 @@ dascare_mobile/android/app/google-services.json
 
 # Published app for the landing page download button (npm run apk:web)
 dascare/public/downloads/
+# Mapbox token (public pk. token, but unrestricted — keep it out of the public repo)
+dascare/.env.local
+dascare/.env.production.local

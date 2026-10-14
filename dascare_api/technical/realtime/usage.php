@@ -63,14 +63,21 @@ if ($config) {
     }
 }
 
-$usage = $pdo->query("
-    SELECT
-        COALESCE(SUM(CASE WHEN usage_date = CURDATE() THEN calls END), 0) AS calls_today,
-        COALESCE(SUM(CASE WHEN usage_date = CURDATE() THEN failures END), 0) AS failures_today,
-        COALESCE(SUM(calls), 0) AS calls_month
-    FROM routing_api_usage
-    WHERE provider = 'tomtom' AND usage_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
-")->fetch(PDO::FETCH_ASSOC);
+function usageRoutingCounts(PDO $pdo, string $provider): array
+{
+    $stmt = $pdo->prepare("
+        SELECT
+            COALESCE(SUM(CASE WHEN usage_date = CURDATE() THEN calls END), 0) AS calls_today,
+            COALESCE(SUM(CASE WHEN usage_date = CURDATE() THEN failures END), 0) AS failures_today,
+            COALESCE(SUM(calls), 0) AS calls_month
+        FROM routing_api_usage
+        WHERE provider = ? AND usage_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+    ");
+    $stmt->execute([$provider]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+$usage = usageRoutingCounts($pdo, 'tomtom');
+$mapboxUsage = usageRoutingCounts($pdo, 'mapbox');
 
 echo json_encode([
     'success' => true,
@@ -81,6 +88,15 @@ echo json_encode([
         'calls_today' => (int) $usage['calls_today'],
         'failures_today' => (int) $usage['failures_today'],
         'calls_month' => (int) $usage['calls_month'],
+        'daily_limit' => ROUTING_DAILY_LIMIT,
+    ],
+    // Mapbox Directions (driving-traffic) — tried first; TomTom is the fallback.
+    'mapbox' => [
+        'configured' => routingMapboxConfig() !== null,
+        'provider' => 'mapbox',
+        'calls_today' => (int) $mapboxUsage['calls_today'],
+        'failures_today' => (int) $mapboxUsage['failures_today'],
+        'calls_month' => (int) $mapboxUsage['calls_month'],
         'daily_limit' => ROUTING_DAILY_LIMIT,
     ],
 ]);

@@ -16,6 +16,7 @@
     "axios": "latest",
     "daisyui": "^5.7.7",
     "leaflet": "^1.9.4",
+    "mapbox-gl": "^3.33.0",
     "maplibre-gl": "^5.24.0",
     "tailwindcss": "^4.3.3",
     "vue": "latest",

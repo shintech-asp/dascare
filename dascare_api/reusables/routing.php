@@ -24,6 +24,8 @@ require_once __DIR__ . '/realtime.php';
  */
 
 const ROUTING_CONFIG_FILE = __DIR__ . '/../config/tomtom.json';
+const ROUTING_MAPBOX_CONFIG_FILE = __DIR__ . '/../config/mapbox.json'; // {"token": "pk...."}
+const ROUTING_ROAD_PROVIDERS = ['mapbox', 'tomtom'];
 const ROUTING_RECALC_METERS = 150;
 const ROUTING_RECALC_SECONDS = 60;
 const ROUTING_DAILY_LIMIT = 2000;
@@ -47,6 +49,26 @@ function routingConfig(): ?array
 }
 
 /** Where this mission's ambulance is heading right now, or null. */
+/** Mapbox server token (config/mapbox.json) or null. Tests: $GLOBALS['DASCARE_MAPBOX_CONFIG']. */
+function routingMapboxConfig(): ?array
+{
+    if (array_key_exists('DASCARE_MAPBOX_CONFIG', $GLOBALS)) return $GLOBALS['DASCARE_MAPBOX_CONFIG'];
+    static $config = false;
+    if ($config !== false) return $config;
+    $config = null;
+    if (!is_readable(ROUTING_MAPBOX_CONFIG_FILE)) return null;
+    $json = json_decode((string) file_get_contents(ROUTING_MAPBOX_CONFIG_FILE), true);
+    $token = is_array($json) ? trim((string) ($json['token'] ?? '')) : '';
+    if (!preg_match('/^pk\.[A-Za-z0-9._-]{20,}$/', $token)) return null;
+    $config = ['token' => $token];
+    return $config;
+}
+
+function routingHasRoadProvider(): bool
+{
+    return routingMapboxConfig() !== null || routingConfig() !== null;
+}
+
 function routingDestination(PDO $pdo, int $assignmentId): ?array
 {
     $stmt = $pdo->prepare("
@@ -119,13 +141,15 @@ function routingRefresh(PDO $pdo, int $assignmentId, float $originLat, float $or
         // upgraded to a road route once it's stale if a TomTom key is set
         // (covers a key added mid-mission or a brief TomTom outage).
         $reuse = $sameDest && $moved < ROUTING_RECALC_METERS && (
-            ($current['provider'] === 'tomtom' && $fresh)
-            || ($current['provider'] === 'estimate' && $moved < 10 && ($fresh || routingConfig() === null))
+            (in_array($current['provider'], ROUTING_ROAD_PROVIDERS, true) && $fresh)
+            || ($current['provider'] === 'estimate' && $moved < 10 && ($fresh || !routingHasRoadProvider()))
         );
         if ($reuse) return routingFormat($current);
     }
 
-    $route = routingFetchTomTom($pdo, $originLat, $originLng, $dest['latitude'], $dest['longitude'])
+    // Mapbox (driving-traffic) first, then TomTom, then a straight-line estimate.
+    $route = routingFetchMapbox($pdo, $originLat, $originLng, $dest['latitude'], $dest['longitude'])
+        ?? routingFetchTomTom($pdo, $originLat, $originLng, $dest['latitude'], $dest['longitude'])
         ?? routingEstimate($originLat, $originLng, $dest['latitude'], $dest['longitude']);
 
     $pdo->prepare("
@@ -181,7 +205,7 @@ function routingFormat(array $row): array
     return [
         'assignment_id' => (int) $row['dispatch_assignment_id'],
         'provider' => $row['provider'],
-        'traffic' => $row['provider'] === 'tomtom',
+        'traffic' => in_array($row['provider'], ROUTING_ROAD_PROVIDERS, true),
         'distance_m' => (int) $row['distance_m'],
         'duration_s' => (int) $row['duration_s'],
         'traffic_delay_s' => (int) $row['traffic_delay_s'],
@@ -246,6 +270,54 @@ function routingFetchTomTom(PDO $pdo, float $oLat, float $oLng, float $dLat, flo
         'duration_s' => (int) $summary['travelTimeInSeconds'],
         'traffic_delay_s' => (int) ($summary['trafficDelayInSeconds'] ?? 0),
         'polyline' => $points ? routingEncodePolyline($points) : null,
+    ];
+}
+
+/** Mapbox Directions (driving-traffic: live traffic); null when unavailable (caller falls back). */
+function routingFetchMapbox(PDO $pdo, float $oLat, float $oLng, float $dLat, float $dLng): ?array
+{
+    $config = routingMapboxConfig();
+    if (!$config) return null;
+
+    $usage = $pdo->prepare("SELECT calls FROM routing_api_usage WHERE usage_date = CURDATE() AND provider = 'mapbox'");
+    $usage->execute();
+    if ((int) $usage->fetchColumn() >= ROUTING_DAILY_LIMIT) return null;
+
+    $url = sprintf(
+        'https://api.mapbox.com/directions/v5/mapbox/driving-traffic/%F,%F;%F,%F?%s',
+        $oLng, $oLat, $dLng, $dLat,
+        http_build_query(['access_token' => $config['token'], 'geometries' => 'polyline', 'overview' => 'full'])
+    );
+    if (isset($GLOBALS['DASCARE_ROUTING_FETCH']) && is_callable($GLOBALS['DASCARE_ROUTING_FETCH'])) {
+        [$status, $body] = ($GLOBALS['DASCARE_ROUTING_FETCH'])($url);
+    } else {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => ROUTING_HTTP_TIMEOUT, CURLOPT_CONNECTTIMEOUT => 2]);
+        $body = curl_exec($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+    }
+
+    $json = $status === 200 ? json_decode((string) $body, true) : null;
+    $route = $json['routes'][0] ?? null;
+    $ok = ($json['code'] ?? '') === 'Ok' && is_array($route) && isset($route['distance'], $route['duration']);
+    $pdo->prepare("
+        INSERT INTO routing_api_usage (usage_date, provider, calls, failures) VALUES (CURDATE(), 'mapbox', 1, ?)
+        ON DUPLICATE KEY UPDATE calls = calls + 1, failures = failures + VALUES(failures)
+    ")->execute([$ok ? 0 : 1]);
+    if (!$ok) {
+        error_log("Routing: Mapbox request failed ($status): " . substr((string) $body, 0, 200));
+        return null;
+    }
+    $duration = (int) round($route['duration']);
+    // duration_typical = the usual time without today's traffic.
+    $typical = isset($route['duration_typical']) ? (int) round($route['duration_typical']) : $duration;
+    return [
+        'provider' => 'mapbox',
+        'distance_m' => (int) round($route['distance']),
+        'duration_s' => $duration,
+        'traffic_delay_s' => max(0, $duration - $typical),
+        'polyline' => is_string($route['geometry'] ?? null) && $route['geometry'] !== '' ? $route['geometry'] : null,
     ];
 }
 

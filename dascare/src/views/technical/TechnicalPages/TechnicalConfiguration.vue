@@ -210,11 +210,12 @@ const benchStats = computed(() => bench.value?.ok ? [
 const speedup = computed(() => bench.value?.median ? Math.round(7500 / bench.value.median) : null)
 const fmt = (n) => Number(n || 0).toLocaleString()
 const usageCards = computed(() => {
-  const a = usage.value?.ably, r = usage.value?.routing
+  const a = usage.value?.ably, r = usage.value?.routing, mb = usage.value?.mapbox
   return [
     { label: 'Ably messages this month', value: a?.month ? `${fmt(a.month.messages)} of ${fmt(a.limits.messages_per_month)}` : (a?.configured ? 'Unavailable' : 'Not set up'), pct: a?.month ? (a.month.messages / a.limits.messages_per_month) * 100 : null, help: a?.today ? `Today: ${fmt(a.today.messages)} (${fmt(a.today.published)} sent by the server, ${fmt(a.today.delivered)} delivered to screens).` : 'Free plan: 6 million per month.' },
     { label: 'Open connections (peak today)', value: a?.today ? `${fmt(a.today.peak_connections)} of ${fmt(a.limits.peak_connections)}` : '—', pct: a?.today ? (a.today.peak_connections / a.limits.peak_connections) * 100 : null, help: 'Each open browser tab or app is one connection.' },
     { label: 'TomTom routes today', value: r ? `${fmt(r.calls_today)} of ${fmt(r.daily_limit)}` : '—', pct: r ? (r.calls_today / r.daily_limit) * 100 : null, help: r ? (r.configured ? `This month: ${fmt(r.calls_month)}. Failures today: ${fmt(r.failures_today)}. Re-routed only after 150 m or 60 s.` : 'No TomTom key — maps use straight-line estimates.') : '' },
+    { label: 'Mapbox routes today', value: mb ? `${fmt(mb.calls_today)} of ${fmt(mb.daily_limit)}` : '—', pct: mb ? (mb.calls_today / mb.daily_limit) * 100 : null, help: mb ? (mb.configured ? `This month: ${fmt(mb.calls_month)}. Failures today: ${fmt(mb.failures_today)}. Tried first (live traffic); TomTom takes over if it fails.` : 'No Mapbox token — routes come from TomTom.') : '' },
   ]
 })
 async function loadUsage() { try { usage.value = await fetchRealtimeUsage() } catch { usage.value = null } }
