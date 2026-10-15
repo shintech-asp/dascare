@@ -256,10 +256,13 @@ function follow(pos, f) {
 function movePuck(pos, f) {
   if (!map || !gl) return
   if (!puck) {
+    // Big, upright vehicle arrow (like a maps app): 'viewport' pitch keeps it
+    // facing the screen at full size instead of lying flat on the tilted map
+    // (where it looked tiny); it still turns with the direction of travel.
     const el = document.createElement('div')
-    el.style.cssText = 'width:44px;height:44px'
-    el.innerHTML = '<svg viewBox="0 0 44 44" width="44" height="44"><circle cx="22" cy="22" r="20" fill="#2563eb" fill-opacity=".18"/><path d="M22 7 L33 34 L22 28 L11 34 Z" fill="#2563eb" stroke="#fff" stroke-width="3" stroke-linejoin="round"/></svg>'
-    puck = new gl.Marker({ element: el, rotationAlignment: 'map', pitchAlignment: 'map' }).setLngLat(pos).addTo(map)
+    el.style.cssText = 'width:64px;height:64px;filter:drop-shadow(0 3px 6px rgba(0,0,0,.35))'
+    el.innerHTML = '<svg viewBox="0 0 64 64" width="64" height="64"><circle cx="32" cy="32" r="29" fill="#2563eb" fill-opacity=".16"/><circle cx="32" cy="32" r="21" fill="#fff"/><path d="M32 14 L45 44 L32 37 L19 44 Z" fill="#2563eb" stroke="#1e40af" stroke-width="1.5" stroke-linejoin="round"/></svg>'
+    puck = new gl.Marker({ element: el, rotationAlignment: 'map', pitchAlignment: 'viewport' }).setLngLat(pos).addTo(map)
   }
   puck.setLngLat(pos)
   puck.setRotation(headingFor(f))
