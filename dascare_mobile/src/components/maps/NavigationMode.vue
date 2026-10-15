@@ -82,6 +82,8 @@ import { formatDistance, haversine, maneuverIcon, prepareRoute, routeBearingAt, 
 const props = defineProps({
   destination: { type: Object, required: true }, // { latitude, longitude, label }
   arriveLabel: { type: String, default: '' }, // e.g. "Arrived on scene" — emits 'arrived'
+  // Last known vehicle position { latitude, longitude } — used until live GPS arrives.
+  start: { type: Object, default: null },
 })
 const emit = defineEmits(['close', 'arrived'])
 const { theme } = useTheme()
@@ -292,10 +294,18 @@ onMounted(async () => {
     })
     map.addControl(new gl.AttributionControl({ compact: true }), 'bottom-left')
     map.on('style.load', () => { hideTraffic(); drawRoute() })
+    const pin = document.createElement('div')
+    pin.style.cssText = 'width:30px;height:30px'
+    pin.innerHTML = '<svg viewBox="0 0 30 30" width="30" height="30"><circle cx="15" cy="15" r="11" fill="#dc2626" stroke="#fff" stroke-width="4"/></svg>'
+    new gl.Marker({ element: pin, pitchAlignment: 'viewport' }).setLngLat(dest.value).addTo(map)
     // A finger on the map stops following until Re-center.
     map.on('dragstart', () => { following.value = false })
   } catch (err) {
     errorText.value = 'The map could not load.'
+  }
+  // Don't wait on a blank map: start from the unit's last shared position.
+  if (props.start?.latitude != null && props.start?.longitude != null) {
+    onFix({ lng: Number(props.start.longitude), lat: Number(props.start.latitude), accuracy: 30, heading: null, speed: 0 })
   }
   stopWatch = watchPosition(onFix, (e) => { errorText.value = e?.code === 1 ? 'Location permission is off.' : 'Waiting for GPS…' })
 })

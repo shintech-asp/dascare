@@ -8,6 +8,9 @@
 /** Watch the device position; calls onFix({ lng, lat, accuracy, heading, speed }). Returns a stop function. */
 export function watchPosition(onFix, onError) {
   if (!navigator.geolocation) { onError?.(new Error('GPS is not available in this browser.')); return () => {} }
+  const toFix = (p) => ({ lng: p.coords.longitude, lat: p.coords.latitude, accuracy: p.coords.accuracy, heading: p.coords.heading, speed: p.coords.speed })
+  // A recent cached position answers instantly; the watch then keeps it live.
+  navigator.geolocation.getCurrentPosition((p) => onFix(toFix(p)), () => {}, { maximumAge: 60000, timeout: 5000 })
   const id = navigator.geolocation.watchPosition(
     (p) => onFix({ lng: p.coords.longitude, lat: p.coords.latitude, accuracy: p.coords.accuracy, heading: p.coords.heading, speed: p.coords.speed }),
     (e) => onError?.(e),

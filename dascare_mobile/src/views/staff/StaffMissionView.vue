@@ -128,7 +128,7 @@
       </button>
     </main>
 
-    <NavigationMode v-if="navOpen && navDestination" :destination="navDestination" :arrive-label="navArriveLabel" @close="navOpen = false" @arrived="onArrived" />
+    <NavigationMode v-if="navOpen && navDestination" :destination="navDestination" :arrive-label="navArriveLabel" :start="track?.last_latitude != null ? { latitude: track.last_latitude, longitude: track.last_longitude } : null" @close="navOpen = false" @arrived="onArrived" />
     <CloseRequestModal :open="closeOpen" mode="organization" :reference="mission?.reference_number || ''" :linked-count="mission?.linked_count || 0" :busy="closing"
       @close="closeOpen = false" @confirm="closeIncident" />
   </div>

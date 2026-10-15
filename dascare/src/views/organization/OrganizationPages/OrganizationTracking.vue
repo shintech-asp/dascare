@@ -86,7 +86,7 @@
         </main>
       </div>
     </div>
-    <NavigationMode v-if="navOpen && navDestination" :destination="navDestination" @close="navOpen=false" />
+    <NavigationMode v-if="navOpen && navDestination" :destination="navDestination" :start="selected?.last_latitude!=null?{latitude:selected.last_latitude,longitude:selected.last_longitude}:null" @close="navOpen=false" />
   </section>
 </template>
 
