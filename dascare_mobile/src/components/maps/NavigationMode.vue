@@ -31,6 +31,9 @@
         <div v-else class="rounded-3xl bg-slate-800/95 p-4 text-white shadow-2xl">
           <p class="flex items-center gap-2 text-base font-bold"><Icon icon="lucide:loader-circle" width="20" class="animate-spin" /> {{ statusText }}</p>
         </div>
+        <p v-if="hasTraffic" class="mx-auto mt-2 flex w-fit items-center gap-2 rounded-full bg-white/95 px-3 py-1 text-[0.68rem] font-bold text-slate-600 shadow">
+          <span class="h-1.5 w-4 rounded-full bg-blue-500"></span>Clear <span class="h-1.5 w-4 rounded-full bg-amber-500"></span>Slow <span class="h-1.5 w-4 rounded-full bg-red-500"></span>Heavy
+        </p>
         <p v-if="rerouting" class="mx-auto mt-2 w-fit rounded-full bg-amber-500 px-4 py-1.5 text-sm font-black text-white shadow-lg">Rerouting…</p>
         <p v-if="gpsWeak" class="mx-auto mt-2 w-fit rounded-full bg-slate-800/90 px-4 py-1.5 text-xs font-bold text-white shadow-lg">Weak GPS signal</p>
       </div>
@@ -39,6 +42,9 @@
       <div class="absolute right-3 top-[calc(var(--safe-top,0px)+11rem)] flex flex-col gap-2">
         <button type="button" class="grid h-12 w-12 place-items-center rounded-full bg-white text-slate-700 shadow-lg" :aria-label="muted ? 'Unmute voice' : 'Mute voice'" @click="toggleMute">
           <Icon :icon="muted ? 'lucide:volume-x' : 'lucide:volume-2'" width="22" />
+        </button>
+        <button type="button" class="grid h-12 w-12 place-items-center rounded-full shadow-lg" :class="showRoadTraffic ? 'bg-emerald-600 text-white' : 'bg-white text-slate-700'" :aria-label="showRoadTraffic ? 'Hide traffic on all roads' : 'Show traffic on all roads'" @click="toggleRoadTraffic">
+          <Icon icon="lucide:traffic-cone" width="22" />
         </button>
         <button type="button" class="grid h-12 w-12 place-items-center rounded-full bg-white text-slate-700 shadow-lg" aria-label="Route overview" @click="overview">
           <Icon icon="lucide:route" width="22" />
@@ -108,6 +114,7 @@ let spoken = new Set()
 let clock = null
 
 const dest = computed(() => [Number(props.destination.longitude), Number(props.destination.latitude)])
+const hasTraffic = computed(() => (route.value?.congestion || []).some((c) => c === 'moderate' || c === 'heavy' || c === 'severe'))
 const gpsWeak = computed(() => fix.value && fix.value.accuracy > 60)
 const statusText = computed(() => (errorText.value ? 'Navigation unavailable' : fix.value ? 'Finding the fastest route…' : 'Waiting for GPS…'))
 const remaining = computed(() => (route.value ? Math.max(0, route.value.length - along.value) : null))
@@ -157,11 +164,12 @@ async function fetchRoute(origin, reason = 'start') {
   if (reason === 'reroute') { rerouting.value = true; say('Rerouting.') }
   try {
     const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${origin[0]},${origin[1]};${dest.value[0]},${dest.value[1]}`
-      + `?steps=true&banner_instructions=true&voice_instructions=true&voice_units=metric&geometries=geojson&overview=full&language=en&access_token=${MAPBOX_TOKEN}`
+      + `?steps=true&banner_instructions=true&voice_instructions=true&voice_units=metric&geometries=geojson&overview=full&annotations=congestion&language=en&access_token=${MAPBOX_TOKEN}`
     const res = await fetch(url)
     const data = await res.json()
     if (data.code !== 'Ok' || !data.routes?.length) throw new Error(data.message || 'No route found.')
     route.value = prepareRoute(data.routes[0])
+    route.value.congestion = data.routes[0].legs[0]?.annotation?.congestion || []
     if (route.value.length < 30) { markArrived(); return } // already there
     snapHint = 0
     spoken = new Set()
@@ -179,23 +187,47 @@ const res429 = (err) => /limit/i.test(String(err?.message || ''))
 
 // Driving view: hide the traffic overlay (the green/yellow/red road lines)
 // so only the route stands out — like a maps app's navigation screen.
-function hideTraffic() {
+function hideTraffic() { setRoadTraffic(showRoadTraffic.value) }
+function setRoadTraffic(on) {
   if (!map?.getStyle) return
   for (const layer of map.getStyle()?.layers || []) {
-    if (/traffic|congestion/i.test(layer.id)) { try { map.setLayoutProperty(layer.id, 'visibility', 'none') } catch { /* ignore */ } }
+    if (/traffic|congestion/i.test(layer.id) && !layer.id.startsWith('nav-')) { try { map.setLayoutProperty(layer.id, 'visibility', on ? 'visible' : 'none') } catch { /* ignore */ } }
   }
+}
+const showRoadTraffic = ref(false)
+function toggleRoadTraffic() { showRoadTraffic.value = !showRoadTraffic.value; setRoadTraffic(showRoadTraffic.value) }
+
+// Route split into runs of equal congestion (Mapbox annotations=congestion):
+// blue = moving, orange = moderate, red = heavy, dark red = severe — live
+// traffic on the route itself, like a maps app.
+function routeFeatures() {
+  const { coords, congestion = [] } = route.value
+  const features = []
+  let start = 0
+  for (let i = 1; i <= coords.length - 1; i++) {
+    const level = congestion[i - 1] || 'unknown'
+    const nextLevel = congestion[i] || 'unknown'
+    if (i === coords.length - 1 || nextLevel !== level) {
+      features.push({ type: 'Feature', properties: { congestion: level }, geometry: { type: 'LineString', coordinates: coords.slice(start, i + 1) } })
+      start = i
+    }
+  }
+  return { type: 'FeatureCollection', features }
 }
 
 function drawRoute() {
   if (!map || !route.value) return
-  const data = { type: 'Feature', geometry: { type: 'LineString', coordinates: route.value.coords } }
+  const data = routeFeatures()
   const src = map.getSource('nav-route')
   if (src) { src.setData(data); return }
   // Style still loading: draw as soon as it's ready (used to skip the line).
   if (!map.isStyleLoaded()) { map.once('idle', drawRoute); return }
   map.addSource('nav-route', { type: 'geojson', data })
   map.addLayer({ id: 'nav-route-casing', type: 'line', source: 'nav-route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#1e3a8a', 'line-width': 14 } })
-  map.addLayer({ id: 'nav-route-line', type: 'line', source: 'nav-route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#3b82f6', 'line-width': 9 } })
+  map.addLayer({ id: 'nav-route-line', type: 'line', source: 'nav-route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: {
+    'line-color': ['match', ['get', 'congestion'], 'moderate', '#f59e0b', 'heavy', '#ef4444', 'severe', '#991b1b', '#3b82f6'],
+    'line-width': 9,
+  } })
 }
 
 // ---------- GPS ----------
