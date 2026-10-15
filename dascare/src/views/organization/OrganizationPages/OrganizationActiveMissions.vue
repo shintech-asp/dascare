@@ -58,6 +58,7 @@
         </footer>
       </div>
     </div>
+    <TransportFacilityPicker :open="transportOpen" :facilities="facilities" :from="selected?{latitude:selected.latitude,longitude:selected.longitude}:null" :reference="selected?.reference_number||''" :busy="transportBusy" @close="transportOpen=false" @confirm="confirmTransport" />
     <CloseRequestModal :open="closeOpen" mode="organization" :reference="selected?.reference_number||''" :linked-count="selected?.linked_count||0" :busy="closing" @close="closeOpen=false" @confirm="closeIncident" />
   </section>
 </template>
@@ -66,6 +67,8 @@ import { computed, defineComponent, h, onMounted, onUnmounted, reactive, ref, wa
 import { Icon } from '@iconify/vue'
 import { closeOrganizationIncident, fetchOrganizationLinkedReports, fetchOrganizationMissions, unmergeOrganizationReport, updateMissionStatus } from '@/services/dispatchOperations'
 import LinkedReportsPanel from '@/components/incidents/LinkedReportsPanel.vue'
+import TransportFacilityPicker from '@/components/incidents/TransportFacilityPicker.vue'
+import { createHandoff, fetchHandoffs, fetchReceivingFacilities } from '@/services/rescueOperations'
 import CloseRequestModal from '@/components/incidents/CloseRequestModal.vue'
 import { updateIncidentDetails } from '@/services/organizationCompletion'
 import { useAlert } from '@/composables/useAlert'
@@ -102,7 +105,13 @@ const nextActions=computed(()=>{if(!selected.value||!canAct.value)return[];const
 const Row=defineComponent({props:{label:String,value:[String,Number]},setup(p){return()=>h('div',{class:'flex items-start justify-between gap-4 border-b border-base-300/70 pb-2 last:border-0 last:pb-0 dark:border-white/5'},[h('span',{class:'font-bold text-slate-400'},p.label),h('span',{class:'max-w-[65%] text-right font-semibold text-slate-700 dark:text-white/55'},p.value||'—')])}})
 async function load(){loading.value=missions.value.length===0;error.value='';try{const d=await fetchOrganizationMissions();missions.value=d.missions||[];canDispatch.value=!!d.can_dispatch;canMission.value=!!d.can_update_mission;currentMemberId.value=d.current_member_id;if(!selectedId.value||!missions.value.some(m=>m.id===selectedId.value))selectedId.value=missions.value[0]?.id||null}catch(e){error.value=e?.response?.data?.message||e.message||'Unable to load missions.'}finally{loading.value=false}}
 function stepReached(k){if(!selected.value)return false;return order.indexOf(k)<=order.indexOf(selected.value.assignment_status)}
-async function advance(a){const ok=await alert.confirm(`${a.label} for ${selected.value.reference_number}?`,'Update mission status');if(!ok)return;saving.value=true;try{const d=await updateMissionStatus(selected.value.id,a.status);alert.success(d.message);await load()}catch(e){alert.error(e?.response?.data?.message||e.message||'Unable to update mission.')}finally{saving.value=false}}
+// Start Transport: pick the receiving facility first (creates the facility
+// handoff), then go to transporting — navigation and the live route then
+// point to that facility. An existing pending/accepted handoff is reused.
+const transportOpen=ref(false),transportBusy=ref(false),facilities=ref([])
+async function startTransport(){const m=selected.value;try{const h=await fetchHandoffs(m.id);const open=(h.handoffs||[]).find(x=>['pending','accepted'].includes(x.status));if(open){const ok=await alert.confirm(`Start transport to ${open.facility_name}?`,'Start transport');if(!ok)return;saving.value=true;try{const d=await updateMissionStatus(m.id,'transporting');alert.success(d.message);await load()}finally{saving.value=false}return}facilities.value=(await fetchReceivingFacilities()).facilities||[];transportOpen.value=true}catch(e){alert.error(e?.response?.data?.message||e.message||'Unable to start transport.')}}
+async function confirmTransport(form){const m=selected.value;transportBusy.value=true;try{await createHandoff({assignment_id:m.id,...form});const d=await updateMissionStatus(m.id,'transporting');transportOpen.value=false;alert.success(d.message);await load()}catch(e){alert.error(e?.response?.data?.message||e.message||'Unable to start transport.')}finally{transportBusy.value=false}}
+async function advance(a){if(a.status==='transporting')return startTransport();const ok=await alert.confirm(`${a.label} for ${selected.value.reference_number}?`,'Update mission status');if(!ok)return;saving.value=true;try{const d=await updateMissionStatus(selected.value.id,a.status);alert.success(d.message);await load()}catch(e){alert.error(e?.response?.data?.message||e.message||'Unable to update mission.')}finally{saving.value=false}}
 const pretty=v=>String(v||'').replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());function missionClass(v){return {assigned:'bg-slate-100 text-slate-600',acknowledged:'bg-blue-50 text-blue-700',responding:'bg-amber-50 text-amber-700',on_scene:'bg-orange-50 text-orange-700',transporting:'bg-violet-50 text-violet-700',completed:'bg-emerald-50 text-emerald-700'}[v]||'bg-base-200 text-slate-500'}
 // Live updates: assignments, status changes, handoffs, linked reports and
 // detail edits on this org's incidents re-load the list instantly (GPS pings

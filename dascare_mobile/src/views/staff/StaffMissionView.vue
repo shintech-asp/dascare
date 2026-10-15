@@ -128,6 +128,7 @@
       </button>
     </main>
 
+    <TransportFacilityPicker :open="transportOpen" :facilities="facilities" :from="mission ? { latitude: mission.latitude, longitude: mission.longitude } : null" :reference="mission?.reference_number || ''" :busy="transportBusy" @close="transportOpen = false" @confirm="confirmTransport" />
     <NavigationMode v-if="navOpen && navDestination" :destination="navDestination" :arrive-label="navArriveLabel" :start="track?.last_latitude != null ? { latitude: track.last_latitude, longitude: track.last_longitude } : null" @close="navOpen = false" @arrived="onArrived" />
     <CloseRequestModal :open="closeOpen" mode="organization" :reference="mission?.reference_number || ''" :linked-count="mission?.linked_count || 0" :busy="closing"
       @close="closeOpen = false" @confirm="closeIncident" />
@@ -141,10 +142,11 @@ import ScreenHeader from '@/components/ScreenHeader.vue'
 import LiveMissionMap from '@/components/maps/LiveMissionMap.vue'
 import CloseRequestModal from '@/components/incidents/CloseRequestModal.vue'
 import NavigationMode from '@/components/maps/NavigationMode.vue'
+import TransportFacilityPicker from '@/components/incidents/TransportFacilityPicker.vue'
 import * as ui from '@/components/ui/styles'
 import { apiMessage } from '@/services/api'
 import { closeOrganizationIncident, fetchOrganizationMissions, updateMissionStatus } from '@/services/org/dispatchOperations'
-import { fetchLiveTracking } from '@/services/org/rescueOperations'
+import { createHandoff, fetchHandoffs, fetchLiveTracking, fetchReceivingFacilities } from '@/services/org/rescueOperations'
 import { gpsState, openLocationSettings, startSharing, stopSharing } from '@/services/missionGps'
 import { useSession } from '@/composables/useSession'
 import { useToast } from '@/composables/useToast'
@@ -256,7 +258,54 @@ async function load() {
   }
 }
 
+// Start transport: pick the receiving facility first (creates the facility
+// handoff), then transporting — and navigation goes to that facility.
+const transportOpen = ref(false)
+const transportBusy = ref(false)
+const facilities = ref([])
+async function startTransport() {
+  try {
+    const open = ((await fetchHandoffs(id.value)).handoffs || []).find((h) => ['pending', 'accepted'].includes(h.status))
+    if (open) {
+      if (!(await alert.confirm(`Start transport to ${open.facility_name}?`, 'Start transport'))) return
+      await finishTransportStart()
+      return
+    }
+    facilities.value = (await fetchReceivingFacilities()).facilities || []
+    transportOpen.value = true
+  } catch (err) {
+    toast.error(apiMessage(err, 'Unable to start transport.'), 'Error')
+  }
+}
+async function confirmTransport(form) {
+  transportBusy.value = true
+  try {
+    await createHandoff({ assignment_id: id.value, ...form })
+    transportOpen.value = false
+    await finishTransportStart()
+  } catch (err) {
+    toast.error(apiMessage(err, 'Unable to start transport.'), 'Not started')
+  } finally {
+    transportBusy.value = false
+  }
+}
+async function finishTransportStart() {
+  saving.value = 'transporting'
+  try {
+    const d = await updateMissionStatus(id.value, 'transporting')
+    toast.success(d.message || 'Patient transport started.', 'Transporting')
+    await load()
+    // Straight into navigation to the hospital for the crew.
+    if (isMine.value && navDestination.value?.kind === 'facility') await openNavigation()
+  } catch (err) {
+    toast.error(apiMessage(err, 'Unable to start transport.'), 'Not started')
+  } finally {
+    saving.value = null
+  }
+}
+
 async function advance(a) {
+  if (a.status === 'transporting') return startTransport()
   if (a.status === 'completed' && mission.value.assignment_status === 'on_scene') {
     if (!(await alert.confirm('Finish this mission without transporting a patient?', 'Complete mission'))) return
   }
