@@ -49,6 +49,8 @@
                 <div class="flex flex-wrap gap-2">
                   <button v-if="canShareSelected && !sharing" class="rounded-xl bg-red-600 px-4 py-2.5 text-xs font-black text-white hover:bg-red-700" @click="startSharing"><Icon icon="lucide:locate-fixed" width="14" class="mr-1 inline"/>Share This Device GPS</button>
                   <button v-if="sharing" class="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-black text-red-700" @click="stopSharing"><Icon icon="lucide:square" width="13" class="mr-1 inline"/>Stop Sharing</button>
+                  <!-- In-app driving navigation (turn-by-turn, voice, re-routing) for the assigned crew -->
+                  <button v-if="canShareSelected" class="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white hover:bg-emerald-700" @click="openNavigation"><Icon icon="lucide:navigation" width="14"/>Navigate</button>
                   <!-- Turn-by-turn for the driver: hand the destination to Google Maps / Waze -->
                   <a :href="navigateUrl('google')" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-xl border border-base-300 bg-base-100 px-4 py-2.5 text-xs font-black text-slate-700 no-underline hover:bg-base-200 dark:border-white/10 dark:bg-[#0d2943] dark:text-white/70"><Icon icon="lucide:navigation" width="14"/>Google Maps</a>
                   <a :href="navigateUrl('waze')" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-xl border border-base-300 bg-base-100 px-4 py-2.5 text-xs font-black text-slate-700 no-underline hover:bg-base-200 dark:border-white/10 dark:bg-[#0d2943] dark:text-white/70"><Icon icon="lucide:navigation-2" width="14"/>Waze</a>
@@ -84,6 +86,7 @@
         </main>
       </div>
     </div>
+    <NavigationMode v-if="navOpen && navDestination" :destination="navDestination" @close="navOpen=false" />
   </section>
 </template>
 
@@ -95,6 +98,7 @@ import { useAlert } from '@/composables/useAlert'
 import { useLiveUpdates } from '@/composables/useLiveUpdates'
 import LiveBadge from '@/components/realtime/LiveBadge.vue'
 import LiveMissionMap from '@/components/maps/LiveMissionMap.vue'
+import NavigationMode from '@/components/maps/NavigationMode.vue'
 import { realtimeChannels } from '@/services/realtime'
 
 const alert = useAlert()
@@ -117,6 +121,11 @@ watch(selectedId,()=>stopSharing())
 const mapLabels=computed(()=>{const m=selected.value;if(!m)return {};const dest=m.route?.destination;const toHospital=dest?.kind==='facility';const crew=canShareSelected.value;return {ambulanceStale:crew?'You last shared':'Last seen',waiting:crew?'Share your GPS to go live':'Waiting for live location',station:`${m.unit_code} station`,ambulance:crew?'You are here':m.unit_code,incident:toHospital?'Pickup point':'Destination',facility:toHospital&&dest.label?`Destination · ${dest.label}`:'Destination'}})
 // Turn-by-turn for the driver: the current destination (hospital while
 // transporting, otherwise the incident) opened in Google Maps or Waze.
+// In-app driving navigation: to the current destination (hospital while
+// transporting, otherwise the incident). Starts GPS sharing too.
+const navOpen=ref(false)
+const navDestination=computed(()=>{const m=selected.value;if(!m)return null;const d=m.route?.destination;if(d?.latitude!=null)return{latitude:d.latitude,longitude:d.longitude,label:d.label||(d.kind==='facility'?'Hospital':'Incident')};return{latitude:m.incident_latitude,longitude:m.incident_longitude,label:'Incident'}})
+async function openNavigation(){if(!sharing.value)await startSharing();navOpen.value=true}
 function navigateUrl(app){const d=selected.value?.route?.destination||{latitude:selected.value?.incident_latitude,longitude:selected.value?.incident_longitude};const ll=`${d.latitude},${d.longitude}`;return app==='waze'?`https://waze.com/ul?ll=${encodeURIComponent(ll)}&navigate=yes`:`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(ll)}&travelmode=driving`}
 
 // Share this device's GPS for the selected mission. Starting a watch makes the

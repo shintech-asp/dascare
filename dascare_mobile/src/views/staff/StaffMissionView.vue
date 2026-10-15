@@ -53,7 +53,12 @@
             @waiting-click="toggleSharing"
           />
         </div>
-        <div v-if="isActive" class="grid grid-cols-2 gap-2 border-t border-base-300 p-3 dark:border-white/10">
+        <div v-if="isActive && navDestination" class="border-t border-base-300 p-3 pb-0 dark:border-white/10">
+          <button type="button" class="tap flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-4 text-base font-black text-white shadow-lg shadow-emerald-600/25" @click="openNavigation">
+            <Icon icon="lucide:navigation" width="20" /> Navigate {{ navDestination.kind === 'facility' ? 'to hospital' : 'to incident' }}
+          </button>
+        </div>
+        <div v-if="isActive" class="grid grid-cols-2 gap-2 border-t border-base-300 p-3 dark:border-white/10" :class="navDestination ? 'border-t-0' : ''">
           <a :href="navigateUrl('google')" target="_blank" rel="noopener" class="tap flex items-center justify-center gap-1.5 rounded-xl bg-[#1976D2] py-3 text-sm font-bold text-white no-underline"><Icon icon="lucide:navigation" width="16" /> Google Maps</a>
           <a :href="navigateUrl('waze')" target="_blank" rel="noopener" class="tap flex items-center justify-center gap-1.5 rounded-xl border-2 border-base-300 py-3 text-sm font-bold text-slate-700 no-underline dark:border-white/10 dark:text-white/70"><Icon icon="lucide:car-front" width="16" /> Waze</a>
         </div>
@@ -123,6 +128,7 @@
       </button>
     </main>
 
+    <NavigationMode v-if="navOpen && navDestination" :destination="navDestination" :arrive-label="navArriveLabel" @close="navOpen = false" @arrived="onArrived" />
     <CloseRequestModal :open="closeOpen" mode="organization" :reference="mission?.reference_number || ''" :linked-count="mission?.linked_count || 0" :busy="closing"
       @close="closeOpen = false" @confirm="closeIncident" />
   </div>
@@ -134,6 +140,7 @@ import { useRoute, useRouter } from 'vue-router'
 import ScreenHeader from '@/components/ScreenHeader.vue'
 import LiveMissionMap from '@/components/maps/LiveMissionMap.vue'
 import CloseRequestModal from '@/components/incidents/CloseRequestModal.vue'
+import NavigationMode from '@/components/maps/NavigationMode.vue'
 import * as ui from '@/components/ui/styles'
 import { apiMessage } from '@/services/api'
 import { closeOrganizationIncident, fetchOrganizationMissions, updateMissionStatus } from '@/services/org/dispatchOperations'
@@ -195,6 +202,33 @@ const mapLabels = computed(() => {
     facility: toHospital && dest.label ? `Destination · ${dest.label}` : 'Destination',
   }
 })
+
+// In-app driving navigation (components/maps/NavigationMode.vue): to the
+// hospital while transporting, otherwise to the incident. Starts GPS sharing
+// for crew, and on arrival offers the matching next step.
+const navOpen = ref(false)
+const navDestination = computed(() => {
+  const m = mission.value
+  if (!m || !isActive.value || m.assignment_status === 'on_scene') return null
+  const d = track.value?.route?.destination
+  if (d?.latitude != null) return { latitude: d.latitude, longitude: d.longitude, kind: d.kind, label: d.label || (d.kind === 'facility' ? 'Hospital' : m.address_text) }
+  return m.assignment_status === 'transporting' ? null : { latitude: m.latitude, longitude: m.longitude, kind: 'incident', label: m.address_text }
+})
+const navArriveLabel = computed(() => {
+  if (!canAct.value) return ''
+  if (mission.value?.assignment_status === 'transporting') return 'Open facility handoff'
+  return ['acknowledged', 'responding'].includes(mission.value?.assignment_status) ? 'Arrived on scene' : ''
+})
+async function openNavigation() {
+  if (canShare.value && !sharingThis.value) await startSharing(id.value)
+  navOpen.value = true
+}
+async function onArrived() {
+  const status = mission.value?.assignment_status
+  if (status === 'transporting') { router.push({ name: 'StaffHandoff', params: { id: id.value } }); return }
+  if (status === 'acknowledged') await advance({ status: 'responding' })
+  if (['acknowledged', 'responding'].includes(mission.value?.assignment_status)) await advance({ status: 'on_scene' })
+}
 
 function navigateUrl(app) {
   const d = track.value?.route?.destination || { latitude: mission.value?.latitude, longitude: mission.value?.longitude }
