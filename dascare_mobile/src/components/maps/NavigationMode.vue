@@ -32,7 +32,7 @@
           <p class="flex items-center gap-2 text-base font-bold"><Icon icon="lucide:loader-circle" width="20" class="animate-spin" /> {{ statusText }}</p>
         </div>
         <p v-if="hasTraffic" class="mx-auto mt-2 flex w-fit items-center gap-2 rounded-full bg-white/95 px-3 py-1 text-[0.68rem] font-bold text-slate-600 shadow">
-          <span class="h-1.5 w-4 rounded-full bg-blue-500"></span>Clear <span class="h-1.5 w-4 rounded-full bg-amber-500"></span>Slow <span class="h-1.5 w-4 rounded-full bg-red-500"></span>Heavy
+          <span class="h-1.5 w-4 rounded-full bg-blue-500"></span>Clear <span class="h-1.5 w-4 rounded-full bg-yellow-400"></span>Light <span class="h-1.5 w-4 rounded-full bg-orange-500"></span>Slow <span class="h-1.5 w-4 rounded-full bg-red-600"></span>Heavy
         </p>
         <p v-if="rerouting" class="mx-auto mt-2 w-fit rounded-full bg-amber-500 px-4 py-1.5 text-sm font-black text-white shadow-lg">Rerouting…</p>
         <p v-if="gpsWeak" class="mx-auto mt-2 w-fit rounded-full bg-slate-800/90 px-4 py-1.5 text-xs font-bold text-white shadow-lg">Weak GPS signal</p>
@@ -114,7 +114,7 @@ let spoken = new Set()
 let clock = null
 
 const dest = computed(() => [Number(props.destination.longitude), Number(props.destination.latitude)])
-const hasTraffic = computed(() => (route.value?.congestion || []).some((c) => c === 'moderate' || c === 'heavy' || c === 'severe'))
+const hasTraffic = computed(() => (route.value?.congestion || []).some((c) => c !== 'clear' && c !== 'unknown'))
 const gpsWeak = computed(() => fix.value && fix.value.accuracy > 60)
 const statusText = computed(() => (errorText.value ? 'Navigation unavailable' : fix.value ? 'Finding the fastest route…' : 'Waiting for GPS…'))
 const remaining = computed(() => (route.value ? Math.max(0, route.value.length - along.value) : null))
@@ -164,12 +164,20 @@ async function fetchRoute(origin, reason = 'start') {
   if (reason === 'reroute') { rerouting.value = true; say('Rerouting.') }
   try {
     const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${origin[0]},${origin[1]};${dest.value[0]},${dest.value[1]}`
-      + `?steps=true&banner_instructions=true&voice_instructions=true&voice_units=metric&geometries=geojson&overview=full&annotations=congestion&language=en&access_token=${MAPBOX_TOKEN}`
+      + `?steps=true&banner_instructions=true&voice_instructions=true&voice_units=metric&geometries=geojson&overview=full&annotations=congestion,congestion_numeric&language=en&access_token=${MAPBOX_TOKEN}`
     const res = await fetch(url)
     const data = await res.json()
     if (data.code !== 'Ok' || !data.routes?.length) throw new Error(data.message || 'No route found.')
     route.value = prepareRoute(data.routes[0])
-    route.value.congestion = data.routes[0].legs[0]?.annotation?.congestion || []
+    // Traffic level per route piece: Mapbox's 0–100 congestion number when
+    // present (finer: light slowdowns show too), else its category.
+    const ann = data.routes[0].legs[0]?.annotation || {}
+    const numeric = ann.congestion_numeric || []
+    route.value.congestion = (ann.congestion || []).map((c, i) => {
+      const n = numeric[i]
+      if (n == null) return c === 'low' ? 'clear' : c === 'moderate' ? 'slow' : c === 'heavy' || c === 'severe' ? 'heavy' : 'clear'
+      return n >= 75 ? 'heavy' : n >= 50 ? 'slow' : n >= 25 ? 'light' : 'clear'
+    })
     if (route.value.length < 30) { markArrived(); return } // already there
     snapHint = 0
     spoken = new Set()
@@ -225,7 +233,7 @@ function drawRoute() {
   map.addSource('nav-route', { type: 'geojson', data })
   map.addLayer({ id: 'nav-route-casing', type: 'line', source: 'nav-route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#1e3a8a', 'line-width': 14 } })
   map.addLayer({ id: 'nav-route-line', type: 'line', source: 'nav-route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: {
-    'line-color': ['match', ['get', 'congestion'], 'moderate', '#f59e0b', 'heavy', '#ef4444', 'severe', '#991b1b', '#3b82f6'],
+    'line-color': ['match', ['get', 'congestion'], 'light', '#facc15', 'slow', '#f97316', 'heavy', '#dc2626', '#3b82f6'],
     'line-width': 9,
   } })
 }
