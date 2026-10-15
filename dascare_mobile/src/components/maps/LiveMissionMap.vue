@@ -102,7 +102,9 @@ const STALE_AFTER_MS = 60 * 1000
 const STYLES = { light: 'https://tiles.openfreemap.org/styles/liberty', dark: 'https://tiles.openfreemap.org/styles/dark' }
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || ''
 const MAPBOX_STYLES = { light: 'mapbox://styles/mapbox/navigation-day-v1', dark: 'mapbox://styles/mapbox/navigation-night-v1' }
-const MAPBOX_LOAD_TIMEOUT_MS = 8000
+const MAPBOX_LOAD_TIMEOUT_MS = 12000
+const MAPBOX_UNAVAILABLE_KEY = 'dascare.mapboxUnavailableUntil'
+const MAPBOX_UNAVAILABLE_FOR_MS = 10 * 60 * 1000
 const ROUTE_COLOR = '#2563eb'
 
 const { theme } = useTheme()
@@ -316,7 +318,7 @@ const styleFor = (t) => (engine === 'mapbox' ? MAPBOX_STYLES : STYLES)[t === 'da
 
 function mapboxUsable() {
   if (!MAPBOX_TOKEN) return false
-  try { return sessionStorage.getItem('dascare.mapboxUnavailable') !== '1' } catch { return true }
+  try { return Number(sessionStorage.getItem(MAPBOX_UNAVAILABLE_KEY) || 0) < Date.now() } catch { return true }
 }
 
 async function loadEngine(useMapbox) {
@@ -360,16 +362,18 @@ function buildMap() {
     // Token refused / free limit reached / blocked → the free map instead.
     map.on('error', (e) => {
       const status = e?.error?.status
-      if (!ready.value && [401, 403, 429].includes(status)) fallBackToFreeMap(`Mapbox ${status}`)
+      if (!ready.value && [401, 403, 429].includes(status)) fallBackToFreeMap(`Mapbox ${status}`, true)
     })
-    mapboxTimer = setTimeout(() => { if (!ready.value) fallBackToFreeMap('Mapbox load timeout') }, MAPBOX_LOAD_TIMEOUT_MS)
+    // Slow load: free map for THIS map only; the next one tries Mapbox again.
+    mapboxTimer = setTimeout(() => { if (!ready.value) fallBackToFreeMap('Mapbox load timeout', false) }, MAPBOX_LOAD_TIMEOUT_MS)
   }
 }
 
-async function fallBackToFreeMap(reason) {
+async function fallBackToFreeMap(reason, remember) {
   if (engine !== 'mapbox' || !map) return
   console.warn('Live map: using the free map instead —', reason)
-  try { sessionStorage.setItem('dascare.mapboxUnavailable', '1') } catch { /* private mode */ }
+  // Token refused / free limit reached: skip Mapbox for 10 minutes in this tab.
+  if (remember) { try { sessionStorage.setItem(MAPBOX_UNAVAILABLE_KEY, String(Date.now() + MAPBOX_UNAVAILABLE_FOR_MS)) } catch { /* private mode */ } }
   clearTimeout(mapboxTimer)
   map.remove()
   map = null

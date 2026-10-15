@@ -375,14 +375,15 @@ function buildMap() {
     syncMarkers()
   })
   if (engine === 'mapbox') {
-    map.on('error', (e) => { if (!ready.value && [401, 403, 429].includes(e?.error?.status)) fallBackToFreeMap() })
-    mapboxTimer = setTimeout(() => { if (!ready.value) fallBackToFreeMap() }, MAPBOX_LOAD_TIMEOUT_MS)
+    map.on('error', (e) => { if (!ready.value && [401, 403, 429].includes(e?.error?.status)) fallBackToFreeMap(true) })
+    mapboxTimer = setTimeout(() => { if (!ready.value) fallBackToFreeMap(false) }, MAPBOX_LOAD_TIMEOUT_MS)
   }
 }
 
-async function fallBackToFreeMap() {
+async function fallBackToFreeMap(remember) {
   if (engine !== 'mapbox' || !map) return
-  markMapboxUnavailable()
+  console.warn('Monitor map: Mapbox', remember ? 'refused the token / hit its limit' : 'did not load in time', '— using the free map.')
+  if (remember) markMapboxUnavailable()
   clearTimeout(mapboxTimer)
   map.remove()
   map = null
