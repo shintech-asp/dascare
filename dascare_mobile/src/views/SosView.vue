@@ -30,8 +30,8 @@
         </div>
 
         <p v-if="result.guestStatus?.flagged" class="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
-          This was guest request #{{ result.guestStatus.ordinal }} today for this phone number, so it's marked for a quick extra
-          check by a dispatcher — it's still on its way to them exactly like any other request.
+          This phone number has recent confirmed false alarms, so the request is marked for a quick extra
+          check by a dispatcher — it's still on its way to them like any other request.
         </p>
 
         <div class="mt-5 flex items-center gap-2.5 rounded-2xl bg-base-200 p-4 text-left dark:bg-white/5">
@@ -52,9 +52,21 @@
       </section>
 
       <!-- ================= Form — mirrors the web's EmergencyRequestForm ================= -->
+      <!-- ================= Guest limit used up (2 per 24 h, citizen/create.php) ================= -->
+      <section v-else-if="guestBlocked" class="rounded-3xl border border-base-300 bg-base-100 p-6 text-center shadow-xl shadow-base-300/40 dark:border-white/10 dark:bg-[#071829] dark:shadow-black/30">
+        <span class="mx-auto grid h-14 w-14 place-items-center rounded-full bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-300"><Icon icon="lucide:shield-alert" width="28" /></span>
+        <h2 class="mt-3 text-lg font-black text-slate-900 dark:text-white">Guest limit reached</h2>
+        <p class="mt-1 text-sm leading-relaxed text-slate-600 dark:text-white/55">Guests can send up to {{ guestLimit }} emergency requests in 24 hours. Log in or create a free account to send another request.</p>
+        <div class="mt-5 space-y-2">
+          <RouterLink to="/login" replace class="tap flex w-full items-center justify-center gap-2 rounded-2xl bg-red-600 py-3.5 font-bold text-white no-underline shadow-lg shadow-red-600/25">Log in</RouterLink>
+          <RouterLink to="/register" replace class="tap flex w-full items-center justify-center rounded-2xl border border-base-300 py-3.5 font-bold text-slate-700 no-underline dark:border-white/10 dark:text-white/75">Create an account</RouterLink>
+        </div>
+        <a href="tel:911" class="mt-5 inline-flex items-center gap-1.5 text-sm font-black text-red-600 no-underline dark:text-red-300"><Icon icon="lucide:phone" width="15" /> Life-threatening? Call 911</a>
+      </section>
+
       <template v-else>
         <p v-if="isGuest && guestUsed !== null" class="rounded-xl bg-[#f8f3e8] px-3 py-2 text-center text-xs font-semibold text-slate-500 dark:bg-white/5 dark:text-white/45">
-          {{ guestUsed }} of {{ guestLimit }} guest {{ guestUsed === 1 ? 'request' : 'requests' }} sent today on this device — a genuine emergency always goes through regardless.
+          {{ guestUsed }} of {{ guestLimit }} guest {{ guestUsed === 1 ? 'request' : 'requests' }} used in the last 24 hours on this phone.
         </p>
 
         <section class="overflow-hidden rounded-3xl border border-base-300 bg-base-100 shadow-xl shadow-base-300/40 dark:border-white/10 dark:bg-[#071829] dark:shadow-black/30">
@@ -98,6 +110,12 @@
             <div v-if="!isGuest" class="flex items-start gap-2.5 rounded-2xl border border-red-200 bg-red-50/60 px-4 py-3 dark:border-red-500/20 dark:bg-red-500/5">
               <Icon icon="lucide:heart-pulse" width="16" class="mt-0.5 flex-shrink-0 text-red-600 dark:text-red-300" />
               <p class="text-xs leading-relaxed text-red-800 dark:text-red-200/80">Your saved emergency information will be shared with the responding crew automatically.</p>
+            </div>
+
+            <!-- What happened? Optional label for dispatch; nothing picked = "Other". -->
+            <div>
+              <p class="mb-2 text-xs font-semibold text-slate-600 dark:text-white/60">What happened? <span class="font-normal text-slate-400 dark:text-white/30">(optional — tap one)</span></p>
+              <EmergencyTypePicker v-model="form.emergency_category_id" clearable hide-other />
             </div>
 
             <!-- Could not send -->
@@ -221,6 +239,8 @@
 // the phone's GPS/camera, haptic confirmation, an explicit offline state,
 // and guest SOS keys kept on the phone (see composables/useGuestKeys.js).
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
+import EmergencyTypePicker from '@/components/incidents/EmergencyTypePicker.vue'
+import { OTHER_EMERGENCY_TYPE } from '@/config/emergencyTypes'
 import { Geolocation } from '@capacitor/geolocation'
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import { Haptics, NotificationType } from '@capacitor/haptics'
@@ -235,7 +255,7 @@ import { useToast } from '@/composables/useToast'
 import { enablePush } from '@/services/push'
 import { cameraDeniedText, isPermissionDenied, isUserCancel, locationDeniedText } from '@/utils/permissions'
 
-const GENERIC_CATEGORY_ID = 8 // "Other" — dispatch classifies on the call (same as the web)
+const GENERIC_CATEGORY_ID = OTHER_EMERGENCY_TYPE // nothing picked = "Other" (same as the web)
 const BOUNDS = { south: 14.26, north: 14.40, west: 120.86, east: 121.0 } // matches create.php
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024
 
@@ -244,7 +264,7 @@ const guestKeys = useGuestKeys()
 const toast = useToast()
 const isGuest = computed(() => !isLoggedIn.value)
 
-const form = reactive({ address_text: '', barangay: '', landmark: '', latitude: null, longitude: null, requester_phone: '', requester_name: '', description: '' })
+const form = reactive({ address_text: '', barangay: '', landmark: '', latitude: null, longitude: null, requester_phone: '', requester_name: '', description: '', emergency_category_id: null })
 const quick = reactive({ patientCount: 1, conscious: '', breathing: '' })
 const photos = ref([]) // [{ blob, preview }]
 const small = 'w-full min-w-0 rounded-lg border border-slate-200 bg-[#f8f3e8] px-2 py-2.5 text-sm text-slate-800 focus:border-red-600 focus:outline-none dark:border-white/10 dark:bg-white/5 dark:text-white'
@@ -419,7 +439,7 @@ async function submit() {
   submitting.value = true
   try {
     const fd = new FormData()
-    fd.append('emergency_category_id', GENERIC_CATEGORY_ID)
+    fd.append('emergency_category_id', form.emergency_category_id || GENERIC_CATEGORY_ID)
     fd.append('severity', 'critical')
     fd.append('description', buildDescription())
     fd.append('address_text', form.address_text.trim())
@@ -439,11 +459,18 @@ async function submit() {
       await guestKeys.add({ id: data.id, reference_number: data.reference_number, token: data.guestAccessToken, created_at: new Date().toISOString() })
     }
     result.value = data
+    if (data.guestStatus?.used != null) guestUsed.value = data.guestStatus.used
     if (!data.guestAccessToken) refreshRealtimeAccess() // follow the new request live
     Haptics.notification({ type: NotificationType.Success }).catch(() => {})
     enablePush() // get "a unit is on the way" even with the app closed
   } catch (err) {
     Haptics.notification({ type: NotificationType.Error }).catch(() => {})
+    if (err.response?.data?.code === 'GUEST_LIMIT') {
+      guestLimit.value = err.response.data.limit ?? guestLimit.value
+      guestUsed.value = Math.max(err.response.data.used ?? 0, guestLimit.value)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
     sendError.value = err.server ? err.message : err.response
       ? apiMessage(err, 'Could not submit request — please try again.')
       : 'No connection to DASCARE. Check your mobile data or Wi-Fi and try again.'
@@ -470,9 +497,11 @@ async function requestSeparately() {
   }
 }
 
-// Guest daily count, same "X of 3 today" note as the web guest modal.
+// Guest count: 2 requests per 24 h (hard limit, same as the web guest modal);
+// once used up the form is replaced by Log in / Create an account.
 const guestUsed = ref(null)
-const guestLimit = ref(3)
+const guestLimit = ref(2)
+const guestBlocked = computed(() => isGuest.value && guestUsed.value !== null && guestUsed.value >= guestLimit.value)
 async function loadGuestStatus() {
   try {
     const { data } = await api.get('/citizen/guest_status.php')

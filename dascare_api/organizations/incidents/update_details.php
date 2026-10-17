@@ -44,6 +44,14 @@ $barangay = trim(strip_tags((string) ($body['barangay'] ?? '')));
 $addressText = trim(strip_tags((string) ($body['address_text'] ?? '')));
 $landmark = trim(strip_tags((string) ($body['landmark'] ?? '')));
 $description = trim((string) ($body['description'] ?? ''));
+// Emergency / accident type (emergency_categories id). Optional: absent or 0
+// keeps the current label; the org relabels what the requester picked.
+$categoryId = (int) ($body['emergency_category_id'] ?? 0);
+if ($categoryId > 0) {
+    $cat = $pdo->prepare('SELECT id FROM emergency_categories WHERE id = ? AND is_active = 1');
+    $cat->execute([$categoryId]);
+    if (!$cat->fetchColumn()) organizationJsonError(422, 'Choose a valid emergency type.');
+}
 
 if (mb_strlen($requesterName) > 160) organizationJsonError(422, 'Name is too long.');
 if (mb_strlen($barangay) > 120) organizationJsonError(422, 'Barangay name is too long.');
@@ -69,7 +77,7 @@ try {
     // assignment), mirroring the incidents/list.php scoping.
     $stmt = $pdo->prepare("
         SELECT er.id, er.reference_number, er.requester_name, er.requester_phone,
-               er.barangay, er.address_text, er.landmark, er.description, er.status
+               er.barangay, er.address_text, er.landmark, er.description, er.status, er.emergency_category_id
         FROM emergency_requests er
         WHERE er.id = ?
           AND (
@@ -104,6 +112,7 @@ try {
         'address_text' => $request['address_text'],
         'landmark' => $request['landmark'],
         'description' => $request['description'],
+        'emergency_category_id' => (int) $request['emergency_category_id'],
     ];
     $new = [
         'requester_name' => $finalName,
@@ -112,16 +121,17 @@ try {
         'address_text' => $addressText,
         'landmark' => $landmark !== '' ? $landmark : null,
         'description' => $description,
+        'emergency_category_id' => $categoryId > 0 ? $categoryId : (int) $request['emergency_category_id'],
     ];
 
     $upd = $pdo->prepare("
         UPDATE emergency_requests
-        SET requester_name = ?, requester_phone = ?, barangay = ?, address_text = ?, landmark = ?, description = ?, updated_at = NOW()
+        SET requester_name = ?, requester_phone = ?, barangay = ?, address_text = ?, landmark = ?, description = ?, emergency_category_id = ?, updated_at = NOW()
         WHERE id = ?
     ");
     $upd->execute([
         $new['requester_name'], $new['requester_phone'], $new['barangay'],
-        $new['address_text'], $new['landmark'], $new['description'], $requestId,
+        $new['address_text'], $new['landmark'], $new['description'], $new['emergency_category_id'], $requestId,
     ]);
 
     $audit = $pdo->prepare("

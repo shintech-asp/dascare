@@ -10,7 +10,8 @@ header('Content-Type: application/json');
 if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST') organizationJsonError(405,'Method not allowed.');
 $ctx=requireOrganizationAccess($pdo,null);$body=json_decode(file_get_contents('php://input'),true)?:[];$handoffId=(int)($body['handoff_id']??0);$next=strtolower(trim((string)($body['status']??'')));$note=mb_substr(trim((string)($body['note']??'')),0,500);
 if($handoffId<=0||!in_array($next,['accepted','declined','completed'],true)) organizationJsonError(422,'Choose a valid handoff action.');
-if(!organizationHasPermission($pdo,$ctx,$next==='completed'?'hospital.handoffs.approve':'hospital.handoffs.update')) organizationJsonError(403,'You do not have permission to update this handoff.');
+if($next==='completed'){if(!careCanConfirmHandoff($pdo,$ctx)) organizationJsonError(403,'Only the Dispatcher can confirm the physical handoff.');}
+elseif(!organizationHasPermission($pdo,$ctx,'hospital.handoffs.update')) organizationJsonError(403,'You do not have permission to update this handoff.');
 try{
   $pdo->beginTransaction();
   $stmt=$pdo->prepare("SELECT ph.*,da.organization_id,da.assignment_status,er.reference_number,er.requester_user_id,mf.name facility_name FROM patient_handoffs ph JOIN dispatch_assignments da ON da.id=ph.dispatch_assignment_id JOIN emergency_requests er ON er.id=ph.emergency_request_id JOIN medical_facilities mf ON mf.id=ph.medical_facility_id WHERE ph.id=? AND da.organization_id=? LIMIT 1 FOR UPDATE");

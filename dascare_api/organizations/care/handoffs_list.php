@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../cors.php';
 require_once __DIR__ . '/../../db/db.php';
 require_once __DIR__ . '/../../reusables/organization_rbac.php';
+require_once __DIR__ . '/../../reusables/care_helpers.php';
 header('Content-Type: application/json');
 $ctx=requireOrganizationAccess($pdo,'hospital.handoffs.read');
 $assignmentId=(int)($_GET['assignment_id']??0);
@@ -16,5 +17,5 @@ try{
       WHERE ph.dispatch_assignment_id=? ORDER BY ph.created_at DESC,ph.id DESC");
   $stmt->execute([$assignmentId]);$rows=$stmt->fetchAll(PDO::FETCH_ASSOC);
   foreach($rows as &$r){$r['id']=(int)$r['id'];$r['medical_facility_id']=(int)$r['medical_facility_id'];$r['eta_minutes']=$r['eta_minutes']!==null?(int)$r['eta_minutes']:null;$r['latitude']=(float)$r['latitude'];$r['longitude']=(float)$r['longitude'];}unset($r);
-  echo json_encode(['success'=>true,'handoffs'=>$rows]);
+  echo json_encode(['success'=>true,'handoffs'=>$rows,'can_confirm'=>careCanConfirmHandoff($pdo,$ctx),'can_record'=>organizationHasPermission($pdo,$ctx,'hospital.handoffs.update')]);
 }catch(Throwable $e){error_log('Handoff list failed: '.$e->getMessage());organizationJsonError(500,'Unable to load facility handoffs.');}

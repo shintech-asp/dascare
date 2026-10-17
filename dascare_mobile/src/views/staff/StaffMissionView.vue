@@ -19,7 +19,7 @@
       <section :class="[ui.card, 'p-4']">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
-            <p class="text-base font-black text-slate-900 dark:text-white">{{ mission.category_name }} · <span class="capitalize">{{ mission.severity }}</span></p>
+            <p class="break-words text-base font-black text-slate-900 dark:text-white">{{ mission.category_name }} · <span class="capitalize">{{ mission.severity }}</span></p>
             <p class="mt-0.5 text-xs text-slate-500 dark:text-white/45">Unit <b class="text-slate-700 dark:text-white/70">{{ mission.unit_code }}</b><template v-if="mission.plate_number"> · {{ mission.plate_number }}</template></p>
           </div>
           <span class="flex-shrink-0 rounded-full px-2.5 py-1 text-[0.62rem] font-black uppercase" :class="missionBadge(mission.assignment_status)">{{ missionLabel(mission.assignment_status) }}</span>
@@ -36,7 +36,7 @@
           :class="a.secondary ? ui.secondaryButton : ui.primaryButton" @click="advance(a)">
           <Icon :icon="saving === a.status ? 'lucide:loader-circle' : a.icon" width="18" :class="saving === a.status ? 'animate-spin' : ''" /> {{ a.label }}
         </button>
-        <RouterLink v-if="mission.assignment_status === 'transporting'" :to="{ name: 'StaffHandoff', params: { id } }" class="block text-center text-[0.7rem] font-semibold text-slate-500 no-underline dark:text-white/45">Complete the receiving-facility handoff first, then finish the mission → <span class="text-red-600 dark:text-red-300">Facility handoff</span></RouterLink>
+        <RouterLink v-if="mission.assignment_status === 'transporting'" :to="{ name: 'StaffHandoff', params: { id } }" class="block text-center text-[0.7rem] font-semibold text-slate-500 no-underline dark:text-white/45">The Dispatcher confirms the facility handoff first, then the mission can be finished → <span class="text-red-600 dark:text-red-300">Facility handoff</span></RouterLink>
       </section>
 
       <!-- Map -->

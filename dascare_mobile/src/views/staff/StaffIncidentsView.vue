@@ -60,6 +60,7 @@
       <div v-if="editOpen" class="fixed inset-0 z-[10040] flex items-end bg-black/50" @click.self="editOpen = false">
         <form class="max-h-[90vh] w-full space-y-3 overflow-y-auto rounded-t-[28px] bg-base-100 p-6 pb-[calc(var(--safe-bottom)+1.5rem)] dark:bg-[#0c1a2c]" @submit.prevent="save">
           <h2 class="text-lg font-black text-slate-900 dark:text-white">Edit {{ form.reference_number }}</h2>
+          <div><label :class="ui.label">Emergency type</label><EmergencyTypePicker v-model="form.emergency_category_id" /></div>
           <div><label :class="ui.label">Requester name</label><input v-model="form.requester_name" :class="ui.input" /></div>
           <div><label :class="ui.label">Mobile number</label><input v-model="form.requester_phone" inputmode="tel" :class="ui.input" placeholder="09XXXXXXXXX" /><p v-if="phoneInvalid" class="mt-1 text-xs text-red-500">Enter a valid PH mobile number</p></div>
           <div><label :class="ui.label">Barangay</label><input v-model="form.barangay" :class="ui.input" /></div>
@@ -82,6 +83,7 @@ import ScreenHeader from '@/components/ScreenHeader.vue'
 import * as ui from '@/components/ui/styles'
 import { apiMessage } from '@/services/api'
 import { fetchOrganizationIncidents, updateIncidentDetails } from '@/services/org/organizationCompletion'
+import EmergencyTypePicker from '@/components/incidents/EmergencyTypePicker.vue'
 import { fetchOrganizationLinkedReports, unmergeOrganizationReport } from '@/services/org/dispatchOperations'
 import { useSession } from '@/composables/useSession'
 import { useToast } from '@/composables/useToast'
@@ -114,17 +116,17 @@ const PLACEHOLDERS = ['Unspecified', 'Pinned location (no address provided)', 'E
 const unplaceholder = (v) => (PLACEHOLDERS.includes((v || '').trim()) ? '' : (v || ''))
 const editOpen = ref(false)
 const saving = ref(false)
-const form = reactive({ id: null, reference_number: '', requester_name: '', requester_phone: '', barangay: '', address_text: '', landmark: '', description: '' })
+const form = reactive({ id: null, reference_number: '', requester_name: '', requester_phone: '', barangay: '', address_text: '', landmark: '', description: '', emergency_category_id: null })
 const phoneInvalid = computed(() => { const p = (form.requester_phone || '').replace(/[\s-]/g, ''); return p !== '' && !/^(\+639\d{9}|09\d{9})$/.test(p) })
 function openEdit(i) {
-  Object.assign(form, { id: i.id, reference_number: i.reference_number, requester_name: i.requester_name === 'Guest requester' ? '' : (i.requester_name || ''), requester_phone: i.requester_phone || '', barangay: unplaceholder(i.barangay), address_text: unplaceholder(i.address_text), landmark: i.landmark || '', description: unplaceholder(i.description) })
+  Object.assign(form, { id: i.id, reference_number: i.reference_number, requester_name: i.requester_name === 'Guest requester' ? '' : (i.requester_name || ''), requester_phone: i.requester_phone || '', barangay: unplaceholder(i.barangay), address_text: unplaceholder(i.address_text), landmark: i.landmark || '', description: unplaceholder(i.description), emergency_category_id: Number(i.emergency_category_id) || null })
   editOpen.value = true
 }
 async function save() {
   saving.value = true
   try {
     const { id, reference_number, ...fields } = form
-    await updateIncidentDetails({ emergency_request_id: id, ...fields })
+    await updateIncidentDetails({ emergency_request_id: id, ...fields, emergency_category_id: fields.emergency_category_id || 0 })
     toast.success('Incident details updated.', 'Saved')
     editOpen.value = false
     await load()

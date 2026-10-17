@@ -21,17 +21,17 @@
             <Icon :icon="banner.icon" width="44" class="flex-shrink-0" />
             <div class="min-w-0">
               <p class="text-3xl font-black leading-none tabular-nums">{{ banner.distance }}</p>
-              <p class="mt-1 truncate text-lg font-bold leading-tight">{{ banner.text }}</p>
+              <p class="mt-1 line-clamp-2 break-words text-lg font-bold leading-tight">{{ banner.text }}</p>
             </div>
           </div>
           <p v-if="banner.then" class="mt-3 flex items-center gap-2 border-t border-white/20 pt-2 text-sm font-semibold text-white/85">
-            Then <Icon :icon="banner.thenIcon" width="18" /> <span class="truncate">{{ banner.then }}</span>
+            Then <Icon :icon="banner.thenIcon" width="18" class="flex-shrink-0" /> <span class="min-w-0 truncate">{{ banner.then }}</span>
           </p>
         </div>
         <div v-else class="rounded-3xl bg-slate-800/95 p-4 text-white shadow-2xl">
-          <p class="flex items-center gap-2 text-base font-bold"><Icon icon="lucide:loader-circle" width="20" class="animate-spin" /> {{ statusText }}</p>
+          <p class="flex items-center gap-2 text-base font-bold"><Icon icon="lucide:loader-circle" width="20" class="flex-shrink-0 animate-spin" /> <span class="min-w-0 break-words">{{ statusText }}</span></p>
         </div>
-        <p v-if="hasTraffic" class="mx-auto mt-2 flex w-fit items-center gap-2 rounded-full bg-white/95 px-3 py-1 text-[0.68rem] font-bold text-slate-600 shadow">
+        <p v-if="hasTraffic" class="mx-auto mt-2 flex w-fit max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full bg-white/95 px-3 py-1 text-[0.68rem] font-bold text-slate-600 shadow">
           <span class="h-1.5 w-4 rounded-full bg-blue-500"></span>Clear <span class="h-1.5 w-4 rounded-full bg-yellow-400"></span>Light <span class="h-1.5 w-4 rounded-full bg-orange-500"></span>Slow <span class="h-1.5 w-4 rounded-full bg-red-600"></span>Heavy
         </p>
         <p v-if="rerouting" class="mx-auto mt-2 w-fit rounded-full bg-amber-500 px-4 py-1.5 text-sm font-black text-white shadow-lg">Rerouting…</p>
@@ -39,7 +39,7 @@
       </div>
 
       <!-- Map buttons -->
-      <div class="absolute right-3 top-[calc(var(--safe-top,0px)+11rem)] flex flex-col gap-2">
+      <div class="absolute bottom-[calc(var(--safe-bottom,0px)+7rem)] right-3 flex flex-col gap-2">
         <button type="button" class="grid h-12 w-12 place-items-center rounded-full bg-white text-slate-700 shadow-lg" :aria-label="muted ? 'Unmute voice' : 'Mute voice'" @click="toggleMute">
           <Icon :icon="muted ? 'lucide:volume-x' : 'lucide:volume-2'" width="22" />
         </button>
@@ -58,7 +58,7 @@
       <div class="absolute inset-x-0 bottom-0 rounded-t-3xl bg-white p-4 pb-[calc(var(--safe-bottom,0px)+1rem)] shadow-2xl dark:bg-[#0c1a2c]">
         <div v-if="arrived" class="space-y-3 text-center">
           <p class="flex items-center justify-center gap-2 text-xl font-black text-emerald-600"><Icon icon="lucide:flag" width="22" /> You've arrived</p>
-          <p class="text-sm text-slate-500">{{ destination.label || 'Destination' }}</p>
+          <p class="break-words text-sm text-slate-500">{{ destination.label || 'Destination' }}</p>
           <div class="grid grid-cols-2 gap-2">
             <button type="button" class="rounded-2xl border-2 border-slate-200 py-3.5 text-sm font-bold text-slate-600 dark:border-white/10 dark:text-white/70" @click="close">Close</button>
             <button v-if="arriveLabel" type="button" class="rounded-2xl bg-red-600 py-3.5 text-sm font-black text-white" @click="emit('arrived'); close()">{{ arriveLabel }}</button>

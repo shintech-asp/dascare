@@ -1,7 +1,7 @@
 <template>
   <!-- Facility handoff for one mission (staff, Phase 4) — the web's Facility
        Handoffs: request a receiving hospital (on scene / transporting), then
-       accepted → completed. A transporting mission can only be completed
+       accepted → completed (completed = Dispatcher only). A transporting mission can only be completed
        after its handoff is completed (missions/status.php). -->
   <div class="min-h-screen bg-base-200 pb-[calc(var(--safe-bottom)+1.5rem)] dark:bg-[#050e1a]">
     <ScreenHeader :title="`Handoff · ${mission?.reference_number || ''}`" :fallback="`/staff/missions/${id}`" />
@@ -16,11 +16,14 @@
         </div>
         <p class="mt-2 text-xs text-slate-500 dark:text-white/45">ETA {{ h.eta_minutes ?? '—' }} min · {{ formatDate(h.created_at) }}<template v-if="h.initiated_by"> · {{ h.initiated_by }}</template></p>
         <p v-if="h.notes" class="mt-1 text-sm text-slate-700 dark:text-white/70">{{ h.notes }}</p>
-        <div v-if="h.status === 'pending'" class="mt-3 grid grid-cols-2 gap-2">
+        <div v-if="h.status === 'pending' && canRecord" class="mt-3 grid grid-cols-2 gap-2">
           <button type="button" :class="ui.primaryButton" @click="change(h, 'accepted')">Facility accepted</button>
           <button type="button" :class="ui.secondaryButton" @click="change(h, 'declined')">Declined</button>
         </div>
-        <button v-if="h.status === 'accepted'" type="button" :class="[ui.primaryButton, 'mt-3']" @click="change(h, 'completed')"><Icon icon="lucide:handshake" width="18" /> Patient handed over</button>
+        <template v-if="h.status === 'accepted'">
+          <button v-if="canConfirm" type="button" :class="[ui.primaryButton, 'mt-3']" @click="change(h, 'completed')"><Icon icon="lucide:handshake" width="18" /> Patient handed over</button>
+          <p v-else class="mt-3 flex items-center gap-1.5 rounded-xl bg-base-200 px-3 py-2.5 text-xs font-bold text-slate-500 dark:bg-white/5 dark:text-white/45"><Icon icon="lucide:lock" width="14" /> Waiting for the Dispatcher to confirm the physical handoff.</p>
+        </template>
       </section>
 
       <form v-if="canCreate" :class="[ui.card, 'space-y-3 p-4']" @submit.prevent="create">
@@ -59,6 +62,10 @@ const id = computed(() => Number(route.params.id))
 const mission = ref(null)
 const facilities = ref([])
 const handoffs = ref([])
+// Confirming the physical handoff is Dispatcher-only (handoffs_list.php can_confirm);
+// recording facility accepted / declined follows RBAC (can_record).
+const canConfirm = ref(false)
+const canRecord = ref(false)
 const saving = ref(false)
 const form = ref({ medical_facility_id: '', eta_minutes: 15, notes: '' })
 
@@ -67,7 +74,7 @@ const badge = (s) => ({ pending: 'bg-amber-50 text-amber-700 dark:bg-amber-500/1
 const formatDate = (v) => (v ? new Date(String(v).replace(' ', 'T')).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '')
 
 async function loadHandoffs() {
-  try { handoffs.value = (await fetchHandoffs(id.value)).handoffs || [] } catch (err) { toast.error(apiMessage(err, 'Unable to load handoffs.'), 'Error') }
+  try { const d = await fetchHandoffs(id.value); handoffs.value = d.handoffs || []; canConfirm.value = !!d.can_confirm; canRecord.value = !!d.can_record } catch (err) { toast.error(apiMessage(err, 'Unable to load handoffs.'), 'Error') }
 }
 async function create() {
   saving.value = true

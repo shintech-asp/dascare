@@ -68,22 +68,20 @@
           </RouterLink>
         </div>
 
-        <!-- The count below is a soft, device-level heads-up — the real
-             (phone-keyed) threshold only ever adds a dispatcher check; it
-             never blocks a submission. See useGuestRequestLimit.js. -->
+        <!-- Guests may send 2 requests per 24 h (hard limit, counted per
+             device / IP / phone — see useGuestRequestLimit.js). -->
         <p class="mt-3 text-xs leading-relaxed text-slate-500 dark:text-white/45">
           <template v-if="used === null">
-            A genuine emergency always goes through — guest requests just get a quick dispatcher
-            check after the first {{ softLimitCopy }} in a day.
+            Guests can send up to {{ softLimitCopy }} in 24 hours. Log in or create a free account for more.
           </template>
-          <template v-else-if="used < (limit ?? 3)">
-            {{ used }} of {{ limit }} guest {{ used === 1 ? 'request' : 'requests' }} sent today on this device.
+          <template v-else-if="!blocked">
+            {{ used }} of {{ limit }} guest {{ used === 1 ? 'request' : 'requests' }} used in the last 24 hours on this device.
           </template>
           <template v-else>
-            You've sent {{ used }} guest {{ used === 1 ? 'request' : 'requests' }} today — further ones
-            still go through, they'll just get an extra check.
-            <RouterLink to="/register" class="underline decoration-2 underline-offset-2">Create a free account</RouterLink>
-            to skip that.
+            <span class="font-bold text-red-700 dark:text-red-300">You've used your {{ limit }} guest requests for the last 24 hours.</span>
+            <RouterLink to="/login" class="underline decoration-2 underline-offset-2">Log in</RouterLink> or
+            <RouterLink to="/register" class="underline decoration-2 underline-offset-2">create a free account</RouterLink>
+            to send another request.
           </template>
         </p>
 
@@ -163,9 +161,8 @@
 
             <p v-if="submittedResult.guestStatus?.flagged"
               class="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
-              This was guest request #{{ submittedResult.guestStatus.ordinal }} today for this phone number,
-              so it's marked for a quick extra check by a dispatcher — it's still on its way to them
-              exactly like any other request.
+              This phone number has recent confirmed false alarms, so the request is marked for a quick
+              extra check by a dispatcher — it's still on its way to them like any other request.
             </p>
 
             <!-- Temporary account (reusables/temporary_accounts.php): the login
@@ -233,15 +230,29 @@
             </div>
 
             <div class="min-h-0 overflow-y-auto">
-              <p v-if="used !== null"
-                class="mx-5 mt-3 rounded-xl bg-[#f8f3e8] px-3 py-2 text-center text-xs font-semibold text-slate-500 dark:bg-white/5 dark:text-white/45">
-                {{ used }} of {{ limit }} guest {{ used === 1 ? 'request' : 'requests' }} sent today on this device —
-                a genuine emergency always goes through regardless.
-              </p>
-
-              <div class="p-4 sm:p-5">
-                <EmergencyRequestForm force-guest @submitted="onGuestSubmitted" />
+              <!-- Guest limit used up: no form, only the way forward. -->
+              <div v-if="blocked" class="px-6 pb-8 pt-2 text-center">
+                <span class="mx-auto grid h-14 w-14 place-items-center rounded-full bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-300"><Icon icon="lucide:shield-alert" width="28" /></span>
+                <h3 class="mt-3 text-lg font-black text-slate-900 dark:text-white">Guest limit reached</h3>
+                <p class="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-slate-600 dark:text-white/55">
+                  Guests can send up to {{ limit }} emergency requests in 24 hours. Log in or create a free account to send another request.
+                </p>
+                <div class="mx-auto mt-5 flex max-w-sm flex-col gap-2 sm:flex-row">
+                  <RouterLink to="/login" class="flex-1 rounded-2xl bg-red-600 px-4 py-3 text-sm font-black text-white no-underline" @click="closeGuestModal">Log in</RouterLink>
+                  <RouterLink to="/register" class="flex-1 rounded-2xl border border-base-300 px-4 py-3 text-sm font-black text-slate-700 no-underline dark:border-white/10 dark:text-white/75" @click="closeGuestModal">Create an account</RouterLink>
+                </div>
+                <p class="mt-5 text-xs font-bold text-slate-500 dark:text-white/45">Life-threatening? Call 911 now.</p>
               </div>
+              <template v-else>
+                <p v-if="used !== null"
+                  class="mx-5 mt-3 rounded-xl bg-[#f8f3e8] px-3 py-2 text-center text-xs font-semibold text-slate-500 dark:bg-white/5 dark:text-white/45">
+                  {{ used }} of {{ limit }} guest {{ used === 1 ? 'request' : 'requests' }} used in the last 24 hours on this device.
+                </p>
+
+                <div class="p-4 sm:p-5">
+                  <EmergencyRequestForm force-guest @submitted="onGuestSubmitted" />
+                </div>
+              </template>
             </div>
           </div>
         </div>
@@ -281,8 +292,8 @@ const sirens = ref([randomSirenSpot(0), randomSirenSpot(1), randomSirenSpot(2)])
 let sirenNextId = 3
 let sirenTimer = null
 
-const { limit, used, fetchStatus, applySubmissionResult } = useGuestRequestLimit()
-const softLimitCopy = computed(() => `${limit.value ?? 3} requests`)
+const { limit, used, blocked, fetchStatus, applySubmissionResult } = useGuestRequestLimit()
+const softLimitCopy = computed(() => `${limit.value ?? 2} requests`)
 
 const showGuestModal = ref(false)
 const submittedResult = ref(null)

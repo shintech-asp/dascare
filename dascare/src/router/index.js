@@ -103,7 +103,8 @@ const technicalChildren = [
   { path: 'security', name: 'TechnicalSecurity', component: TechnicalSystemStatus, meta: { title: 'Security Center', mode: 'security' } },
   { path: 'backups', name: 'TechnicalBackups', component: TechnicalSystemStatus, meta: { title: 'Backup & Recovery', mode: 'backups' } },
   { path: 'logs', name: 'TechnicalLogs', component: TechnicalAudit, meta: { title: 'System Logs' } },
-  { path: 'audit', name: 'TechnicalAuditSupport', component: TechnicalAudit, meta: { title: 'Audit Support' } },
+  // Audit Support is hidden (2026-10-17): it showed the same list as System Logs.
+  { path: 'audit', redirect: { name: 'TechnicalLogs' } },
   { path: 'configuration', name: 'TechnicalConfiguration', component: TechnicalConfiguration, meta: { title: 'System Configuration' } },
   { path: 'settings', name: 'TechnicalSettings', component: TechnicalSettings, meta: { title: 'Settings' } },
 ]

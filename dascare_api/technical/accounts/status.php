@@ -13,6 +13,9 @@ if ($status !== 'active' && $reason === '') technicalJsonError(422,'Provide an a
 $stmt=$pdo->prepare("SELECT u.account_status,ur.role,CONCAT_WS(' ',u.first_name,u.last_name) name FROM users u JOIN user_roles ur ON ur.user_id=u.id WHERE u.id=? AND ur.role IN ('technical_super_admin','platform_executive_admin') AND u.deleted_at IS NULL LIMIT 1");
 $stmt->execute([$userId]); $target=$stmt->fetch(PDO::FETCH_ASSOC);
 if(!$target) technicalJsonError(404,'Administrative account not found.');
+// Technical Super Admin accounts are protected: nobody (not even another
+// super admin, nor the account itself) can suspend or disable them.
+if($target['role']==='technical_super_admin') technicalJsonError(403,'Technical Super Admin accounts cannot be suspended or disabled.');
 try{
  $pdo->beginTransaction();
  $pdo->prepare('UPDATE users SET account_status=? WHERE id=?')->execute([$status,$userId]);

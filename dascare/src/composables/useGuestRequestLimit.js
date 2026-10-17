@@ -10,14 +10,12 @@
 //     submission, straight from create.php's authoritative (phone-keyed)
 //     guestStatus response. This is what a dispatcher will actually see.
 //
-// Nothing here ever blocks a submission — the daily count is a soft,
-// informational threshold; see reusables/guest_request_limit.php on the
-// backend for why. Module-level refs (singleton), same pattern as
+// Since 2026-10-15 the count is a HARD limit (2 per 24 h, per device / IP /
+// phone — reusables/guest_request_limit.php): `blocked` is true once it's
+// used up, and create.php refuses further guest requests with GUEST_LIMIT. Module-level refs (singleton), same pattern as
 // useSession, so the hero badge and the modal always agree.
-import { ref } from 'vue'
-import axios from 'axios'
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL
+import { computed, ref } from 'vue'
+import api from '@/services/api'
 
 const limit = ref(null)
 const used = ref(null) // null = not fetched yet
@@ -31,9 +29,8 @@ async function fetchStatus({ force = false } = {}) {
   if (hasFetched && !force) return
   loading.value = true
   try {
-    const res = await axios.get(`${API_BASE}/citizen/guest_status.php`, {
-      withCredentials: true,
-    })
+    // api.js sends this browser's guest keys, so the count covers this device.
+    const res = await api.get('/citizen/guest_status.php')
     if (res.data?.success) {
       limit.value = res.data.limit
       used.value = res.data.used
@@ -58,14 +55,23 @@ function applySubmissionResult(guestStatus) {
   flagReason.value = guestStatus.flagReason
   // ordinal is phone-keyed, so it's null when the guest left the phone blank —
   // fall back to re-reading the per-device count instead of blanking the badge.
-  if (guestStatus.ordinal == null) {
+  if (guestStatus.used == null) {
     fetchStatus({ force: true })
     return
   }
-  used.value = guestStatus.ordinal
+  used.value = guestStatus.used
+  hasFetched = true
+}
+
+const blocked = computed(() => used.value != null && limit.value != null && used.value >= limit.value)
+
+// create.php refused the request (GUEST_LIMIT): show the blocked state.
+function markBlocked(data) {
+  limit.value = data?.limit ?? limit.value ?? 2
+  used.value = Math.max(data?.used ?? 0, limit.value)
   hasFetched = true
 }
 
 export function useGuestRequestLimit() {
-  return { limit, used, flagged, flagReason, loading, fetchStatus, applySubmissionResult }
+  return { limit, used, blocked, flagged, flagReason, loading, fetchStatus, applySubmissionResult, markBlocked }
 }

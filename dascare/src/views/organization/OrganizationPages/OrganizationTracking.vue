@@ -24,9 +24,9 @@
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
                   <p class="truncate text-sm font-black text-slate-900 dark:text-white">{{ m.reference_number }}</p>
-                  <p class="mt-1 text-xs text-slate-500 dark:text-white/45">{{ m.unit_code }} · {{ pretty(m.assignment_status) }}</p>
+                  <p class="mt-1 truncate text-xs text-slate-500 dark:text-white/45">{{ m.unit_code }} · {{ pretty(m.assignment_status) }}</p>
                 </div>
-                <span class="rounded-full px-2 py-1 text-[.58rem] font-black uppercase" :class="m.location_stale?'bg-amber-50 text-amber-700':'bg-emerald-50 text-emerald-700'">{{ m.location_stale ? 'Stale' : 'Live' }}</span>
+                <span class="flex-shrink-0 rounded-full px-2 py-1 text-[.58rem] font-black uppercase" :class="m.location_stale?'bg-amber-50 text-amber-700':'bg-emerald-50 text-emerald-700'">{{ m.location_stale ? 'Stale' : 'Live' }}</span>
               </div>
               <p class="mt-2 text-[.65rem] text-slate-400">{{ m.last_location_at ? `Updated ${relative(m.last_location_at)}` : 'No GPS fix yet' }}</p>
             </button>
@@ -39,12 +39,12 @@
           <template v-else-if="selected">
             <header class="border-b border-base-300 p-5 dark:border-white/10 sm:p-6">
               <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
+                <div class="min-w-0">
                   <div class="flex flex-wrap items-center gap-2">
-                    <h2 class="text-xl font-black text-slate-950 dark:text-white">{{ selected.reference_number }}</h2>
+                    <h2 class="break-words text-xl font-black text-slate-950 dark:text-white">{{ selected.reference_number }}</h2>
                     <span class="rounded-full bg-red-50 px-2.5 py-1 text-[.62rem] font-black uppercase text-red-700 dark:bg-red-500/10 dark:text-red-300">{{ pretty(selected.assignment_status) }}</span>
                   </div>
-                  <p class="mt-2 text-sm text-slate-500 dark:text-white/45">{{ selected.address_text }}</p>
+                  <p class="mt-2 break-words text-sm text-slate-500 dark:text-white/45">{{ selected.address_text }}</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
                   <button v-if="canShareSelected && !sharing" class="rounded-xl bg-red-600 px-4 py-2.5 text-xs font-black text-white hover:bg-red-700" @click="startSharing"><Icon icon="lucide:locate-fixed" width="14" class="mr-1 inline"/>Share This Device GPS</button>
@@ -59,7 +59,7 @@
             </header>
 
             <div class="space-y-5 p-5 sm:p-6">
-              <div class="grid gap-3 sm:grid-cols-4">
+              <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <Stat label="Ambulance" :value="selected.unit_code" icon="lucide:ambulance" />
                 <Stat label="GPS state" :value="selected.location_stale ? 'Stale / offline' : 'Live'" icon="lucide:satellite" />
                 <Stat label="Accuracy" :value="selected.last_accuracy_m != null ? `${Math.round(selected.last_accuracy_m)} m` : '—'" icon="lucide:crosshair" />
@@ -71,7 +71,7 @@
               </div>
               <!-- Assigned crew not sharing yet: the requester sees "Waiting for live location" until they do -->
               <div v-else-if="selected.assigned_to_current_user && canShare" class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/20 dark:bg-amber-500/10">
-                <p class="text-sm font-semibold text-amber-900 dark:text-amber-200"><Icon icon="lucide:satellite-dish" width="16" class="mr-1.5 inline"/>Your GPS isn't being shared. The requester is waiting to see the ambulance move — start sharing from the phone inside the ambulance and keep this page open.</p>
+                <p class="min-w-0 flex-1 basis-64 text-sm font-semibold text-amber-900 dark:text-amber-200"><Icon icon="lucide:satellite-dish" width="16" class="mr-1.5 inline"/>Your GPS isn't being shared. The requester is waiting to see the ambulance move — start sharing from the phone inside the ambulance and keep this page open.</p>
                 <button class="rounded-xl bg-red-600 px-4 py-2.5 text-xs font-black text-white hover:bg-red-700" @click="startSharing"><Icon icon="lucide:locate-fixed" width="14" class="mr-1 inline"/>Start sharing GPS</button>
               </div>
               <!-- Assigned to the mission, but their org role can't share location (dispatch.tracking.update) -->
@@ -108,7 +108,7 @@ let watchId = null, lastSentAt = 0, lastPos = null, heartbeat = null
 const selected = computed(() => missions.value.find(m => m.id === selectedId.value) || missions.value[0] || null)
 const canShareSelected = computed(() => !!selected.value?.assigned_to_current_user && canShare.value)
 
-const Stat = defineComponent({ props:{label:String,value:[String,Number],icon:String}, setup(p){ return()=>h('div',{class:'rounded-2xl border border-base-300 bg-base-200/35 p-4 dark:border-white/10 dark:bg-white/[.03]'},[h(Icon,{icon:p.icon,width:16,class:'text-red-600'}),h('p',{class:'mt-3 text-[.62rem] font-black uppercase tracking-[.12em] text-slate-400'},p.label),h('p',{class:'mt-1 text-sm font-black text-slate-900 dark:text-white'},p.value||'—')]) } })
+const Stat = defineComponent({ props:{label:String,value:[String,Number],icon:String}, setup(p){ return()=>h('div',{class:'min-w-0 rounded-2xl border border-base-300 bg-base-200/35 p-4 dark:border-white/10 dark:bg-white/[.03]'},[h(Icon,{icon:p.icon,width:16,class:'text-red-600'}),h('p',{class:'mt-3 text-[.62rem] font-black uppercase tracking-[.12em] text-slate-400'},p.label),h('p',{class:'mt-1 break-words text-sm font-black text-slate-900 dark:text-white'},p.value||'—')]) } })
 const pretty=v=>String(v||'').replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase())
 function relative(v){ if(!v)return'—'; const ms=Date.now()-new Date(String(v).replace(' ','T')).getTime(); const sec=Math.max(0,Math.floor(ms/1000)); if(sec<60)return`${sec}s ago`; const min=Math.floor(sec/60); if(min<60)return`${min}m ago`; return`${Math.floor(min/60)}h ago` }
 

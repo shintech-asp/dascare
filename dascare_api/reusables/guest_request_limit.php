@@ -34,9 +34,17 @@
 // Thresholds — tune here. Nothing else in this file hardcodes a number.
 // ------------------------------------------------------------------
 
-// Requests from the same phone number, per rolling 24h window, before
-// further ones get flagged for dispatcher verification (not blocked).
-const GUEST_DAILY_SOFT_LIMIT = 3;
+// HARD LIMIT (2026-10-15, owner's decision): a guest may send at most this
+// many emergency requests per rolling 24h window. The next one is refused
+// with GUEST_LIMIT and the guest is asked to log in / register (an account
+// has no such cap). Counted per device (guest keys / temporary account in
+// the session), per IP and per phone number — the highest count wins, so
+// clearing the browser or leaving the phone blank doesn't reset it.
+// The older soft-flag notes above describe the pre-2026-10-15 behaviour.
+const GUEST_DAILY_LIMIT = 2;
+// Kept for the flag logic below (now unreachable for the daily count,
+// since nothing gets past GUEST_DAILY_LIMIT) and old callers.
+const GUEST_DAILY_SOFT_LIMIT = GUEST_DAILY_LIMIT;
 const GUEST_DAILY_WINDOW_SECONDS = 86400;
 
 // Confirmed false alarms (status = 'false_alarm', set by a dispatcher/
@@ -204,3 +212,38 @@ function consumeGuestIpRequest(PDO $pdo, string $ip): int
 
     return getGuestIpRequestCount($pdo, $ip);
 }
+
+/**
+ * Guest requests this device sent in the last 24h: the request ids the
+ * session knows (guest keys from X-Guest-Tokens, the temporary account),
+ * counted on the DB clock.
+ */
+function getGuestDeviceRequestCount(PDO $pdo): int
+{
+    $ids = array_values(array_unique(array_map('intval', $_SESSION['guest_request_ids'] ?? [])));
+    $tempId = (int) ($_SESSION['temp_account_id'] ?? 0);
+    if (!$ids && $tempId <= 0) return 0;
+    $where = [];
+    $params = [];
+    if ($ids) { $where[] = 'id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')'; $params = $ids; }
+    if ($tempId > 0) {
+        try {
+            $pdo->query('SELECT temporary_account_id FROM emergency_requests LIMIT 0');
+            $where[] = 'temporary_account_id = ?';
+            $params[] = $tempId;
+        } catch (Throwable $e) { /* temporary accounts migration not run */ }
+    }
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM emergency_requests WHERE source = 'guest' AND submitted_at >= NOW() - INTERVAL ? SECOND AND (" . implode(' OR ', $where) . ')');
+    $stmt->execute(array_merge([GUEST_DAILY_WINDOW_SECONDS], $params));
+    return (int) $stmt->fetchColumn();
+}
+
+/** Guest requests already used in the window: max of device, IP and phone counts. */
+function guestRequestsUsed(PDO $pdo, string $ip, string $normalizedPhone = ''): int
+{
+    $used = max(getGuestDeviceRequestCount($pdo), getGuestIpRequestCount($pdo, $ip));
+    if ($normalizedPhone !== '') $used = max($used, getGuestPhoneRequestCount($pdo, $normalizedPhone));
+    return $used;
+}
+
+const GUEST_LIMIT_MESSAGE = 'Guests can send up to 2 emergency requests in 24 hours. Log in or create a free account to send another request. If this is life-threatening, call 911 now.';

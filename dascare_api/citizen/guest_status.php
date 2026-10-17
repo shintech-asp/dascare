@@ -17,11 +17,15 @@ header('Content-Type: application/json');
 $ip = getClientIp();
 
 try {
-    $used = getGuestIpRequestCount($pdo, $ip);
+    // Device (guest keys / temporary account) + IP — the same count
+    // create.php enforces, minus the phone number the guest hasn't typed yet.
+    $used = guestRequestsUsed($pdo, $ip);
     echo json_encode([
         'success'    => true,
-        'limit'      => GUEST_DAILY_SOFT_LIMIT,
+        'limit'      => GUEST_DAILY_LIMIT,
         'used'       => $used,
+        'blocked'    => $used >= GUEST_DAILY_LIMIT,
+        'message'    => $used >= GUEST_DAILY_LIMIT ? GUEST_LIMIT_MESSAGE : null,
         'indicative' => true, // this device/IP only — the real per-phone count is authoritative at submit time
     ]);
 } catch (Throwable $e) {
@@ -31,7 +35,7 @@ try {
     http_response_code(200);
     echo json_encode([
         'success'    => true,
-        'limit'      => GUEST_DAILY_SOFT_LIMIT,
+        'limit'      => GUEST_DAILY_LIMIT,
         'used'       => 0,
         'indicative' => true,
     ]);

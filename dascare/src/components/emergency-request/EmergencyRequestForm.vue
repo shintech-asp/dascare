@@ -110,6 +110,12 @@
         </p>
       </div>
 
+      <!-- What happened? Optional label for dispatch; nothing picked = "Other". -->
+      <div>
+        <p class="mb-2 text-xs font-semibold text-slate-600 dark:text-white/60">What happened? <span class="font-normal text-slate-400 dark:text-white/30">(optional — tap one)</span></p>
+        <EmergencyTypePicker v-model="form.emergency_category_id" clearable hide-other />
+      </div>
+
       <!-- The big button — same weight & shadow language as before -->
       <button
         type="button"
@@ -305,7 +311,10 @@
 import { addBasemap, loadLeaflet } from '@/services/basemap'
 import axios from 'axios'
 import { refreshRealtimeAccess } from '@/services/realtime'
-import { rememberGuestRequest } from '@/services/guestRequests'
+import { guestTokensHeader, rememberGuestRequest } from '@/services/guestRequests'
+import { useGuestRequestLimit } from '@/composables/useGuestRequestLimit'
+import EmergencyTypePicker from '@/components/emergency-request/EmergencyTypePicker.vue'
+import { OTHER_EMERGENCY_TYPE } from '@/config/emergencyTypes'
 import { reactive, ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAlert } from '@/composables/useAlert'
@@ -320,16 +329,17 @@ const props = defineProps({
 const emit = defineEmits(['submitted'])
 
 const alert = useAlert()
+const guestLimit = useGuestRequestLimit()
 const toast = useToast()
 const { user } = useSession()
 const API_BASE = import.meta.env.VITE_API_BASE_URL
 
 const isGuest = computed(() => props.forceGuest || !user.value)
 
-// No category / severity pickers anymore — every request is critical and
-// category "Other" (id 8, mirrors emergency_categories seed data). Dispatch
-// and the crew classify it on the call or on scene.
-const GENERIC_CATEGORY_ID = 8
+// No severity picker — every request is critical. The emergency type is an
+// optional one-tap label (EmergencyTypePicker); nothing picked = "Other"
+// (id 8). The handling organization can relabel it later.
+const GENERIC_CATEGORY_ID = OTHER_EMERGENCY_TYPE
 
 const submitting = ref(false)
 const showDetails = ref(false)
@@ -343,6 +353,7 @@ const form = reactive({
   requester_phone: '',
   requester_name: '',
   description: '',
+  emergency_category_id: null,
 })
 
 const quickDetails = reactive({
@@ -614,7 +625,7 @@ async function submitRequest() {
   submitting.value = true
   try {
     const fd = new FormData()
-    fd.append('emergency_category_id', GENERIC_CATEGORY_ID)
+    fd.append('emergency_category_id', form.emergency_category_id || GENERIC_CATEGORY_ID)
     fd.append('severity', 'critical')
     fd.append('description', buildDescription())
     fd.append('address_text', form.address_text.trim())
@@ -631,7 +642,9 @@ async function submitRequest() {
 
     const res = await axios.post(`${API_BASE}/citizen/create.php`, fd, {
       withCredentials: true,
-      headers: { 'Content-Type': 'multipart/form-data' },
+      // Guest keys let the server count this device's earlier guest
+      // requests (2 per 24 h limit) even after the cookie session ended.
+      headers: { 'Content-Type': 'multipart/form-data', ...(guestTokensHeader() ? { 'X-Guest-Tokens': guestTokensHeader() } : {}) },
     })
 
     if (res.data?.success) {
@@ -651,6 +664,11 @@ async function submitRequest() {
     }
   } catch (err) {
     console.error(err)
+    if (err.response?.data?.code === 'GUEST_LIMIT') {
+      guestLimit.markBlocked(err.response.data)
+      alert.error(err.response.data.message, 'Guest limit reached')
+      return
+    }
     alert.error(err.response?.data?.message || 'Could not submit request — please try again', 'Error')
   } finally {
     submitting.value = false

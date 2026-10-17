@@ -79,6 +79,7 @@
         </header>
 
         <div class="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
+          <div class="sm:col-span-2"><span :class="labelClass">Emergency type</span><EmergencyTypePicker v-model="form.emergency_category_id" /></div>
           <label class="block"><span :class="labelClass">Requester name</span><input v-model.trim="form.requester_name" :class="fieldClass" placeholder="Juan Dela Cruz" /></label>
           <label class="block"><span :class="labelClass">Contact number</span><input v-model.trim="form.requester_phone" :class="fieldClass" placeholder="09XXXXXXXXX" /></label>
           <label class="block"><span :class="labelClass">Barangay</span><input v-model.trim="form.barangay" :class="fieldClass" placeholder="Barangay" /></label>
@@ -106,6 +107,7 @@ import PageShell from '@/components/management/PageShell.vue'
 import { useSession } from '@/composables/useSession'
 import { useToast } from '@/composables/useToast'
 import { fetchOrganizationIncidents, updateIncidentDetails } from '@/services/organizationCompletion'
+import EmergencyTypePicker from '@/components/emergency-request/EmergencyTypePicker.vue'
 import { fetchOrganizationLinkedReports, unmergeOrganizationReport } from '@/services/dispatchOperations'
 import LinkedReportsPanel from '@/components/incidents/LinkedReportsPanel.vue'
 
@@ -144,7 +146,7 @@ const unplaceholder = v => PLACEHOLDERS.includes((v || '').trim()) ? '' : (v || 
 
 const editOpen = ref(false)
 const saving = ref(false)
-const form = reactive({ id: null, reference_number: '', requester_name: '', requester_phone: '', barangay: '', address_text: '', landmark: '', description: '' })
+const form = reactive({ id: null, reference_number: '', requester_name: '', requester_phone: '', barangay: '', address_text: '', landmark: '', description: '', emergency_category_id: null })
 
 const phoneInvalid = computed(() => {
   const p = (form.requester_phone || '').replace(/[\s-]/g, '')
@@ -160,6 +162,7 @@ function openEdit(i) {
   form.address_text = unplaceholder(i.address_text)
   form.landmark = i.landmark || ''
   form.description = unplaceholder(i.description)
+  form.emergency_category_id = Number(i.emergency_category_id) || null
   editOpen.value = true
 }
 
@@ -175,6 +178,7 @@ async function save() {
       address_text: form.address_text,
       landmark: form.landmark,
       description: form.description,
+      emergency_category_id: form.emergency_category_id || 0,
     })
     toast.success('Incident details updated.', 'Saved')
     editOpen.value = false

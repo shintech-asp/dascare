@@ -205,6 +205,15 @@ if ($normalizedPhone !== '' && !preg_match($phonePattern, $normalizedPhone)) {
 // to key the lookup on); the per-IP rate limit above still applies.
 $guestVerificationFlag = null;
 $projectedOrdinal = null; // stays null for a guest who left the phone blank
+// Hard guest cap (GUEST_DAILY_LIMIT per 24h, see guest_request_limit.php).
+if ($isGuest) {
+    $guestUsed = guestRequestsUsed($pdo, $ip, $normalizedPhone);
+    if ($guestUsed >= GUEST_DAILY_LIMIT) {
+        http_response_code(429);
+        echo json_encode(['success' => false, 'code' => 'GUEST_LIMIT', 'message' => GUEST_LIMIT_MESSAGE, 'limit' => GUEST_DAILY_LIMIT, 'used' => $guestUsed]);
+        exit;
+    }
+}
 if ($isGuest && $normalizedPhone !== '') {
     $projectedOrdinal = getGuestPhoneRequestCount($pdo, $normalizedPhone) + 1;
     $falseAlarmCount = getGuestFalseAlarmCount($pdo, $normalizedPhone);
@@ -529,7 +538,8 @@ if ($isGuest) {
     }
     consumeGuestIpRequest($pdo, $ip); // indicative counter only, see guest_status.php
     $guestStatus = [
-        'limit'     => GUEST_DAILY_SOFT_LIMIT,
+        'limit'     => GUEST_DAILY_LIMIT,
+        'used'      => guestRequestsUsed($pdo, $ip, $normalizedPhone),
         'ordinal'   => $projectedOrdinal, // this request's position today, e.g. 4th
         'flagged'   => $guestVerificationFlag !== null,
         'flagReason'=> $guestVerificationFlag,

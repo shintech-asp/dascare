@@ -30,7 +30,6 @@ export const dashboardWorkspaces = {
         label: 'Monitoring',
         items: [
           { label: 'System Logs', to: '/system/logs', icon: 'lucide:scroll-text' },
-          { label: 'Audit Support', to: '/system/audit', icon: 'lucide:file-search' },
           { label: 'Configuration', to: '/system/configuration', icon: 'lucide:sliders-horizontal' },
         ],
       },

@@ -190,7 +190,7 @@ function dotElement(color, { pulse = false, size = 16, icon = '', label = '', be
 // Caption above a pin. Escaped: labels can contain unit codes / facility names.
 function labelHtml(text, color, below = false) {
   const safe = String(text).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
-  return `<span style="position:absolute;left:50%;${below ? 'top' : 'bottom'}:calc(100% + 7px);transform:translateX(-50%);white-space:nowrap;border-radius:9999px;background:white;color:#0f172a;border:2px solid ${color};padding:2px 8px;font:800 11px/1.3 system-ui,sans-serif;box-shadow:0 2px 6px rgba(0,0,0,.2);pointer-events:none">${safe}</span>`
+  return `<span style="position:absolute;left:50%;${below ? 'top' : 'bottom'}:calc(100% + 7px);transform:translateX(-50%);white-space:nowrap;max-width:190px;overflow:hidden;text-overflow:ellipsis;border-radius:9999px;background:white;color:#0f172a;border:2px solid ${color};padding:2px 8px;font:800 11px/1.3 system-ui,sans-serif;box-shadow:0 2px 6px rgba(0,0,0,.2);pointer-events:none">${safe}</span>`
 }
 
 const markerLabels = {} // key -> caption the marker was built with

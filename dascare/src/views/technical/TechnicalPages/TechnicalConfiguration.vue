@@ -52,7 +52,7 @@
             <p class="mt-1 max-w-2xl text-sm text-slate-500 dark:text-white/45">Open screens update the moment something changes (via Ably) instead of waiting for the next 15-second refresh. If it is off or unavailable, screens simply keep refreshing on their own.</p>
           </div>
           <label class="flex items-center gap-2 rounded-xl bg-base-200 px-3 py-2 text-xs font-black text-slate-600 dark:bg-white/5 dark:text-white/60" :class="savingRealtime ? 'opacity-60' : 'cursor-pointer'">
-            <input :checked="realtime.enabled" type="checkbox" :disabled="savingRealtime" class="toggle toggle-sm border-slate-300 bg-slate-200 text-red-600 [--tglbg:white] checked:border-red-600 checked:bg-red-600" @change="toggleRealtime($event.target.checked)" />
+            <input :checked="realtime.enabled" type="checkbox" :disabled="savingRealtime" class="toggle toggle-sm border-slate-300 bg-slate-200 text-red-600 [--tglbg:white] checked:border-red-600 checked:bg-red-600" @change="toggleRealtime($event.target.checked, $event.target)" />
             {{ realtime.enabled ? 'Enabled' : 'Disabled' }}
           </label>
         </div>
@@ -161,10 +161,11 @@ import { computed, onMounted, ref } from 'vue'
 import PageShell from '@/components/management/PageShell.vue'
 import { fetchRealtimeUsage, fetchTechnicalConfiguration, saveTechnicalConfiguration, saveTechnicalConfigurationBatch } from '@/services/adminCompletion'
 import { useToast } from '@/composables/useToast'
+import { useAlert } from '@/composables/useAlert'
 import { Icon } from '@iconify/vue'
 import { realtimeState, resetRealtime, runRealtimeLatency, runRealtimeTest } from '@/services/realtime'
 
-const toast = useToast(), items = ref([]), drafts = ref({})
+const toast = useToast(), alert = useAlert(), items = ref([]), drafts = ref({})
 const format = v => v ? new Date(String(v).replace(' ', 'T')).toLocaleString() : '—'
 function encode(v) { return typeof v === 'string' ? v : JSON.stringify(v) }
 function decode(v) { try { return JSON.parse(v) } catch { return v } }
@@ -186,7 +187,11 @@ const REALTIME_KEY = 'realtime.enabled'
 const realtime = ref({ configured: false, enabled: true, key_name: null })
 const savingRealtime = ref(false), testing = ref(false), testResult = ref(null)
 const stateLabel = computed(() => ({ idle: 'Not connected', disabled: 'Off', initialized: 'Starting', connecting: 'Connecting', connected: 'Connected', disconnected: 'Reconnecting', suspended: 'Offline', closing: 'Closing', closed: 'Closed', failed: 'Failed' })[realtimeState.value] || realtimeState.value)
-async function toggleRealtime(enabled) {
+async function toggleRealtime(enabled, input) {
+  const ok = await alert.confirm(enabled
+    ? 'Turn live updates on? Screens will switch from polling to instant updates.'
+    : 'Turn live updates off? Every screen will fall back to refreshing every 15 seconds.', 'Change configuration')
+  if (!ok) { if (input) input.checked = !enabled; return }
   savingRealtime.value = true
   try {
     const d = await saveTechnicalConfiguration(REALTIME_KEY, enabled)
@@ -244,11 +249,21 @@ async function load() {
   if (d.dedup_limits) limits.value = d.dedup_limits
   if (d.realtime) realtime.value = d.realtime
 }
+// Every configuration change asks first, showing the old and new value.
+const preview = (v) => { const t = encode(v); return t.length > 80 ? `${t.slice(0, 80)}…` : t }
 async function save(key) {
+  const current = items.value.find((i) => i.key === key)
+  const next = decode(drafts.value[key])
+  if (current && encode(current.value) === encode(next)) { toast.info('No changes to save.'); return }
+  const ok = await alert.confirm(`Change "${key}" from ${preview(current?.value)} to ${preview(next)}?`, 'Change configuration')
+  if (!ok) return
   try { const d = await saveTechnicalConfiguration(key, decode(drafts.value[key])); toast.success(d.message); await load() }
   catch (e) { toast.error(e?.response?.data?.message || 'Unable to save configuration.') }
 }
 async function saveDedup() {
+  const d0 = dedup.value
+  const ok = await alert.confirm(`Save duplicate detection: ${d0.enabled ? 'on' : 'off'}, ${d0.radius_meters} m radius, ${windowLabel.value} window, at least ${d0.min_requests} reports?`, 'Change configuration')
+  if (!ok) return
   savingDedup.value = true
   try {
     const d = await saveTechnicalConfigurationBatch(Object.entries(DEDUP_KEYS).map(([field, key]) => ({ key, value: dedup.value[field] })))

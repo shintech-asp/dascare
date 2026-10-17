@@ -57,3 +57,19 @@ function careAudit(PDO $pdo, array $ctx, string $action, string $entityType, int
         mb_substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
     ]);
 }
+
+/**
+ * Only members holding their organization's "Dispatcher" role may confirm
+ * the physical handoff (patient received by the facility). Deliberately a
+ * role check, not a permission: the organization admin's permission bypass
+ * and crew roles that carry hospital.handoffs.approve do not count.
+ * Recording "facility accepted / declined" stays permission-based.
+ */
+function careCanConfirmHandoff(PDO $pdo, array $ctx): bool
+{
+    $stmt = $pdo->prepare("SELECT 1 FROM org_member_roles omr
+        JOIN org_roles r ON r.id = omr.role_id AND r.deleted_at IS NULL
+        WHERE omr.organization_member_id = ? AND r.organization_id = ? AND LOWER(TRIM(r.role_name)) = 'dispatcher' LIMIT 1");
+    $stmt->execute([(int) $ctx['organization_member_id'], (int) $ctx['organization_id']]);
+    return (bool) $stmt->fetchColumn();
+}
