@@ -14,6 +14,7 @@ require_once __DIR__ . '/../../db/db.php';
 require_once __DIR__ . '/../../reusables/rate_limit.php';
 require_once __DIR__ . '/../../reusables/email_helper.php';
 require_once __DIR__ . '/../../reusables/mobile_auth.php';
+require_once __DIR__ . '/../../reusables/false_alarm_sanctions.php';
 header('Content-Type: application/json');
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') mobileJson(405, ['success' => false, 'message' => 'Method not allowed.']);
@@ -47,6 +48,15 @@ if (!$user) {
     recordAttempt($pdo, 'login', $ip);
     recordAttempt($pdo, 'login', $email);
     mobileJson(401, ['success' => false, 'message' => 'Invalid email or password']);
+}
+// False-alarm suspensions: same handling as auth/login.php.
+if ($user['account_status'] === 'suspended') {
+    sanctionAutoLift($pdo, (int) $user['id']);
+    $user['account_status'] = (string) $pdo->query('SELECT account_status FROM users WHERE id = ' . (int) $user['id'])->fetchColumn();
+}
+if ($user['account_status'] === 'suspended' && password_verify($password, $user['password_hash'])) {
+    $refusal = sanctionLoginRefusal($pdo, (int) $user['id']);
+    if ($refusal) mobileJson(403, $refusal);
 }
 if ($user['account_status'] === 'suspended') {
     mobileJson(403, ['success' => false, 'code' => 'ACCOUNT_SUSPENDED', 'message' => 'Your account has been suspended. Please contact support for assistance.']);

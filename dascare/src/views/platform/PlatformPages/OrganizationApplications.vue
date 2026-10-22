@@ -262,6 +262,7 @@
 </template>
 
 <script setup>
+import { organizationDocumentLabel } from '@/config/organizationDocuments'
 import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
@@ -314,7 +315,7 @@ const statCards = [
   { key: 'total', tab: 'all', label: 'Total applications', icon: 'lucide:files', iconClass: 'bg-base-200 text-slate-500 dark:bg-white/5 dark:text-white/40' },
 ]
 
-const typeMap = { city_rescue: 'City Rescue / LGU Unit', barangay_rescue: 'Barangay Rescue Unit', hospital: 'Hospital Ambulance Service', private_ambulance: 'Private Ambulance / Rescue Service', other: 'Other Rescue Organization' }
+const typeMap = { city_rescue: 'City Rescue / LGU', barangay_rescue: 'Barangay Rescue Unit', hospital: 'Hospital Ambulance Service', private_ambulance: 'Private Ambulance / Rescue Service', other: 'Other Rescue Organization' }
 const typeLabel = value => typeMap[value] || value || '—'
 const statusLabel = status => ({ pending: 'Pending Review', revision_requested: 'Revision Requested', approved: 'Approved', rejected: 'Rejected' }[status] || status || 'Unknown')
 const statusBadgeClass = status => status === 'approved' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : status === 'revision_requested' ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300' : status === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
@@ -330,7 +331,7 @@ const InfoField = defineComponent({
 
 const formatDate = value => value ? new Date(String(value).replace(' ', 'T')).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—'
 const formatFileSize = bytes => { const value = Number(bytes || 0); if (!value) return '—'; if (value < 1024 * 1024) return `${Math.max(1, Math.round(value / 1024))} KB`; return `${(value / 1024 / 1024).toFixed(1)} MB` }
-const documentLabel = type => ({ registration_document: 'Registration / authorization', operating_authority: 'Operating / accreditation', supporting_document: 'Additional supporting document' }[type] || type || 'Document')
+const documentLabel = organizationDocumentLabel // config/organizationDocuments.js
 const documentStatusClass = status => status === 'approved' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : status === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
 const documentIcon = document => document.mime_type === 'application/pdf' ? 'lucide:file-text' : 'lucide:image'
 const historyLabel = action => ({ 'organization.application_submitted': 'Application submitted', 'organization.application_approve': 'Application approved', 'organization.application_revision': 'Revision requested', 'organization.application_reject': 'Application rejected' }[action] || action.replaceAll('.', ' ').replaceAll('_', ' '))

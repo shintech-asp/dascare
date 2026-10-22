@@ -102,8 +102,53 @@
         <p v-else-if="form.address_text" class="text-[0.68rem] text-slate-400 dark:text-white/30 mt-1">{{ form.address_text }}</p>
       </div>
 
+      <!-- Witness report: "I saw it, it's someone else who needs help". Then
+           what they saw is required and photos are encouraged — responders
+           see both (organizations/incidents/report.php). -->
+      <div class="rounded-2xl border px-4 py-3 transition-colors" :class="form.reporter_type === 'witness' ? 'border-amber-300 bg-amber-50/70 dark:border-amber-500/30 dark:bg-amber-500/5' : 'border-base-300 dark:border-white/10'">
+        <div class="flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <p class="text-sm font-bold text-slate-800 dark:text-white/80">Did you see someone else in an emergency?</p>
+            <p class="text-xs text-slate-500 dark:text-white/45">Turn on if you're reporting for another person.</p>
+          </div>
+          <label class="flex flex-shrink-0 cursor-pointer items-center gap-2 text-xs font-bold text-slate-600 dark:text-white/60">
+            {{ form.reporter_type === 'witness' ? 'Yes' : 'No' }}
+            <input type="checkbox" class="toggle toggle-sm border-slate-300 bg-slate-200 text-amber-500 [--tglbg:white] checked:border-amber-500 checked:bg-amber-500"
+              :checked="form.reporter_type === 'witness'" @change="form.reporter_type = $event.target.checked ? 'witness' : 'self'" />
+          </label>
+        </div>
+        <div v-if="form.reporter_type === 'witness'" class="mt-3 space-y-3 border-t border-amber-200/70 pt-3 dark:border-amber-500/20">
+          <div>
+            <label class="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-white/65">What did you see? <span class="text-red-500">*</span></label>
+            <textarea ref="witnessEl" v-model="form.witness_details" rows="3" maxlength="1500"
+              placeholder="e.g. A motorcycle crashed into a jeep. The rider is on the road, not moving, bleeding from the head."
+              class="w-full rounded-xl border border-base-300 bg-base-100 px-3.5 py-2.5 text-sm text-slate-800 focus:border-amber-500 focus:outline-none dark:border-white/10 dark:bg-white/5 dark:text-white"></textarea>
+          </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-white/65">Photos of the scene <span class="font-normal text-slate-400 dark:text-white/30">(if you safely can — up to 3)</span></label>
+            <div class="rounded-2xl border-2 border-dashed border-slate-200 dark:border-white/10 p-3">
+              <input
+                type="file" accept="image/jpeg,image/png,image/webp" multiple
+                :disabled="photos.length >= 3"
+                @change="onPhotosChange"
+                class="w-full text-xs text-slate-500 dark:text-white/45 file:mr-3 file:rounded-lg file:border-0 file:bg-[#1976D2] file:text-white file:px-3.5 file:py-1.5 file:text-xs file:font-semibold file:cursor-pointer disabled:opacity-50"
+              />
+              <div v-if="photos.length" class="mt-2.5 flex flex-wrap gap-2">
+                <div v-for="(p, i) in photos" :key="i" class="relative">
+                  <img :src="p.preview" class="w-16 h-16 rounded-xl object-cover border-2 border-slate-200 dark:border-white/10" />
+                  <button type="button" @click="removePhoto(i)"
+                    class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-sm">
+                    <Icon icon="lucide:x" width="11" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Medical records notice — citizens only; guests have no record to attach. -->
-      <div v-if="!isGuest" class="flex items-start gap-2.5 rounded-2xl border border-red-200 dark:border-red-500/20 bg-red-50/60 dark:bg-red-500/5 px-4 py-3">
+      <div v-if="!isGuest && form.reporter_type !== 'witness'" class="flex items-start gap-2.5 rounded-2xl border border-red-200 dark:border-red-500/20 bg-red-50/60 dark:bg-red-500/5 px-4 py-3">
         <Icon icon="lucide:heart-pulse" width="16" class="text-red-600 dark:text-red-300 flex-shrink-0 mt-0.5" />
         <p class="text-xs leading-relaxed text-red-800 dark:text-red-200/80">
           Your saved emergency information will be shared with the responding crew automatically.
@@ -240,8 +285,8 @@
             <p v-else class="text-[0.68rem] text-slate-400 dark:text-white/30">Use the map above to adjust the pin.</p>
           </div>
 
-          <!-- Evidence photos -->
-          <div>
+          <!-- Evidence photos (shown in the witness box instead when reporting for someone else) -->
+          <div v-if="form.reporter_type !== 'witness'">
             <label class="block text-xs font-semibold text-slate-600 dark:text-white/60 mb-1.5">
               Photos <span class="font-normal text-slate-400 dark:text-white/30">(optional, up to 3)</span>
             </label>
@@ -354,6 +399,8 @@ const form = reactive({
   requester_name: '',
   description: '',
   emergency_category_id: null,
+  reporter_type: 'self', // 'witness' = reporting for someone else
+  witness_details: '',
 })
 
 const quickDetails = reactive({
@@ -498,6 +545,7 @@ function toggleDetails() {
 // ------------------------------------------------------------------
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const photos = ref([]) // [{ file, preview }]
+const witnessEl = ref(null)
 
 function onPhotosChange(e) {
   const files = Array.from(e.target.files || [])
@@ -595,7 +643,8 @@ function buildDescription() {
   if (quickDetails.conscious) bits.push(`Conscious: ${quickDetails.conscious === 'yes' ? 'Yes' : 'No'}`)
   if (quickDetails.breathing) bits.push(`Breathing: ${quickDetails.breathing === 'yes' ? 'Yes' : 'No'}`)
   const summary = bits.length ? bits.join(' · ') + '\n\n' : ''
-  const body = form.description.trim()
+  const witness = form.reporter_type === 'witness' ? `WITNESS REPORT — ${form.witness_details.trim()}` : ''
+  const body = [witness, form.description.trim()].filter(Boolean).join('\n\n')
   return (summary + body).trim()
 }
 
@@ -622,6 +671,13 @@ async function submitRequest() {
     return
   }
 
+  // Witness: what they saw is required (responders need it to know what to expect).
+  if (form.reporter_type === 'witness' && form.witness_details.trim().length < 10) {
+    toast.error('Please describe what you saw so the responders know what to expect.', 'What did you see?')
+    witnessEl.value?.focus()
+    return
+  }
+
   submitting.value = true
   try {
     const fd = new FormData()
@@ -634,6 +690,8 @@ async function submitRequest() {
     fd.append('latitude', form.latitude)
     fd.append('longitude', form.longitude)
     fd.append('request_mode', 'instant')
+    fd.append('reporter_type', form.reporter_type)
+    if (form.reporter_type === 'witness') fd.append('witness_details', form.witness_details.trim())
     // Phone: send whatever we have; the backend falls back to the account's
     // number for a logged-in citizen, so a blank here is fine for them.
     if (form.requester_phone) fd.append('requester_phone', form.requester_phone.trim())

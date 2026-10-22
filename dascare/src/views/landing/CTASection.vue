@@ -30,29 +30,16 @@
         </div>
 
         <div class="relative grid w-full gap-3 sm:grid-cols-2 lg:w-auto lg:min-w-[430px]">
+          <!-- One request form now (EmergencyRequestForm) — same button as the hero. -->
           <button
             type="button"
-            @click="openGuestRequest('instant')"
-            class="group flex items-center gap-3 rounded-2xl bg-red-600 px-5 py-4 text-left shadow-lg shadow-black/20 transition-colors hover:bg-red-700"
+            @click="openGuestRequest"
+            class="group flex items-center gap-3 rounded-2xl bg-red-600 px-5 py-4 text-left shadow-lg shadow-black/20 transition-colors hover:bg-red-700 sm:col-span-2"
           >
             <Icon icon="lucide:siren" width="24" class="shrink-0 text-white" />
             <span>
-              <span class="block text-base font-bold text-white">Instant rescue</span>
-              <span class="block text-xs text-red-100/90">
-                Immediate danger — fastest response
-              </span>
-            </span>
-          </button>
-
-          <button
-            type="button"
-            @click="openGuestRequest('standard')"
-            class="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/5 px-5 py-4 text-left transition-colors hover:border-white/35 hover:bg-white/10"
-          >
-            <Icon icon="lucide:clipboard-list" width="24" class="shrink-0 text-white/65" />
-            <span>
-              <span class="block text-base font-bold text-white">Standard request</span>
-              <span class="block text-xs text-white/55">Not urgent — routine dispatch</span>
+              <span class="block text-base font-bold text-white">Request rescue</span>
+              <span class="block text-xs text-red-100/90">One tap — your location goes straight to dispatch</span>
             </span>
           </button>
 
@@ -96,16 +83,9 @@
 <script setup>
 import { Icon } from '@iconify/vue'
 
-function openGuestRequest(type) {
-  window.dispatchEvent(
-    new CustomEvent('open-guest-modal', {
-      detail: type === 'standard' ? 'standard' : 'instant'
-    })
-  )
-
-  window.scrollTo({
-    top: 0,
-    behavior: 'smooth'
-  })
+// Opens the hero's guest request modal (hero.vue listens for this event).
+function openGuestRequest() {
+  window.dispatchEvent(new CustomEvent('open-guest-modal'))
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 </script>

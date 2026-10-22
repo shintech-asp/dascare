@@ -30,6 +30,8 @@ const routes = [
   { path: '/track/:id', name: 'Track', component: () => import('@/views/TrackView.vue'), meta: { title: 'Request' } },
   { path: '/sos', name: 'Sos', component: () => import('@/views/SosView.vue'), meta: { title: 'Emergency SOS' } },
   { path: '/medical', name: 'MedicalRecords', component: () => import('@/views/MedicalRecordsView.vue'), meta: { auth: true, citizen: true, title: 'Emergency information' } },
+  // False alarm record: signed-in citizens, or a suspended citizen coming from Login (key in useSanctionNotice).
+  { path: '/false-alarms', name: 'FalseAlarms', component: () => import('@/views/FalseAlarmView.vue'), meta: { title: 'False alarm record' } },
   { path: '/account', name: 'Account', component: () => import('@/views/AccountView.vue'), meta: { auth: true, title: 'Account & security' } },
   { path: '/verify-identity', name: 'VerifyIdentity', component: () => import('@/views/VerifyIdentityView.vue'), meta: { auth: true, citizen: true, title: 'Verify identity' } },
   { path: '/legal/:slug', name: 'Legal', component: () => import('@/views/LegalView.vue'), meta: { title: 'Legal' } },

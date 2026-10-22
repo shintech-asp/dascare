@@ -5,6 +5,7 @@ header("Content-Type: application/json");
 require __DIR__ . '/../db/db.php';
 require __DIR__ . '/../reusables/rate_limit.php';
 require __DIR__ . '/../reusables/email_helper.php';
+require_once __DIR__ . '/../reusables/false_alarm_sanctions.php';
 
 // ==================================================
 // READ JSON INPUT
@@ -80,6 +81,17 @@ if (!$user) {
 // ==================================================
 // CHECK ACCOUNT STATUS
 // ==================================================
+// False-alarm suspensions (reusables/false_alarm_sanctions.php): a timed one
+// that has run out lifts here; an active one answers — after the password —
+// with the citizen's record + a short-lived appeal key instead of a session.
+if ($user['account_status'] === 'suspended') {
+    sanctionAutoLift($pdo, (int) $user['id']);
+    $user['account_status'] = (string) $pdo->query('SELECT account_status FROM users WHERE id = ' . (int) $user['id'])->fetchColumn();
+}
+if ($user['account_status'] === 'suspended' && password_verify($passwordInput, $user['password_hash'])) {
+    $refusal = sanctionLoginRefusal($pdo, (int) $user['id']);
+    if ($refusal) { echo json_encode($refusal); exit; }
+}
 if ($user['account_status'] === 'suspended') {
     // Don't count suspended logins against the rate limit
     echo json_encode([

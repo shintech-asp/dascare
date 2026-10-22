@@ -25,3 +25,9 @@ export async function resendOrganizationApplicantOtp(email) {
   const { data } = await api.post('/auth/resend_otp.php', { email })
   return data
 }
+
+/** Organization types, whether each can be applied for (one LGU only) and their required documents. */
+export async function fetchOrganizationRequirements() {
+  const { data } = await api.get('/organizations/applications/requirements.php')
+  return data
+}

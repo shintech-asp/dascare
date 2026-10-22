@@ -42,6 +42,7 @@ import OrganizationFleet from '@/views/organization/OrganizationPages/Organizati
 import OrganizationReadiness from '@/views/organization/OrganizationPages/OrganizationReadiness.vue'
 import OrganizationMembershipStatus from '@/views/organization/OrganizationPages/OrganizationMembershipStatus.vue'
 import CitizenAccounts from '@/views/platform/PlatformPages/CitizenAccounts.vue'
+import FalseAlarmSanctions from '@/views/platform/PlatformPages/FalseAlarmSanctions.vue'
 import CityWideIncidents from '@/views/platform/PlatformPages/CityWideIncidents.vue'
 import OrganizationIncidentOffers from '@/views/organization/OrganizationPages/OrganizationIncidentOffers.vue'
 import OrganizationResourceAssignments from '@/views/organization/OrganizationPages/OrganizationResourceAssignments.vue'
@@ -121,6 +122,7 @@ const platformChildren = [
   { path: 'false-alarms', name: 'PlatformFalseAlarms', component: RequestReviewQueue, meta: { title: 'False Alarm Review', reviewMode: 'false_alarm', permissions: ['oversight.emergency_requests.update'] } },
   { path: 'citizen-verifications', name: 'PlatformCitizenVerifications', component: CitizenVerifications, meta: { title: 'Citizen Verifications', permissions: ['citizens.kyc_verifications.read'] } },
   { path: 'citizens', name: 'PlatformCitizens', component: CitizenAccounts, meta: { title: 'Citizen Accounts', permissions: ['citizens.citizens.read'] } },
+  { path: 'sanctions', name: 'PlatformSanctions', component: FalseAlarmSanctions, meta: { title: 'False Alarm Sanctions', permissions: ['citizens.citizens.read'] } },
   { path: 'heatmaps', name: 'PlatformHeatmaps', component: IncidentHeatmap, meta: { title: 'Incident Heatmaps', permissions: ['analytics.reports.read'] } },
   { path: 'analytics', name: 'PlatformAnalytics', component: PlatformAnalytics, meta: { title: 'Analytics & Reports', permissions: ['analytics.reports.read'] } },
   { path: 'dss-settings', name: 'PlatformDssSettings', component: DssOperationsSettings, meta: { title: 'DSS & Operational Settings', permissions: ['system.system_settings.read'] } },

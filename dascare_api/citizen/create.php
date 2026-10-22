@@ -14,6 +14,7 @@ require '../cors.php';
 require_once __DIR__ . '/../db/db.php';           // exposes PDO as $pdo
 require_once __DIR__ . '/../reusables/rate_limit.php';
 require_once __DIR__ . '/../reusables/guest_request_limit.php';
+require_once __DIR__ . '/../reusables/false_alarm_sanctions.php';
 require_once __DIR__ . '/../reusables/dispatch_dss.php';
 require_once __DIR__ . '/../reusables/dispatch_dedup.php';
 
@@ -130,6 +131,13 @@ if ($scheduledForRaw !== '') {
 if (mb_strlen($description) > 2000) {
     fail(422, 'Please keep the description under 2000 characters.');
 }
+// Witness report: the sender saw the emergency but isn't the one who needs
+// help, so they must say what they saw (photos optional). Their own medical
+// record is not attached (see the snapshot below).
+$reporterType = ($_POST['reporter_type'] ?? 'self') === 'witness' ? 'witness' : 'self';
+if ($reporterType === 'witness' && mb_strlen(trim($_POST['witness_details'] ?? $description)) < 10) {
+    fail(422, 'Please describe what you saw (at least 10 characters) so the responders know what to expect.');
+}
 if ($description === '') {
     $description = 'EMERGENCY REQUEST. No details provided — confirm with requester on contact.';
 }
@@ -211,6 +219,17 @@ if ($isGuest) {
     if ($guestUsed >= GUEST_DAILY_LIMIT) {
         http_response_code(429);
         echo json_encode(['success' => false, 'code' => 'GUEST_LIMIT', 'message' => GUEST_LIMIT_MESSAGE, 'limit' => GUEST_DAILY_LIMIT, 'used' => $guestUsed]);
+        exit;
+    }
+}
+// Repeated confirmed false alarms pause guest requests from this number /
+// temporary account for a while (reusables/false_alarm_sanctions.php, set by
+// the platform admin). Accounts are handled at login instead.
+if ($isGuest) {
+    $guestSanction = sanctionGuestBlock($pdo, $normalizedPhone !== '' ? $normalizedPhone : null, !empty($_SESSION['temp_account_id']) ? (int) $_SESSION['temp_account_id'] : null);
+    if ($guestSanction) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'code' => 'GUEST_SANCTIONED', 'message' => $guestSanction['message'], 'until' => $guestSanction['until']]);
         exit;
     }
 }
@@ -329,11 +348,11 @@ try {
 
     $stmt = $pdo->prepare("
         INSERT INTO emergency_requests
-            (reference_number, requester_user_id, created_by_user_id, source, guest_verification_flag, request_mode, scheduled_for,
+            (reference_number, requester_user_id, created_by_user_id, source, reporter_type, guest_verification_flag, request_mode, scheduled_for,
              requester_name, requester_phone, emergency_category_id, severity, description,
              address_text, barangay, landmark, latitude, longitude, status, submitted_at)
         VALUES
-            (:reference_number, :requester_user_id, :created_by_user_id, :source, :guest_verification_flag, :request_mode, :scheduled_for,
+            (:reference_number, :requester_user_id, :created_by_user_id, :source, :reporter_type, :guest_verification_flag, :request_mode, :scheduled_for,
              :requester_name, :requester_phone, :emergency_category_id, :severity, :description,
              :address_text, :barangay, :landmark, :latitude, :longitude, 'submitted', NOW())
     ");
@@ -342,6 +361,7 @@ try {
         ':requester_user_id'        => $userId,
         ':created_by_user_id'       => $userId,
         ':source'                   => $source,
+        ':reporter_type'            => $reporterType,
         ':guest_verification_flag'  => $guestVerificationFlag,
         ':request_mode'             => $requestMode,
         ':scheduled_for'            => $scheduledFor,
@@ -395,7 +415,7 @@ try {
     // their medical records afterward. See
     // emergency_request_medical_snapshots migration for the full reasoning.
     $medicalSnapshotAttached = false;
-    if (!$isGuest) {
+    if (!$isGuest && $reporterType === 'self') { // a witness isn't the patient
         $medStmt = $pdo->prepare("
             SELECT
                 blood_type, allergies, medications, medical_conditions,

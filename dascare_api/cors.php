@@ -36,7 +36,7 @@ if (in_array($origin, $allowed_origins, true)) {
 
 header('Access-Control-Allow-Credentials: true');
 header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Dascare-Client, X-Guest-Tokens');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Dascare-Client, X-Guest-Tokens, X-Sanction-Token');
 
 // ----------------------------------
 // HANDLE PREFLIGHT

@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../reusables/realtime.php';
 require_once __DIR__ . '/../../reusables/password_helpers.php';
 require_once __DIR__ . '/../../reusables/rate_limit.php';
 require_once __DIR__ . '/../../reusables/email_helper.php';
+require_once __DIR__ . '/../../reusables/organization_requirements.php';
 
 header('Content-Type: application/json');
 
@@ -133,8 +134,8 @@ $passwordError = passwordStrengthError($password, [$email, $firstName, $lastName
 if ($passwordError !== null) jsonError(422, $passwordError);
 
 if (mb_strlen($organizationName) < 3) jsonError(422, 'Organization name must be at least 3 characters.');
-$allowedTypes = ['city_rescue', 'barangay_rescue', 'hospital', 'private_ambulance', 'other'];
-if (!in_array($organizationType, $allowedTypes, true)) jsonError(422, 'Please select a valid organization type.');
+if (!isset(ORGANIZATION_TYPES[$organizationType])) jsonError(422, 'Please select a valid organization type.');
+if ($organizationType === LGU_ORGANIZATION_TYPE && organizationLguTaken($pdo)) jsonError(409, LGU_TAKEN_MESSAGE);
 if ($organizationEmail !== '' && !filter_var($organizationEmail, FILTER_VALIDATE_EMAIL)) jsonError(422, 'Please provide a valid organization email address.');
 if ($organizationPhone !== '' && !preg_match('/^\+?[0-9]{7,15}$/', $organizationPhone)) jsonError(422, 'Please provide a valid organization contact number.');
 if (mb_strlen($addressLine) < 8) jsonError(422, 'Please provide the organization base/station address.');
@@ -160,16 +161,12 @@ $serviceAreas = array_keys($serviceAreas);
 if (!$serviceAreas) jsonError(422, 'Select at least one Dasmariñas barangay as a service area.');
 if (count($serviceAreas) > 100) jsonError(422, 'Too many service areas were selected.');
 
-$uploads = [
-    ['key' => 'registration_document', 'type' => 'registration_document', 'required' => true, 'label' => 'Registration or authorization document'],
-    ['key' => 'operating_document', 'type' => 'operating_authority', 'required' => false, 'label' => 'Operating or accreditation document'],
-    ['key' => 'supporting_document', 'type' => 'supporting_document', 'required' => false, 'label' => 'Additional supporting document'],
-];
+// Documents depend on the organization type (reusables/organization_requirements.php).
 $validatedUploads = [];
-foreach ($uploads as $definition) {
+foreach (ORGANIZATION_DOCUMENT_REQUIREMENTS[$organizationType] as $definition) {
     $validated = validateUpload($_FILES[$definition['key']] ?? [], $definition['required'], $definition['label']);
     if ($validated) {
-        $validated['doc_type'] = $definition['type'];
+        $validated['doc_type'] = $definition['key'];
         $validatedUploads[] = $validated;
     }
 }
@@ -193,6 +190,14 @@ $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 $savedFiles = [];
 $userId = null;
 $organizationId = null;
+
+// One LGU only: re-check under a lock so two LGU applications can't both get in.
+$holdsLguLock = false;
+if ($organizationType === LGU_ORGANIZATION_TYPE) {
+    $holdsLguLock = (int) $pdo->query("SELECT GET_LOCK('" . LGU_LOCK_NAME . "', 10)")->fetchColumn() === 1;
+    if (!$holdsLguLock) jsonError(503, 'Please try again in a moment.');
+    if (organizationLguTaken($pdo)) { $pdo->query("SELECT RELEASE_LOCK('" . LGU_LOCK_NAME . "')"); jsonError(409, LGU_TAKEN_MESSAGE); }
+}
 
 try {
     $pdo->beginTransaction();
@@ -295,6 +300,7 @@ try {
     recordAttempt($pdo, 'organization_apply', $ip);
     jsonError(500, 'Could not submit the organization application. Please try again.');
 }
+if ($holdsLguLock) $pdo->query("SELECT RELEASE_LOCK('" . LGU_LOCK_NAME . "')");
 
 $body = render_email_template(
     'Organization Application',

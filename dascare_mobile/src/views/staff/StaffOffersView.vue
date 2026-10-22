@@ -14,7 +14,9 @@
             <span class="font-mono text-base font-black tabular-nums" :class="secondsLeft(o) <= 60 ? 'text-red-600 dark:text-red-300' : 'text-amber-700 dark:text-amber-300'">{{ countdown(o) }}</span>
           </div>
           <div class="p-4">
-            <p class="font-mono text-xs font-bold text-slate-500 dark:text-white/45">{{ o.reference_number }}</p>
+            <p class="flex flex-wrap items-center gap-2 font-mono text-xs font-bold text-slate-500 dark:text-white/45">{{ o.reference_number }}
+              <span v-if="o.reporter_type === 'witness'" class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 font-sans text-[0.6rem] font-black uppercase text-amber-800 dark:bg-amber-500/15 dark:text-amber-200"><Icon icon="lucide:eye" width="11" />Witness report</span>
+            </p>
             <p class="mt-0.5 text-base font-black text-slate-900 dark:text-white">{{ o.category_name || 'Emergency' }} · <span class="capitalize">{{ o.severity }}</span></p>
             <p class="mt-0.5 text-sm text-slate-600 dark:text-white/60">{{ o.address_text }}<template v-if="o.barangay">, {{ o.barangay }}</template></p>
             <div class="mt-3 grid grid-cols-3 gap-2 text-center">
@@ -23,6 +25,10 @@
               <div class="rounded-xl bg-base-200 p-2 dark:bg-white/5"><p class="text-[0.6rem] font-bold uppercase text-slate-400">DSS score</p><p class="text-sm font-black text-slate-800 dark:text-white/80">{{ o.total_score != null ? Number(o.total_score).toFixed(0) : '—' }}</p></div>
             </div>
             <p v-if="o.explanation" class="mt-2 text-xs leading-5 text-slate-500 dark:text-white/45">{{ o.explanation }}</p>
+            <button type="button" class="tap mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-[#1976D2] dark:text-sky-300" @click="reportFor = reportFor === o.id ? null : o.id">
+              <Icon :icon="reportFor === o.id ? 'lucide:chevron-up' : 'lucide:file-text'" width="14" /> {{ reportFor === o.id ? 'Hide report' : 'View report & photos' }}
+            </button>
+            <IncidentReportPanel v-if="reportFor === o.id" class="mt-2" :request-id="o.emergency_request_id" />
             <div v-if="canRespond" class="mt-4 grid grid-cols-[1fr_auto] gap-2">
               <button type="button" :disabled="savingId === o.id" :class="ui.primaryButton" @click="accept(o)">
                 <Icon :icon="savingId === o.id ? 'lucide:loader-circle' : 'lucide:badge-check'" width="18" :class="savingId === o.id ? 'animate-spin' : ''" /> Accept
@@ -77,6 +83,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import PullToRefresh from '@/components/PullToRefresh.vue'
+import IncidentReportPanel from '@/components/incidents/IncidentReportPanel.vue'
 import * as ui from '@/components/ui/styles'
 import { apiMessage } from '@/services/api'
 import { fetchOrganizationOffers, respondToIncidentOffer } from '@/services/org/dispatchOperations'
@@ -92,6 +99,7 @@ const alert = useAlert()
 const { hasPermission } = useSession()
 
 const offers = ref([])
+const reportFor = ref(null) // offer whose requester report is open
 const canRespond = ref(false)
 const loading = ref(true)
 const savingId = ref(null)

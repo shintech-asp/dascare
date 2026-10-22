@@ -487,6 +487,21 @@
       </div>
     </div>
   </section>
+  <Teleport to="body">
+    <div v-if="sanctionNotice" class="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-sm sm:items-center" @click.self="sanctionNotice = null">
+      <div class="w-full max-w-lg rounded-3xl bg-base-100 p-6 shadow-2xl dark:bg-[#071829]">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h2 class="text-lg font-black text-slate-900 dark:text-white">Account suspended</h2>
+            <p class="mt-1 text-sm text-slate-600 dark:text-white/55">{{ sanctionNotice.message }}</p>
+          </div>
+          <button type="button" class="rounded-xl p-2 text-slate-400 hover:bg-base-200 dark:hover:bg-white/5" @click="sanctionNotice = null"><Icon icon="lucide:x" width="18" /></button>
+        </div>
+        <div class="mt-4 max-h-[60vh] overflow-y-auto"><FalseAlarmRecord :token="sanctionNotice.token" :initial="sanctionNotice.record" /></div>
+        <RouterLink to="/" class="mt-4 flex items-center justify-center gap-2 rounded-2xl bg-red-600 py-3 text-sm font-black text-white no-underline" @click="sanctionNotice = null"><Icon icon="lucide:siren" width="16" /> Emergency? Send SOS as a guest</RouterLink>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
@@ -500,6 +515,10 @@ import { useSession } from '@/composables/useSession'
 import { useAlert } from '@/composables/useAlert'
 import { useToast } from '@/composables/useToast'
 import { consumePostLoginRedirect } from '@/utils/postLoginRedirect'
+import FalseAlarmRecord from '@/components/sanctions/FalseAlarmRecord.vue'
+
+// Login refused for false alarms (auth/login.php FALSE_ALARM_SUSPENDED).
+const sanctionNotice = ref(null)
 import api from '@/services/api'
 
 const router = useRouter()
@@ -943,6 +962,12 @@ async function login() {
       showOtpModal.value = true
       resetOtpTimerUiOnly()
       showInfo('Your account has two-factor authentication enabled — check your email for a code.', 'Two-factor authentication')
+      return
+    }
+
+    // Suspended for repeated false alarms: show the record + appeal instead.
+    if (data.code === 'FALSE_ALARM_SUSPENDED') {
+      sanctionNotice.value = { message: data.message, record: data.sanction, token: data.sanctionToken }
       return
     }
 

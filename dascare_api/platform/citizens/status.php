@@ -40,7 +40,8 @@ try {
         platformJsonError(409, 'This citizen account is already in that status.');
     }
 
-    $pdo->prepare('UPDATE users SET account_status = ?, updated_at = NOW() WHERE id = ?')->execute([$newStatus, $userId]);
+    // Manual actions own the suspension; reactivating clears a false-alarm one too.
+    $pdo->prepare('UPDATE users SET account_status = ?, suspended_until = NULL, suspension_source = ?, updated_at = NOW() WHERE id = ?')->execute([$newStatus, $newStatus === 'active' ? null : 'manual', $userId]);
 
     $notificationData = match ($action) {
         'suspend' => ['citizen_account_suspended', 'Account Suspended', 'Your DASCARE account has been suspended following an administrative review. You may still request emergency assistance as a guest.'],

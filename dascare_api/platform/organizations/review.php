@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../cors.php';
 require_once __DIR__ . '/../../db/db.php';
 require_once __DIR__ . '/../../reusables/realtime.php';
 require_once __DIR__ . '/../../reusables/platform_guard.php';
+require_once __DIR__ . '/../../reusables/organization_requirements.php';
 
 header('Content-Type: application/json');
 $reviewerId = requirePlatformExecutive($pdo, 'organizations.organizations.approve');
@@ -40,6 +41,17 @@ try {
     if (!in_array($current['application_status'], ['pending', 'revision_requested'], true)) {
         $pdo->rollBack();
         platformJsonError(409, 'This application is no longer awaiting a review decision. Refresh the queue and try again.');
+    }
+
+    // Dasmariñas has one LGU: an LGU application can't be approved while
+    // another LGU organization exists (reusables/organization_requirements.php).
+    if ($action === 'approve' && $current['organization_type'] === LGU_ORGANIZATION_TYPE) {
+        $pdo->query("SELECT GET_LOCK('" . LGU_LOCK_NAME . "', 10)");
+        if (organizationLguTaken($pdo, $organizationId)) {
+            $pdo->rollBack();
+            $pdo->query("SELECT RELEASE_LOCK('" . LGU_LOCK_NAME . "')");
+            platformJsonError(409, 'Dasmariñas already has its LGU organization. Reject this application or ask the applicant to apply under another type.');
+        }
     }
 
     if ($action === 'approve') {

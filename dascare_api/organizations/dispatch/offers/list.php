@@ -13,7 +13,7 @@ try {
         SELECT
             io.id, io.offer_status, io.offered_at, io.expires_at, io.responded_at, io.response_note,
             io.emergency_request_id,
-            er.reference_number, er.severity, er.description, er.address_text, er.barangay, er.landmark,
+            er.reference_number, er.severity, er.reporter_type, er.description, er.address_text, er.barangay, er.landmark,
             er.latitude, er.longitude, er.requester_name, er.requester_phone, er.status AS incident_status, er.submitted_at,
             ec.name AS category_name,
             dr.rank_position, dr.total_score, dr.distance_km, dr.explanation,

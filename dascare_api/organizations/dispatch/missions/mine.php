@@ -14,7 +14,7 @@ $memberId = (int) $ctx['organization_member_id'];
 try {
     $stmt = $pdo->prepare("
         SELECT da.id, da.emergency_request_id, da.assignment_status, ca.crew_role AS my_role,
-               er.reference_number, er.severity, er.address_text, er.barangay, er.landmark,
+               er.reference_number, er.severity, er.reporter_type, er.address_text, er.barangay, er.landmark,
                ec.name AS category_name, a.unit_code
         FROM crew_assignments ca
         JOIN dispatch_assignments da ON da.id = ca.dispatch_assignment_id

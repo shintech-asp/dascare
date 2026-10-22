@@ -77,6 +77,7 @@ export const dashboardWorkspaces = {
         items: [
           { label: 'Citizen Verifications', to: '/platform/citizen-verifications', icon: 'lucide:scan-search', permissions: ['citizens.kyc_verifications.read'] },
           { label: 'Citizen Accounts', to: '/platform/citizens', icon: 'lucide:users', permissions: ['citizens.citizens.read'] },
+          { label: 'False Alarm Sanctions', to: '/platform/sanctions', icon: 'lucide:gavel', permissions: ['citizens.citizens.read'] },
           { label: 'Heatmaps', to: '/platform/heatmaps', icon: 'lucide:map' , permissions: ['analytics.reports.read'] },
           { label: 'Analytics & Reports', to: '/platform/analytics', icon: 'lucide:chart-no-axes-combined', permissions: ['analytics.reports.read'] },
           { label: 'DSS & Operations', to: '/platform/dss-settings', icon: 'lucide:brain-circuit', permissions: ['system.system_settings.read'] },

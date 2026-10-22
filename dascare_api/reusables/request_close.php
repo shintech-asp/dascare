@@ -16,6 +16,7 @@
 require_once __DIR__ . '/dispatch_dedup.php';
 require_once __DIR__ . '/assignment_helpers.php';
 require_once __DIR__ . '/fleet_helpers.php';
+require_once __DIR__ . '/false_alarm_sanctions.php';
 
 const REQUEST_FINAL_STATUSES = ['completed', 'cancelled', 'rejected', 'false_alarm'];
 // The requester can cancel until the crew is with them (on scene / transporting).
@@ -79,6 +80,13 @@ function requestClose(PDO $pdo, int $requestId, string $newStatus, string $reaso
                 $linkedClosed[] = (int) $child['id'];
                 if (!empty($child['requester_user_id'])) $linkedUsers[(int) $child['requester_user_id']] = $child;
             }
+        }
+
+        // Confirmed false alarm: the requester gets a strike (+ the configured
+        // sanction). Only the incident's own requester — people whose reports
+        // were linked to it reported what they saw and are not penalised.
+        if ($newStatus === 'false_alarm' && $kind !== 'requester') {
+            sanctionIssueStrike($pdo, $requestId, $orgId, $userId, $reason);
         }
 
         // Tell people (all queued; pushes/live events go out after commit).

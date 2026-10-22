@@ -107,7 +107,48 @@
                 @update="onMapPin" />
             </div>
 
-            <div v-if="!isGuest" class="flex items-start gap-2.5 rounded-2xl border border-red-200 bg-red-50/60 px-4 py-3 dark:border-red-500/20 dark:bg-red-500/5">
+            <!-- Witness report (same as the web form): reporting for someone
+                 else → what they saw is required, photos encouraged; the
+                 responders see both. -->
+            <div class="rounded-2xl border px-4 py-3" :class="form.reporter_type === 'witness' ? 'border-amber-300 bg-amber-50/70 dark:border-amber-500/30 dark:bg-amber-500/5' : 'border-base-300 dark:border-white/10'">
+              <div class="flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="text-sm font-bold text-slate-800 dark:text-white/80">Did you see someone else in an emergency?</p>
+                  <p class="text-xs text-slate-500 dark:text-white/45">Turn on if you're reporting for another person.</p>
+                </div>
+                <label class="flex flex-shrink-0 items-center gap-2 text-xs font-bold text-slate-600 dark:text-white/60">
+                  {{ form.reporter_type === 'witness' ? 'Yes' : 'No' }}
+                  <input type="checkbox" class="toggle toggle-sm border-slate-300 bg-slate-200 text-amber-500 [--tglbg:white] checked:border-amber-500 checked:bg-amber-500"
+                    :checked="form.reporter_type === 'witness'" @change="form.reporter_type = $event.target.checked ? 'witness' : 'self'" />
+                </label>
+              </div>
+              <div v-if="form.reporter_type === 'witness'" class="mt-3 space-y-3 border-t border-amber-200/70 pt-3 dark:border-amber-500/20">
+                <div>
+                  <label :class="ui.label">What did you see? <span class="text-red-500">*</span></label>
+                  <textarea ref="witnessEl" v-model="form.witness_details" rows="3" maxlength="1500" :class="ui.input"
+                    placeholder="e.g. A motorcycle crashed into a jeep. The rider is on the road, not moving, bleeding from the head."></textarea>
+                </div>
+                <div>
+                  <label :class="ui.label">Photos of the scene <span class="font-normal text-slate-400 dark:text-white/30">(if you safely can — up to 3)</span></label>
+                  <div class="flex flex-wrap gap-2">
+                    <div v-for="(p, i) in photos" :key="p.preview" class="relative">
+                      <img :src="p.preview" class="h-20 w-20 rounded-xl border-2 border-slate-200 object-cover dark:border-white/10" alt="" />
+                      <button type="button" class="absolute -right-1.5 -top-1.5 grid h-6 w-6 place-items-center rounded-full bg-slate-800 text-white" aria-label="Remove photo" @click="photos.splice(i, 1)"><Icon icon="lucide:x" width="12" /></button>
+                    </div>
+                    <template v-if="photos.length < 3">
+                      <button type="button" class="tap grid h-20 w-20 place-items-center rounded-xl border-2 border-dashed border-slate-300 text-slate-500 dark:border-white/15 dark:text-white/50" aria-label="Take photo" @click="addPhotos('camera')">
+                        <span class="flex flex-col items-center gap-1 text-[0.65rem] font-bold"><Icon icon="lucide:camera" width="20" class="text-red-600 dark:text-red-400" />Camera</span>
+                      </button>
+                      <button type="button" class="tap grid h-20 w-20 place-items-center rounded-xl border-2 border-dashed border-slate-300 text-slate-500 dark:border-white/15 dark:text-white/50" aria-label="Choose photos" @click="addPhotos('gallery')">
+                        <span class="flex flex-col items-center gap-1 text-[0.65rem] font-bold"><Icon icon="lucide:image" width="20" class="text-[#1976D2] dark:text-[#7fb3ec]" />Gallery</span>
+                      </button>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="!isGuest && form.reporter_type !== 'witness'" class="flex items-start gap-2.5 rounded-2xl border border-red-200 bg-red-50/60 px-4 py-3 dark:border-red-500/20 dark:bg-red-500/5">
               <Icon icon="lucide:heart-pulse" width="16" class="mt-0.5 flex-shrink-0 text-red-600 dark:text-red-300" />
               <p class="text-xs leading-relaxed text-red-800 dark:text-red-200/80">Your saved emergency information will be shared with the responding crew automatically.</p>
             </div>
@@ -188,7 +229,7 @@
                   <Icon icon="lucide:map-pin" width="13" /> Adjust location on map
                 </button>
 
-                <div>
+                <div v-if="form.reporter_type !== 'witness'">
                   <label :class="ui.label">Photos <span class="font-normal text-slate-400 dark:text-white/30">(optional, up to 3)</span></label>
                   <div class="flex flex-wrap gap-2">
                     <div v-for="(p, i) in photos" :key="p.preview" class="relative">
@@ -264,7 +305,8 @@ const guestKeys = useGuestKeys()
 const toast = useToast()
 const isGuest = computed(() => !isLoggedIn.value)
 
-const form = reactive({ address_text: '', barangay: '', landmark: '', latitude: null, longitude: null, requester_phone: '', requester_name: '', description: '', emergency_category_id: null })
+const witnessEl = ref(null)
+const form = reactive({ address_text: '', barangay: '', landmark: '', latitude: null, longitude: null, requester_phone: '', requester_name: '', description: '', emergency_category_id: null, reporter_type: 'self', witness_details: '' })
 const quick = reactive({ patientCount: 1, conscious: '', breathing: '' })
 const photos = ref([]) // [{ blob, preview }]
 const small = 'w-full min-w-0 rounded-lg border border-slate-200 bg-[#f8f3e8] px-2 py-2.5 text-sm text-slate-800 focus:border-red-600 focus:outline-none dark:border-white/10 dark:bg-white/5 dark:text-white'
@@ -416,7 +458,8 @@ function buildDescription() {
   if (quick.conscious) bits.push(`Conscious: ${quick.conscious === 'yes' ? 'Yes' : 'No'}`)
   if (quick.breathing) bits.push(`Breathing: ${quick.breathing === 'yes' ? 'Yes' : 'No'}`)
   const summary = bits.length ? bits.join(' · ') + '\n\n' : ''
-  return (summary + form.description.trim()).trim()
+  const witness = form.reporter_type === 'witness' ? `WITNESS REPORT — ${form.witness_details.trim()}` : ''
+  return (summary + [witness, form.description.trim()].filter(Boolean).join('\n\n')).trim()
 }
 
 async function submit() {
@@ -435,6 +478,11 @@ async function submit() {
     toast.error('Please enter a valid PH mobile number, or leave it blank.', 'Check number')
     return
   }
+  if (form.reporter_type === 'witness' && form.witness_details.trim().length < 10) {
+    toast.error('Please describe what you saw so the responders know what to expect.', 'What did you see?')
+    witnessEl.value?.focus()
+    return
+  }
 
   submitting.value = true
   try {
@@ -448,6 +496,8 @@ async function submit() {
     fd.append('latitude', form.latitude)
     fd.append('longitude', form.longitude)
     fd.append('request_mode', 'instant')
+    fd.append('reporter_type', form.reporter_type)
+    if (form.reporter_type === 'witness') fd.append('witness_details', form.witness_details.trim())
     if (form.requester_phone) fd.append('requester_phone', form.requester_phone.trim())
     if (isGuest.value) fd.append('requester_name', form.requester_name.trim())
     photos.value.forEach((p, i) => fd.append('photos[]', p.blob, `photo_${i + 1}.${p.blob.type.split('/')[1] || 'jpg'}`))

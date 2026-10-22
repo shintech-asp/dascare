@@ -78,8 +78,9 @@
                 <Field label="Organization type">
                   <select v-model="form.organization_type" class="field">
                     <option value="" disabled>Select organization type</option>
-                    <option v-for="type in organizationTypes" :key="type.value" :value="type.value">{{ type.label }}</option>
+                    <option v-for="type in organizationTypes" :key="type.value" :value="type.value" :disabled="type.available === false">{{ type.label }}{{ type.available === false ? ' — already registered' : '' }}</option>
                   </select>
+                  <span v-if="lguTaken" class="mt-1.5 block text-[0.68rem] text-slate-400 dark:text-white/30">Dasmariñas has one LGU account, and it is already registered.</span>
                 </Field>
                 <Field label="Registration / authorization reference" hint="If applicable"><input v-model.trim="form.registration_number" class="field" maxlength="100" /></Field>
                 <Field label="Accreditation / supervising body" hint="If applicable"><input v-model.trim="form.accreditation_body" class="field" maxlength="150" /></Field>
@@ -148,12 +149,11 @@
 
               <div class="border-t border-base-300 pt-6 dark:border-white/10">
                 <h3 class="text-sm font-black text-slate-900 dark:text-white">Supporting documents</h3>
-                <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-white/40">Document requirements may differ by organization classification. Submit the basic proof below; Platform Executive reviewers can request revisions or additional evidence later.</p>
+                <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-white/40">What to upload depends on the organization type{{ form.organization_type ? ` (${organizationTypeLabel})` : '' }}. Platform Executive reviewers can request revisions or more evidence later.</p>
 
-                <div class="mt-4 grid gap-4 lg:grid-cols-3">
-                  <DocumentPicker v-model="files.registration_document" title="Registration / authorization" description="Required" required />
-                  <DocumentPicker v-model="files.operating_document" title="Operating / accreditation" description="Optional supporting evidence" />
-                  <DocumentPicker v-model="files.supporting_document" title="Additional document" description="Optional" />
+                <p v-if="!form.organization_type" class="mt-4 rounded-2xl bg-base-200/60 p-4 text-sm text-slate-500 dark:bg-white/5 dark:text-white/45">Choose the organization type in step 2 to see its required documents.</p>
+                <div v-else class="mt-4 grid gap-4 sm:grid-cols-2">
+                  <DocumentPicker v-for="d in requiredDocuments" :key="d.key" v-model="files[d.key]" :title="d.label" :description="`${d.required ? 'Required' : 'Optional'} — ${d.hint}`" :required="d.required" />
                 </div>
               </div>
             </section>
@@ -175,9 +175,7 @@
                   <p class="text-xs leading-6 text-slate-600 dark:text-white/55">{{ form.service_areas.join(', ') || 'No service areas selected' }}</p>
                 </ReviewCard>
                 <ReviewCard title="Documents" icon="lucide:files">
-                  <ReviewRow label="Registration" :value="files.registration_document?.name || 'Missing'" />
-                  <ReviewRow label="Operating" :value="files.operating_document?.name || 'Not provided'" />
-                  <ReviewRow label="Additional" :value="files.supporting_document?.name || 'Not provided'" />
+                  <ReviewRow v-for="d in requiredDocuments" :key="d.key" :label="d.label" :value="files[d.key]?.name || (d.required ? 'Missing' : 'Not provided')" />
                 </ReviewCard>
               </div>
 
@@ -248,7 +246,7 @@ import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref
 import { Icon } from '@iconify/vue'
 import PasswordReveal from '@/components/forms/PasswordReveal.vue'
 import { useToast } from '@/composables/useToast'
-import { resendOrganizationApplicantOtp, submitOrganizationApplication, verifyOrganizationApplicantEmail } from '@/services/organizationApplications'
+import { fetchOrganizationRequirements, resendOrganizationApplicantOtp, submitOrganizationApplication, verifyOrganizationApplicantEmail } from '@/services/organizationApplications'
 
 const toast = useToast()
 const stage = ref('form')
@@ -270,14 +268,22 @@ const steps = [
 ]
 const activeStep = computed(() => steps[currentStep.value - 1])
 
-const organizationTypes = [
-  { value: 'city_rescue', label: 'City Rescue / LGU Unit' },
-  { value: 'barangay_rescue', label: 'Barangay Rescue Unit' },
-  { value: 'hospital', label: 'Hospital Ambulance Service' },
-  { value: 'private_ambulance', label: 'Private Ambulance / Rescue Service' },
-  { value: 'other', label: 'Other Rescue Organization' },
-]
-const organizationTypeLabel = computed(() => organizationTypes.find(type => type.value === form.value.organization_type)?.label || '—')
+// Types + the documents each must upload come from the server
+// (organizations/applications/requirements.php); City Rescue / LGU is
+// unavailable once Dasmariñas' single LGU exists.
+const organizationTypes = ref([])
+const lguTaken = ref(false)
+const requiredDocuments = computed(() => organizationTypes.value.find((t) => t.value === form.value.organization_type)?.documents || [])
+async function loadRequirements() {
+  try {
+    const d = await fetchOrganizationRequirements()
+    organizationTypes.value = d.types || []
+    lguTaken.value = !!d.lgu_taken
+  } catch {
+    toast.error('Unable to load organization types. Refresh the page to try again.')
+  }
+}
+const organizationTypeLabel = computed(() => organizationTypes.value.find(type => type.value === form.value.organization_type)?.label || '—')
 
 const form = ref({
   first_name: '', last_name: '', email: '', phone: '', password: '', password_confirmation: '',
@@ -285,7 +291,7 @@ const form = ref({
   organization_email: '', organization_phone: '', address_line: '', latitude: null, longitude: null,
   service_areas: [], attested: false,
 })
-const files = ref({ registration_document: null, operating_document: null, supporting_document: null })
+const files = ref({})
 
 const Field = defineComponent({
   name: 'OrganizationApplicationField',
@@ -373,7 +379,8 @@ function stepTwoValid() {
 }
 function stepThreeValid() {
   if (!form.value.service_areas.length) return 'Select at least one service-area barangay.'
-  if (!files.value.registration_document) return 'Attach the required registration or authorization document.'
+  const missing = requiredDocuments.value.find((d) => d.required && !files.value[d.key])
+  if (missing) return `Attach the required document: ${missing.label}.`
   return ''
 }
 function validationFor(step) {
@@ -506,7 +513,8 @@ async function submitApplication() {
     payload.append('longitude', String(form.value.longitude))
     payload.append('service_areas', JSON.stringify(form.value.service_areas))
     payload.append('attested', form.value.attested ? '1' : '0')
-    for (const [key, file] of Object.entries(files.value)) if (file) payload.append(key, file)
+    // Only the documents for the chosen type (switching type keeps old picks around).
+    for (const d of requiredDocuments.value) if (files.value[d.key]) payload.append(d.key, files.value[d.key])
 
     const result = await submitOrganizationApplication(payload)
     if (!result?.success) throw new Error(result?.message || 'Application submission failed.')
@@ -548,7 +556,7 @@ async function resendOtp() {
   }
 }
 
-onMounted(loadBarangays)
+onMounted(() => { loadBarangays(); loadRequirements() })
 onBeforeUnmount(() => {
   if (map) map.remove()
   map = null

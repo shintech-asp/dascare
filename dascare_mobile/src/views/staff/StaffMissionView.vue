@@ -86,6 +86,9 @@
         </button>
       </section>
 
+      <!-- What the requester sent: witness or self, description, photos, medical info -->
+      <IncidentReportPanel :request-id="mission.emergency_request_id" class="bg-base-100 dark:bg-[#071829]" />
+
       <!-- Care: assessment / handoff / field report for this mission -->
       <section v-if="careLinks.length" :class="[ui.card, 'grid gap-1 p-2']" :style="{ gridTemplateColumns: `repeat(${careLinks.length}, minmax(0, 1fr))` }">
         <RouterLink v-for="c in careLinks" :key="c.name" :to="{ name: c.name, params: { id } }" class="tap flex flex-col items-center gap-1.5 rounded-2xl px-1 py-3 text-center no-underline">
@@ -154,6 +157,7 @@ import { useAlert } from '@/composables/useAlert'
 import { useLiveUpdates } from '@/composables/useLiveUpdates'
 import { realtimeChannels } from '@/services/realtime'
 import { ACTIVE_MISSION, NEXT_STEPS, STEPPER, missionBadge, missionLabel } from '@/utils/missionStatus'
+import IncidentReportPanel from '@/components/incidents/IncidentReportPanel.vue'
 
 const route = useRoute()
 const router = useRouter()

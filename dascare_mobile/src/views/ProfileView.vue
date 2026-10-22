@@ -33,6 +33,14 @@
         </div>
         <Icon icon="lucide:chevron-right" width="18" class="text-slate-400" />
       </RouterLink>
+      <RouterLink :to="{ name: 'FalseAlarms' }" class="tap flex items-center gap-3 p-4 no-underline">
+        <span class="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300"><Icon icon="lucide:shield-alert" width="20" /></span>
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-bold text-slate-900 dark:text-white">False alarm record</p>
+          <p class="text-xs text-slate-500 dark:text-white/45">Strikes, suspensions and appeals</p>
+        </div>
+        <Icon icon="lucide:chevron-right" width="18" class="text-slate-400" />
+      </RouterLink>
     </section>
 
     <!-- Identity verification -->

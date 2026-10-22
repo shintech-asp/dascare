@@ -120,6 +120,7 @@
 </template>
 
 <script setup>
+import { organizationDocumentLabel } from '@/config/organizationDocuments'
 import { computed, defineComponent, h, onMounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { fetchOrganizationApplicationStatus } from '@/services/organizationApplications'
@@ -133,7 +134,7 @@ const serviceAreas = ref([])
 const documents = ref([])
 
 const typeMap = {
-  city_rescue: 'City Rescue / LGU Unit',
+  city_rescue: 'City Rescue / LGU',
   barangay_rescue: 'Barangay Rescue Unit',
   hospital: 'Hospital Ambulance Service',
   private_ambulance: 'Private Ambulance / Rescue Service',
@@ -188,7 +189,7 @@ const InfoCard = defineComponent({
   },
 })
 
-const documentLabel = type => ({ registration_document: 'Registration / authorization', operating_authority: 'Operating / accreditation', supporting_document: 'Additional supporting document' }[type] || type)
+const documentLabel = organizationDocumentLabel // config/organizationDocuments.js
 const documentStatusClass = status => status === 'approved' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : status === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
 const formatDate = value => value ? new Date(value.replace(' ', 'T')).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '—'
 const formatFileSize = bytes => {

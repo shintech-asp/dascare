@@ -15,7 +15,7 @@
       <section :class="[ui.card, 'divide-y divide-base-300 dark:divide-white/10']">
         <div v-for="d in documents" :key="d.id" class="p-4">
           <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0"><p class="text-sm font-bold capitalize text-slate-900 dark:text-white">{{ pretty(d.doc_type) }}</p><p class="truncate text-xs text-slate-500 dark:text-white/45">{{ d.original_name || 'Submitted application file' }}</p></div>
+            <div class="min-w-0"><p class="text-sm font-bold text-slate-900 dark:text-white">{{ organizationDocumentLabel(d.doc_type) }}</p><p class="truncate text-xs text-slate-500 dark:text-white/45">{{ d.original_name || 'Submitted application file' }}</p></div>
             <span class="flex-shrink-0 rounded-full px-2 py-0.5 text-[0.62rem] font-black uppercase" :class="d.status === 'approved' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : d.status === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'">{{ d.status }}</span>
           </div>
           <p v-if="d.rejection_reason" class="mt-1 text-xs text-red-600 dark:text-red-300">{{ d.rejection_reason }}</p>
@@ -40,6 +40,7 @@ import { computed, onMounted, ref } from 'vue'
 import ScreenHeader from '@/components/ScreenHeader.vue'
 import * as ui from '@/components/ui/styles'
 import { fetchOrganizationDocuments } from '@/services/org/organizationCompletion'
+import { organizationDocumentLabel } from '@/config/organizationDocuments'
 
 const documents = ref([])
 const fleet = ref([])

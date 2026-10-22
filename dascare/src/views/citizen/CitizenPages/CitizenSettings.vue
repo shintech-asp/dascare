@@ -172,6 +172,18 @@
             </label>
           </div>
         </section>
+
+        <!-- False alarm record (strikes, appeals) — reusables/false_alarm_sanctions.php -->
+        <section id="false-alarms" class="rounded-3xl border border-base-300 bg-base-100 p-5 shadow-sm dark:border-white/10 dark:bg-[#071829] sm:p-7">
+          <div class="flex items-start gap-3">
+            <span class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-300"><Icon icon="lucide:shield-alert" width="20" /></span>
+            <div>
+              <h2 class="text-base font-black text-slate-900 dark:text-white">False alarm record</h2>
+              <p class="mt-1 text-xs text-slate-500 dark:text-white/40">Requests confirmed as false alarms count as strikes. You can appeal a strike once.</p>
+            </div>
+          </div>
+          <div class="mt-5"><FalseAlarmRecord /></div>
+        </section>
       </div>
     </div>
 
@@ -229,6 +241,7 @@ import axios from 'axios'
 import { onMounted, reactive, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import PasswordReveal from '@/components/forms/PasswordReveal.vue'
+import FalseAlarmRecord from '@/components/sanctions/FalseAlarmRecord.vue'
 import { useSession } from '@/composables/useSession'
 import { useTheme } from '@/composables/useTheme'
 import { useAlert } from '@/composables/useAlert'

@@ -9,7 +9,7 @@ $ctx = requireOrganizationAccess($pdo, 'dispatch.tracking.read');
 
 try {
     $stmt = $pdo->prepare("SELECT da.id, da.assignment_status, da.emergency_request_id,
-            er.reference_number, er.severity, er.address_text, er.barangay, er.latitude incident_latitude, er.longitude incident_longitude,
+            er.reference_number, er.severity, er.reporter_type, er.address_text, er.barangay, er.latitude incident_latitude, er.longitude incident_longitude,
             a.id ambulance_id, a.unit_code, a.plate_number, a.ambulance_type, a.status ambulance_status,
             a.last_latitude, a.last_longitude, a.last_accuracy_m, a.last_location_at,
             TIMESTAMPDIFF(SECOND, a.last_location_at, NOW()) AS location_age_db,

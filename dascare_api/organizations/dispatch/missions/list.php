@@ -6,7 +6,7 @@ require_once __DIR__ . '/../../../reusables/dispatch_dedup.php';
 header('Content-Type: application/json');
 $ctx=requireOrganizationAccess($pdo,'dispatch.dispatch_assignments.read');
 try{
-  $stmt=$pdo->prepare("SELECT da.*,er.reference_number,er.severity,er.description,er.address_text,er.barangay,er.landmark,er.latitude,er.longitude,er.requester_name,er.requester_phone,ec.name category_name,a.unit_code,a.plate_number,a.ambulance_type,a.status ambulance_status
+  $stmt=$pdo->prepare("SELECT da.*,er.reference_number,er.severity, er.reporter_type,er.description,er.address_text,er.barangay,er.landmark,er.latitude,er.longitude,er.requester_name,er.requester_phone,ec.name category_name,a.unit_code,a.plate_number,a.ambulance_type,a.status ambulance_status
                        FROM dispatch_assignments da JOIN emergency_requests er ON er.id=da.emergency_request_id JOIN emergency_categories ec ON ec.id=er.emergency_category_id JOIN ambulances a ON a.id=da.ambulance_id
                        WHERE da.organization_id=? AND da.assignment_status NOT IN ('cancelled','reassigned') ORDER BY FIELD(da.assignment_status,'assigned','acknowledged','responding','on_scene','transporting','completed'),da.assigned_at DESC LIMIT 100");
   $stmt->execute([$ctx['organization_id']]);$missions=$stmt->fetchAll(PDO::FETCH_ASSOC);$ids=[];

@@ -22,7 +22,7 @@ try {
 
     $rows = $pdo->query("
         SELECT
-            er.id, er.reference_number, er.status, er.severity, er.barangay, er.address_text, er.landmark,
+            er.id, er.reference_number, er.status, er.severity, er.reporter_type, er.barangay, er.address_text, er.landmark,
             er.latitude, er.longitude, er.submitted_at, er.attention_level,
             TIMESTAMPDIFF(SECOND, er.submitted_at, NOW()) AS age_seconds,
             ec.name AS category_name,

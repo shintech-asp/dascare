@@ -54,11 +54,13 @@ import { useSession } from '@/composables/useSession'
 import { useAuthFlow } from '@/composables/useAuthFlow'
 import { useToast } from '@/composables/useToast'
 import { useAlert } from '@/composables/useAlert'
+import { useSanctionNotice } from '@/composables/useSanctionNotice'
 
 const REMEMBERED_EMAIL_KEY = 'dascare.rememberedEmail'
 const router = useRouter()
 const route = useRoute()
 const session = useSession()
+const sanctionNotice = useSanctionNotice()
 const authFlow = useAuthFlow()
 const toast = useToast()
 const alert = useAlert()
@@ -93,7 +95,10 @@ async function submit() {
     router.replace({ name: 'Home' })
   } catch (err) {
     const data = err.response?.data || {}
-    if (data.code === 'STAFF_USE_WEB') {
+    if (data.code === 'FALSE_ALARM_SUSPENDED') {
+      sanctionNotice.notice.value = { message: data.message, record: data.sanction, token: data.sanctionToken }
+      router.push({ name: 'FalseAlarms' })
+    } else if (data.code === 'STAFF_USE_WEB') {
       alert.warning(data.message, 'Use the web portal')
     } else if (data.code === 'EMAIL_NOT_VERIFIED') {
       const ok = await alert.confirm('Your email isn’t verified yet. Send a new verification code to finish setting up your account?', 'Verify your email')

@@ -69,7 +69,7 @@ const editing = ref(false)
 const saving = ref(false)
 const newArea = ref('')
 let snapshot = null
-const typeLabel = (v) => ({ city_rescue: 'City Rescue / LGU Unit', barangay_rescue: 'Barangay Rescue Unit', hospital: 'Hospital Ambulance Service', private_ambulance: 'Private Ambulance / Rescue Service', other: 'Other Rescue Organization' }[v] || v || '—')
+const typeLabel = (v) => ({ city_rescue: 'City Rescue / LGU', barangay_rescue: 'Barangay Rescue Unit', hospital: 'Hospital Ambulance Service', private_ambulance: 'Private Ambulance / Rescue Service', other: 'Other Rescue Organization' }[v] || v || '—')
 
 function startEdit() { snapshot = JSON.parse(JSON.stringify(form.value)); editing.value = true }
 function cancelEdit() { if (snapshot) form.value = snapshot; editing.value = false }

@@ -100,6 +100,7 @@
 </template>
 
 <script setup>
+import { organizationDocumentLabel } from '@/config/organizationDocuments'
 import { addBasemap, loadLeaflet } from '@/services/basemap'
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
@@ -115,9 +116,9 @@ const form = ref({ email:'', phone:'', address_line:'', latitude:null, longitude
 const original = ref(null)
 let map = null, marker = null
 const canUpdate = computed(() => hasPermission('org_settings.org_profile.update'))
-const typeMap = { city_rescue:'City Rescue / LGU Unit', barangay_rescue:'Barangay Rescue Unit', hospital:'Hospital Ambulance Service', private_ambulance:'Private Ambulance / Rescue Service', other:'Other Rescue Organization' }
+const typeMap = { city_rescue:'City Rescue / LGU', barangay_rescue:'Barangay Rescue Unit', hospital:'Hospital Ambulance Service', private_ambulance:'Private Ambulance / Rescue Service', other:'Other Rescue Organization' }
 const typeLabel = v => typeMap[v] || v || '—'
-const documentLabel = type => ({ registration_document:'Registration / authorization', operating_authority:'Operating / accreditation', supporting_document:'Additional supporting document' }[type] || type)
+const documentLabel = organizationDocumentLabel // config/organizationDocuments.js
 
 const Field = defineComponent({ props:{label:String}, setup(props,{slots,attrs}){ return()=>h('label',{class:['block',attrs.class]},[h('span',{class:'mb-1.5 block text-[0.68rem] font-black uppercase tracking-wide text-slate-400 dark:text-white/30'},props.label),slots.default?.()]) } })
 const Info = defineComponent({ props:{label:String,value:String,icon:String}, setup(props,{attrs}){ return()=>h('div',{class:['rounded-2xl border border-base-300 p-4 dark:border-white/10',attrs.class]},[h('div',{class:'flex items-center gap-2 text-slate-400 dark:text-white/30'},[h(Icon,{icon:props.icon,width:14}),h('span',{class:'text-[0.65rem] font-black uppercase tracking-wide'},props.label)]),h('p',{class:'mt-2 text-sm font-semibold leading-6 text-slate-700 dark:text-white/60'},props.value)]) } })

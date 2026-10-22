@@ -40,6 +40,10 @@
         <textarea v-model="reason" rows="2" maxlength="255" :placeholder="isRequester ? 'Anything dispatch should know (optional)' : 'Why is this incident being closed?'"
           class="mt-2 w-full rounded-xl border border-base-300 bg-base-200/50 px-3 py-2.5 text-sm text-slate-800 focus:border-red-600 focus:outline-none dark:border-white/10 dark:bg-white/5 dark:text-white"></textarea>
 
+        <!-- False alarm = a strike for the requester (reusables/false_alarm_sanctions.php) -->
+        <p v-if="!isRequester && status === 'false_alarm'" class="mt-2 flex items-start gap-1.5 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-800 dark:bg-red-500/10 dark:text-red-200">
+          <Icon icon="lucide:gavel" width="13" class="mt-0.5 flex-shrink-0" /> The requester gets a false-alarm strike — repeated strikes suspend their account (they can appeal). Only use this when there was no emergency.
+        </p>
         <p v-if="linkedCount && !isRequester" class="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
           {{ linkedCount }} linked {{ linkedCount === 1 ? 'report is' : 'reports are' }} closed with it.
         </p>

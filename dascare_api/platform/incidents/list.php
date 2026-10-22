@@ -41,7 +41,7 @@ try {
     $stmt = $pdo->prepare("
         SELECT
             er.id, er.reference_number, er.requester_name, er.requester_phone, er.source,
-            er.severity, er.description, er.address_text, er.barangay, er.landmark,
+            er.severity, er.reporter_type, er.description, er.address_text, er.barangay, er.landmark,
             er.latitude, er.longitude, er.status, er.attention_level, er.attention_flagged_at, er.attention_reason,
             TIMESTAMPDIFF(MINUTE, er.submitted_at, NOW()) AS age_minutes, er.submitted_at,
             ec.name AS category_name,
