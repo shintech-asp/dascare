@@ -12,7 +12,8 @@ try {
     $stmt = $pdo->prepare("
         SELECT
             io.id, io.offer_status, io.offered_at, io.expires_at, io.responded_at, io.response_note,
-            io.emergency_request_id,
+            io.emergency_request_id, io.wave,
+            (SELECT COUNT(*) FROM incident_offers x WHERE x.emergency_request_id = io.emergency_request_id AND x.offer_status = 'sent' AND x.id <> io.id) AS other_open_offers,
             er.reference_number, er.severity, er.reporter_type, er.description, er.address_text, er.barangay, er.landmark,
             er.latitude, er.longitude, er.requester_name, er.requester_phone, er.status AS incident_status, er.submitted_at,
             ec.name AS category_name,
@@ -32,7 +33,7 @@ try {
     $stmt->execute([(int)$ctx['organization_id']]);
     $offers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     foreach ($offers as &$offer) {
-        foreach (['id','emergency_request_id','rank_position','recommended_ambulance_id'] as $key) $offer[$key] = $offer[$key] !== null ? (int)$offer[$key] : null;
+        foreach (['id','emergency_request_id','rank_position','recommended_ambulance_id','wave','other_open_offers'] as $key) $offer[$key] = $offer[$key] !== null ? (int)$offer[$key] : null;
         $offer['total_score'] = $offer['total_score'] !== null ? (float)$offer['total_score'] : null;
         $offer['distance_km'] = $offer['distance_km'] !== null ? (float)$offer['distance_km'] : null;
         $offer['latitude'] = (float)$offer['latitude'];

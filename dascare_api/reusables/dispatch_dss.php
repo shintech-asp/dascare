@@ -43,6 +43,28 @@ function dssOfferTimeoutSeconds(PDO $pdo): int
     return max(30, min(300, $seconds ?: 90));
 }
 
+/**
+ * Dispatch waves (system_settings 'dispatch.waves', edited on Platform → DSS & Operations).
+ *  wave 1 (at once): the LGU (when it has a ready unit), the barangay unit covering the
+ *                    incident, and the top-ranked organization (top 2 when no barangay unit);
+ *  wave 2 (after wave_seconds): the next wave2_size ranked organizations;
+ *  wave 3 (after 2 × wave_seconds): everyone eligible that is left.
+ * Earlier offers stay open; the first organization to accept wins. enabled=false
+ * falls back to the old one-organization-at-a-time cascade.
+ */
+const DSS_WAVE_LIMITS = ['wave_seconds' => [30, 900], 'wave2_size' => [1, 20]];
+function dssWaveSettings(PDO $pdo): array
+{
+    $cfg = dssJsonSetting($pdo, 'dispatch.waves', []);
+    $cfg = is_array($cfg) ? $cfg : [];
+    $clamp = static fn($v, $lim, $def) => (is_numeric($v) && $v >= $lim[0] && $v <= $lim[1]) ? (int) $v : $def;
+    return [
+        'enabled' => array_key_exists('enabled', $cfg) ? (bool) $cfg['enabled'] : true,
+        'wave_seconds' => $clamp($cfg['wave_seconds'] ?? null, DSS_WAVE_LIMITS['wave_seconds'], 120),
+        'wave2_size' => $clamp($cfg['wave2_size'] ?? null, DSS_WAVE_LIMITS['wave2_size'], 2),
+    ];
+}
+
 function dssHaversineKm(float $lat1, float $lon1, float $lat2, float $lon2): float
 {
     $earth = 6371.0;
@@ -342,7 +364,7 @@ function dssNotifyOrganization(PDO $pdo, int $organizationId, int $offerId, arra
     realtimeNotifyUsers($pdo, $userIds);
 }
 
-function dssCreateOfferForRecommendation(PDO $pdo, array $recommendation, array $request): array
+function dssCreateOfferForRecommendation(PDO $pdo, array $recommendation, array $request, int $wave = 1): array
 {
     $timeout = dssOfferTimeoutSeconds($pdo);
 
@@ -355,14 +377,15 @@ function dssCreateOfferForRecommendation(PDO $pdo, array $recommendation, array 
     // so interpolating the integer into INTERVAL is safe.
     $stmt = $pdo->prepare("
         INSERT INTO incident_offers
-            (emergency_request_id, dss_run_id, recommendation_id, organization_id, offer_status, offered_at, expires_at)
-        VALUES (?, ?, ?, ?, 'sent', NOW(), DATE_ADD(NOW(), INTERVAL {$timeout} SECOND))
+            (emergency_request_id, dss_run_id, recommendation_id, organization_id, wave, offer_status, offered_at, expires_at)
+        VALUES (?, ?, ?, ?, ?, 'sent', NOW(), DATE_ADD(NOW(), INTERVAL {$timeout} SECOND))
     ");
     $stmt->execute([
         (int) $request['id'],
         (int) $recommendation['run_id'],
         (int) $recommendation['id'],
         (int) $recommendation['organization_id'],
+        max(1, min(3, $wave)),
     ]);
     $offerId = (int) $pdo->lastInsertId();
 
@@ -376,7 +399,87 @@ function dssCreateOfferForRecommendation(PDO $pdo, array $recommendation, array 
     return ['id' => $offerId, 'expires_at' => $expiresAt, 'organization_id' => (int) $recommendation['organization_id']];
 }
 
+/** Which not-yet-offered recommendations belong to this wave. */
+function dssWaveSelect(array $unoffered, int $wave, int $wave2Size): array
+{
+    if ($wave >= 3) return $unoffered;
+    if ($wave === 2) return array_slice($unoffered, 0, $wave2Size);
+    $pick = [];
+    $hasBarangay = false;
+    foreach ($unoffered as $r) if ($r['organization_type'] === 'city_rescue') { $pick[$r['id']] = $r; break; }
+    foreach ($unoffered as $r) if ($r['organization_type'] === 'barangay_rescue') { $pick[$r['id']] = $r; $hasBarangay = true; break; }
+    $top = $hasBarangay ? 1 : 2;
+    foreach (array_slice($unoffered, 0, $top) as $r) $pick[$r['id']] = $r;
+    $out = array_values($pick);
+    usort($out, fn($a, $b) => $a['rank_position'] <=> $b['rank_position']);
+    return $out;
+}
+
+/** Sends the offers of one wave for a run. Returns the created offers. */
+function dssCreateWaveOffers(PDO $pdo, int $runId, array $request, int $wave, array $settings): array
+{
+    $stmt = $pdo->prepare("
+        SELECT dr.*, o.organization_type
+        FROM dss_recommendations dr
+        INNER JOIN organizations o ON o.id = dr.organization_id
+        WHERE dr.run_id = ?
+          AND NOT EXISTS (SELECT 1 FROM incident_offers io WHERE io.dss_run_id = dr.run_id AND io.recommendation_id = dr.id)
+        ORDER BY dr.rank_position ASC
+        FOR UPDATE
+    ");
+    $stmt->execute([$runId]);
+    $created = [];
+    foreach (dssWaveSelect($stmt->fetchAll(PDO::FETCH_ASSOC), $wave, $settings['wave2_size']) as $rec) {
+        $created[] = dssCreateOfferForRecommendation($pdo, $rec, $request, $wave);
+    }
+    return $created;
+}
+
+/**
+ * Moves an incident through its waves: when the wave timer passes, or when nobody
+ * has an open offer any more (everyone declined / timed out), the next wave goes out.
+ * Lazy like the old cascade — runs whenever offer/incident lists load.
+ */
+function dssAdvanceWaves(PDO $pdo, int $requestId): ?array
+{
+    $request = dssLoadRequest($pdo, $requestId, true);
+    if (in_array($request['status'], ['assigned','acknowledged','responding','on_scene','transporting','completed','cancelled','rejected','duplicate','false_alarm'], true)) return null;
+    $accepted = $pdo->prepare("SELECT 1 FROM incident_offers WHERE emergency_request_id = ? AND offer_status = 'accepted' LIMIT 1");
+    $accepted->execute([$requestId]);
+    if ($accepted->fetchColumn()) return null;
+
+    $runStmt = $pdo->prepare("SELECT id FROM dss_recommendation_runs WHERE emergency_request_id = ? AND run_status = 'active' ORDER BY id DESC LIMIT 1 FOR UPDATE");
+    $runStmt->execute([$requestId]);
+    $runId = (int) ($runStmt->fetchColumn() ?: 0);
+    if (!$runId) return null;
+
+    $settings = dssWaveSettings($pdo);
+    $state = $pdo->prepare("SELECT COALESCE(MAX(wave), 0) AS max_wave, SUM(offer_status = 'sent') AS open_offers, COALESCE(TIMESTAMPDIFF(SECOND, MIN(offered_at), NOW()), 0) AS elapsed FROM incident_offers WHERE dss_run_id = ?");
+    $state->execute([$runId]);
+    $st = $state->fetch(PDO::FETCH_ASSOC);
+    $maxWave = (int) $st['max_wave'];
+    $open = (int) $st['open_offers'];
+    $due = $maxWave === 0 ? 1 : min(3, 1 + intdiv((int) $st['elapsed'], $settings['wave_seconds']));
+    if ($open === 0 && $maxWave > 0) $due = max($due, min(3, $maxWave + 1)); // nobody left holding it: don't wait
+    $created = [];
+    for ($w = $maxWave + 1; $w <= $due; $w++) $created = array_merge($created, dssCreateWaveOffers($pdo, $runId, $request, $w, $settings));
+
+    $left = $pdo->prepare("SELECT (SELECT COUNT(*) FROM dss_recommendations dr WHERE dr.run_id = ? AND NOT EXISTS (SELECT 1 FROM incident_offers io WHERE io.dss_run_id = dr.run_id AND io.recommendation_id = dr.id)) AS unoffered, (SELECT COUNT(*) FROM incident_offers WHERE dss_run_id = ? AND offer_status = 'sent') AS open_now");
+    $left->execute([$runId, $runId]);
+    $l = $left->fetch(PDO::FETCH_ASSOC);
+    if ((int) $l['unoffered'] === 0 && (int) $l['open_now'] === 0) {
+        $pdo->prepare("UPDATE dss_recommendation_runs SET run_status = 'exhausted' WHERE id = ? AND run_status = 'active'")->execute([$runId]);
+    }
+    return $created ? ['offers' => $created] : null;
+}
+
 function dssEscalateNextOffer(PDO $pdo, int $requestId): ?array
+{
+    if (dssWaveSettings($pdo)['enabled']) return dssAdvanceWaves($pdo, $requestId);
+    return dssEscalateNextOfferSingle($pdo, $requestId);
+}
+
+function dssEscalateNextOfferSingle(PDO $pdo, int $requestId): ?array
 {
     $request = dssLoadRequest($pdo, $requestId, true);
     $accepted = $pdo->prepare("SELECT 1 FROM incident_offers WHERE emergency_request_id = ? AND offer_status = 'accepted' LIMIT 1");
@@ -427,6 +530,13 @@ function dssSyncExpiredOffers(PDO $pdo, ?int $requestId = null): void
             $update->execute([(int) $row['id']]);
             $requests[(int) $row['emergency_request_id']] = true;
             realtimeRequestChanged($pdo, (int) $row['emergency_request_id'], 'offer.expired', [], [(int) $row['organization_id']]);
+        }
+        if (dssWaveSettings($pdo)['enabled']) {
+            // Wave timers pass with no offer expiring: check every incident that still has an active run.
+            $activeSql = "SELECT DISTINCT dr.emergency_request_id FROM dss_recommendation_runs dr WHERE dr.run_status = 'active'" . ($requestId !== null ? ' AND dr.emergency_request_id = ?' : '');
+            $active = $pdo->prepare($activeSql);
+            $active->execute($requestId !== null ? [$requestId] : []);
+            foreach ($active->fetchAll(PDO::FETCH_COLUMN) as $id) $requests[(int) $id] = true;
         }
         foreach (array_keys($requests) as $id) dssEscalateNextOffer($pdo, $id);
         if ($ownTransaction) $pdo->commit();
@@ -487,7 +597,15 @@ function dssGenerateRecommendations(PDO $pdo, int $requestId, ?int $generatedByU
         }
 
         $offer = null;
-        if ($stored) $offer = dssCreateOfferForRecommendation($pdo, $stored[0], $request);
+        if ($stored) {
+            $waves = dssWaveSettings($pdo);
+            if ($waves['enabled']) {
+                $first = dssCreateWaveOffers($pdo, $runId, $request, 1, $waves);
+                $offer = $first[0] ?? null; // the earliest-ranked offer, for the audit entry
+            } else {
+                $offer = dssCreateOfferForRecommendation($pdo, $stored[0], $request);
+            }
+        }
 
         if ($generatedByUserId) {
             $audit = $pdo->prepare("INSERT INTO audit_logs (user_id, organization_id, action, entity_type, entity_id, new_values, ip_address, user_agent) VALUES (?, NULL, 'dispatch.dss_generated', 'emergency_request', ?, ?, ?, ?)");

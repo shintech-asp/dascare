@@ -63,6 +63,7 @@ const ASSIGNMENT_STATUS_LABELS = [
 ];
 
 try {
+    try { dssSyncExpiredOffers($pdo, $requestId); } catch (Throwable $e) { error_log('Offer sync on detail failed: ' . $e->getMessage()); } // the requester's polling also moves dispatch waves along
     syncIncidentAttentionFlags($pdo, $requestId);
     $stmt = $pdo->prepare("
         SELECT

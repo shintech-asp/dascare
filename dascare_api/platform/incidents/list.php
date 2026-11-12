@@ -47,7 +47,7 @@ try {
             ec.name AS category_name,
             dr.id AS dss_run_id, dr.candidate_count, dr.run_status AS dss_status, dr.created_at AS dss_generated_at,
             io.id AS current_offer_id, io.offer_status AS current_offer_status, io.expires_at AS current_offer_expires_at,
-            io.organization_id AS current_offer_organization_id, o.name AS current_offer_organization_name,
+            io.organization_id AS current_offer_organization_id, (SELECT GROUP_CONCAT(oo.name ORDER BY io4.wave, oo.name SEPARATOR ', ') FROM incident_offers io4 INNER JOIN organizations oo ON oo.id = io4.organization_id WHERE io4.emergency_request_id = er.id AND io4.offer_status = 'sent') AS current_offer_organization_name,
             accepted.id AS accepted_offer_id, accepted.organization_id AS accepted_organization_id,
             accepted_org.name AS accepted_organization_name,
             er.merged_into_request_id, merged.reference_number AS merged_into_reference,

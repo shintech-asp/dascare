@@ -6,6 +6,8 @@ export const fetchPlatformCompliance = async () => (await api.get('/platform/com
 export const fetchPlatformFleet = async () => (await api.get('/platform/fleet/list.php')).data
 export const fetchPlatformAnalytics = async () => (await api.get('/platform/analytics/summary.php')).data
 export const fetchPlatformDssSettings = async () => (await api.get('/platform/settings/dss.php')).data
+export const fetchDispatchWaves = async () => (await api.get('/platform/settings/waves.php')).data
+export const saveDispatchWaves = async (payload) => (await api.post('/platform/settings/waves.php', payload)).data
 export const fetchRequestLimit = async () => (await api.get('/platform/settings/request_limit.php')).data
 export const saveRequestLimit = async (payload) => (await api.post('/platform/settings/request_limit.php', payload)).data
 export const savePlatformDssSettings = async (payload) => (await api.post('/platform/settings/dss.php',payload)).data

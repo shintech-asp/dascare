@@ -24,6 +24,7 @@
               <div class="rounded-xl bg-base-200 p-2 dark:bg-white/5"><p class="text-[0.6rem] font-bold uppercase text-slate-400">Unit</p><p class="truncate text-sm font-black text-slate-800 dark:text-white/80">{{ o.recommended_unit_code || '—' }}</p></div>
               <div class="rounded-xl bg-base-200 p-2 dark:bg-white/5"><p class="text-[0.6rem] font-bold uppercase text-slate-400">DSS score</p><p class="text-sm font-black text-slate-800 dark:text-white/80">{{ o.total_score != null ? Number(o.total_score).toFixed(0) : '—' }}</p></div>
             </div>
+            <p v-if="o.other_open_offers > 0" class="mt-2 flex items-start gap-1.5 rounded-xl bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-800 dark:bg-blue-500/10 dark:text-blue-200"><Icon icon="lucide:users" width="13" class="mt-0.5 flex-shrink-0" />Also sent to {{ o.other_open_offers }} other organization{{ o.other_open_offers === 1 ? '' : 's' }} — the first to accept takes it.</p>
             <p v-if="o.explanation" class="mt-2 text-xs leading-5 text-slate-500 dark:text-white/45">{{ o.explanation }}</p>
             <button type="button" class="tap mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-[#1976D2] dark:text-sky-300" @click="reportFor = reportFor === o.id ? null : o.id">
               <Icon :icon="reportFor === o.id ? 'lucide:chevron-up' : 'lucide:file-text'" width="14" /> {{ reportFor === o.id ? 'Hide report' : 'View report & photos' }}
