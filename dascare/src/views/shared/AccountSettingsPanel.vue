@@ -100,7 +100,7 @@
           <div class="flex items-start gap-3">
             <span class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300"><Icon icon="lucide:shield-check" width="20" /></span>
             <div>
-              <h2 class="text-base font-black text-slate-900 dark:text-white">Two-factor authentication</h2>
+              <h2 class="text-base font-black text-slate-900 dark:text-white">Two-factor authentication<HelpTip text="Asks for a one-time code sent to your email each time you sign in, so a stolen password alone is not enough." /></h2>
               <p class="mt-1 max-w-xl text-xs leading-5 text-slate-500 dark:text-white/40">When enabled, DASCARE sends an email verification code during login.</p>
             </div>
           </div>
@@ -118,7 +118,7 @@
             <p class="mt-1 text-xs text-slate-500 dark:text-white/40">Use at least 10 characters with upper and lowercase letters, a number, and a symbol.</p>
           </div>
         </div>
-        <div class="mt-6 grid gap-4 sm:grid-cols-2">
+        <div class="mt-6 grid gap-4 sm:grid-cols-3">
           <div>
             <label class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-white/55">Current password</label>
             <PasswordReveal v-slot="{ type }"><input v-model="passwordForm.current_password" :type="type" required class="settings-input !pr-11" /></PasswordReveal>
@@ -127,6 +127,11 @@
             <label class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-white/55">New password</label>
             <PasswordReveal v-slot="{ type }"><input v-model="passwordForm.new_password" :type="type" required minlength="10" class="settings-input !pr-11" /></PasswordReveal>
           </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-white/55">Confirm new password</label>
+            <PasswordReveal v-slot="{ type }"><input v-model="passwordForm.new_password_confirmation" :type="type" required minlength="10" class="settings-input !pr-11" /></PasswordReveal>
+          </div>
+          <div class="sm:col-span-3"><PasswordMeter :password="passwordForm.new_password" :confirm="passwordForm.new_password_confirmation" :exclude="[user?.email, user?.first_name, user?.last_name]" /></div>
         </div>
         <button type="submit" :disabled="savingPassword" class="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-slate-800 disabled:opacity-50 dark:bg-white/10 dark:hover:bg-white/15">
           <Icon :icon="savingPassword ? 'lucide:loader-circle' : 'lucide:key-round'" width="16" :class="savingPassword ? 'animate-spin' : ''" />
@@ -135,12 +140,29 @@
       </form>
     </div>
   </section>
+  <!-- Turning 2FA on/off needs the current password (account/toggle_two_factor.php). -->
+  <Teleport to="body">
+    <div v-if="twoFactorPrompt" class="fixed inset-0 z-[95] grid place-items-center bg-slate-950/55 p-4 backdrop-blur-sm" @click.self="twoFactorPrompt = false">
+      <form class="w-full max-w-sm rounded-3xl border border-base-300 bg-base-100 p-6 shadow-2xl dark:border-white/10 dark:bg-[#071829]" @submit.prevent="confirmTwoFactor">
+        <h3 class="text-base font-black text-slate-900 dark:text-white">{{ twoFactorEnabled ? 'Turn off' : 'Turn on' }} two-factor authentication?</h3>
+        <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-white/40">Enter your current password to confirm.</p>
+        <label class="mb-1.5 mt-4 block text-xs font-bold text-slate-600 dark:text-white/55">Current password</label>
+        <PasswordReveal v-slot="{ type }"><input v-model="twoFactorPassword" :type="type" required autofocus class="settings-input !pr-11" /></PasswordReveal>
+        <div class="mt-5 flex justify-end gap-2">
+          <button type="button" class="rounded-xl border border-base-300 px-4 py-2.5 text-sm font-bold text-slate-600 dark:border-white/10 dark:text-white/60" @click="twoFactorPrompt = false">Cancel</button>
+          <button type="submit" :disabled="savingTwoFactor || !twoFactorPassword" class="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50">{{ savingTwoFactor ? 'Saving…' : 'Confirm' }}</button>
+        </div>
+      </form>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
+import HelpTip from '@/components/forms/HelpTip.vue'
 import api from '@/services/api'
 import PasswordReveal from '@/components/forms/PasswordReveal.vue'
+import PasswordMeter from '@/components/forms/PasswordMeter.vue'
 import { useSession } from '@/composables/useSession'
 import { useTheme } from '@/composables/useTheme'
 import { useAlert } from '@/composables/useAlert'
@@ -154,7 +176,9 @@ const alert = useAlert()
 const { user, fetchSession } = useSession()
 const { theme, themePreference, applyTheme } = useTheme()
 const profile = reactive({ first_name: '', last_name: '', email: '', phone: '' })
-const passwordForm = reactive({ current_password: '', new_password: '' })
+const passwordForm = reactive({ current_password: '', new_password: '', new_password_confirmation: '' })
+const twoFactorPrompt = ref(false)
+const twoFactorPassword = ref('')
 const twoFactorEnabled = ref(false)
 const savingProfile = ref(false)
 const savingPassword = ref(false)
@@ -169,8 +193,8 @@ const notificationOptions = [
 
 const load = () => {
   const names = (user.value?.name || '').split(' ')
-  profile.first_name = names.shift() || ''
-  profile.last_name = names.join(' ')
+  profile.first_name = user.value?.first_name ?? (names.shift() || '')
+  profile.last_name = user.value?.last_name ?? names.join(' ')
   profile.email = user.value?.email || ''
   profile.phone = user.value?.phone || ''
   twoFactorEnabled.value = Boolean(user.value?.hasTwoFactor)
@@ -184,13 +208,23 @@ const savePreferences = () => {
   alert.success('Notification preferences saved')
 }
 
+// All three use the account endpoints shared with the citizen settings and
+// the app: account/edit_profile.php (multipart; profile, and the password
+// when the password fields are sent) and account/toggle_two_factor.php.
+const profileForm = (extra = {}) => {
+  const fd = new FormData()
+  for (const [k, v] of Object.entries({ first_name: profile.first_name, last_name: profile.last_name, phone: profile.phone, ...extra })) fd.append(k, v ?? '')
+  return fd
+}
+
 const saveProfile = async () => {
+  if (!(await alert.confirm(`Save your profile as ${profile.first_name} ${profile.last_name}, ${profile.phone}?`, 'Update profile'))) return
   savingProfile.value = true
   try {
-    const { data } = await api.post('/account/profile/update.php', profile)
+    const { data } = await api.post('/account/edit_profile.php', profileForm())
     if (!data.success) throw new Error(data.message || 'Could not update profile')
     await fetchSession(true)
-    alert.success('Profile updated')
+    alert.success(data.message || 'Profile updated')
   } catch (error) {
     alert.error(error.response?.data?.message || error.message || 'Could not update profile')
   } finally {
@@ -198,29 +232,42 @@ const saveProfile = async () => {
   }
 }
 
-const toggleTwoFactor = async () => {
+const toggleTwoFactor = () => {
+  twoFactorPassword.value = ''
+  twoFactorPrompt.value = true
+}
+
+const confirmTwoFactor = async () => {
   savingTwoFactor.value = true
   const next = !twoFactorEnabled.value
   try {
-    const { data } = await api.post('/account/security/two_factor.php', { enabled: next })
+    const { data } = await api.post('/account/toggle_two_factor.php', { current_password: twoFactorPassword.value, enable: next ? 1 : 0 })
     if (!data.success) throw new Error(data.message || 'Could not update two-factor authentication')
     twoFactorEnabled.value = next
+    twoFactorPrompt.value = false
     await fetchSession(true)
-    alert.success(next ? 'Two-factor authentication enabled' : 'Two-factor authentication disabled')
+    alert.success(data.message || (next ? 'Two-factor authentication enabled' : 'Two-factor authentication disabled'))
   } catch (error) {
     alert.error(error.response?.data?.message || error.message || 'Could not update two-factor authentication')
   } finally {
+    twoFactorPassword.value = ''
     savingTwoFactor.value = false
   }
 }
 
 const changePassword = async () => {
+  if (passwordForm.new_password !== passwordForm.new_password_confirmation) {
+    alert.error('New password and confirmation do not match.')
+    return
+  }
+  if (!(await alert.confirm('Change your password? You will use the new one the next time you log in.', 'Change password'))) return
   savingPassword.value = true
   try {
-    const { data } = await api.post('/account/profile/change_password.php', passwordForm)
+    const { data } = await api.post('/account/edit_profile.php', profileForm({ ...passwordForm }))
     if (!data.success) throw new Error(data.message || 'Could not update password')
     passwordForm.current_password = ''
     passwordForm.new_password = ''
+    passwordForm.new_password_confirmation = ''
     alert.success('Password updated')
   } catch (error) {
     alert.error(error.response?.data?.message || error.message || 'Could not update password')

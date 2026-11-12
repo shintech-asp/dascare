@@ -37,8 +37,10 @@ import { apiMessage } from '@/services/api'
 import { fetchOrganizationMembers, updateOrganizationMemberAvailability } from '@/services/org/organizationManagement'
 import { useSession } from '@/composables/useSession'
 import { useToast } from '@/composables/useToast'
+import { useAlert } from '@/composables/useAlert'
 
 const toast = useToast()
+const alert = useAlert()
 const { hasPermission } = useSession()
 const canUpdate = computed(() => hasPermission('hr.availability.update'))
 const OPTIONS = [
@@ -58,6 +60,7 @@ const statTiles = computed(() => [
 ])
 async function change(m, status) {
   if ((m.availability_status || 'off_duty') === status) return
+  if (!(await alert.confirm(`Set ${m.first_name || ''} ${m.last_name || ''} to ${String(status).replaceAll('_', ' ')}?`, 'Change availability'))) { await load(); return }
   savingId.value = m.id
   try {
     const d = await updateOrganizationMemberAvailability(m.id, status, 'Updated from the staff app (Duty & Availability).')

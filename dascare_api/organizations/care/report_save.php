@@ -3,9 +3,10 @@ require_once __DIR__ . '/../../cors.php';
 require_once __DIR__ . '/../../db/db.php';
 require_once __DIR__ . '/../../reusables/organization_rbac.php';
 require_once __DIR__ . '/../../reusables/care_helpers.php';
+require_once __DIR__ . '/../../reusables/input_validation.php';
 header('Content-Type: application/json');
 if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST') organizationJsonError(405,'Method not allowed.');
-$ctx=requireOrganizationAccess($pdo,null);$body=json_decode(file_get_contents('php://input'),true)?:[];$assignmentId=(int)($body['assignment_id']??0);$submit=!empty($body['submit']);
+$ctx=requireOrganizationAccess($pdo,'incidents.incident_reports.create');$body=json_decode(file_get_contents('php://input'),true)?:[];$assignmentId=(int)($body['assignment_id']??0);$submit=!empty($body['submit']);
 if($assignmentId<=0) organizationJsonError(422,'Choose a mission.');
 $permission=$submit?'incidents.incident_reports.update':'incidents.incident_reports.create';
 if(!organizationHasPermission($pdo,$ctx,$permission)&&!organizationHasPermission($pdo,$ctx,'incidents.incident_reports.update')) organizationJsonError(403,'You do not have permission to save a field report.');
@@ -14,6 +15,9 @@ if($ctx['user_role']!=='organization_admin'&&!careUserAssignedToMission($pdo,$ct
 $summary=trim((string)($body['incident_summary']??''));$actions=trim((string)($body['actions_taken']??''));$outcome=strtolower((string)($body['outcome']??'other'));$valid=['treated_on_scene','transported','refused_transport','no_patient_found','deceased','other'];if(!in_array($outcome,$valid,true))$outcome='other';
 $facilityId=(int)($body['destination_facility_id']??0);if($facilityId<=0)$facilityId=null;
 if($summary===''||$actions==='') organizationJsonError(422,'Incident summary and actions taken are required.');
+if(!inputLooksLikeText($summary,10)||!inputLooksLikeText($actions,10)) organizationJsonError(422,'Write the incident summary and actions taken as real sentences (at least 10 letters each).');
+if(mb_strlen($summary)>4000||mb_strlen($actions)>4000) organizationJsonError(422,'Incident summary and actions taken are limited to 4000 characters.');
+if($submit&&$outcome==='transported'&&$facilityId===null) organizationJsonError(422,'Choose the destination facility for a transported patient.');
 try{
   $pdo->beginTransaction();
   $existing=$pdo->prepare("SELECT * FROM incident_reports WHERE emergency_request_id=? AND organization_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE");$existing->execute([(int)$assignment['emergency_request_id'],(int)$ctx['organization_id']]);$old=$existing->fetch(PDO::FETCH_ASSOC);

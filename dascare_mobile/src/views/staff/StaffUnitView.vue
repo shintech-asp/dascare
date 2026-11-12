@@ -171,6 +171,7 @@ function openCheck() { check.value = { fuel_level: 'adequate', oxygen_ready: tru
 function openMaint() { maint.value = { maintenance_type: 'preventive', status: 'scheduled', scheduled_for: '', provider: '', cost: '', notes: '' }; sheet.value = 'maint' }
 
 async function submitSheet() {
+  if (!(await alert.confirm('Save this change?', 'Confirm'))) { return }
   saving.value = true
   try {
     let r

@@ -69,6 +69,7 @@
                 <Field label="Mobile number" hint="PH mobile number, e.g. 09123456789"><input v-model.trim="form.phone" class="field" type="tel" maxlength="13" autocomplete="tel" /></Field>
                 <Field label="Password"><PasswordReveal v-slot="{ type }"><input v-model="form.password" class="field !pr-11" :type="type" autocomplete="new-password" /></PasswordReveal></Field>
                 <Field label="Confirm password"><PasswordReveal v-slot="{ type }"><input v-model="form.password_confirmation" class="field !pr-11" :type="type" autocomplete="new-password" /></PasswordReveal></Field>
+                <div class="sm:col-span-2"><PasswordMeter :password="form.password" :confirm="form.password_confirmation" :exclude="[form.email, form.first_name, form.last_name, form.organization_name]" /></div>
               </div>
             </section>
 
@@ -111,32 +112,24 @@
               <div>
                 <div class="flex flex-wrap items-end justify-between gap-3">
                   <div>
-                    <h3 class="text-sm font-black text-slate-900 dark:text-white">Service area</h3>
-                    <p class="mt-1 text-xs text-slate-500 dark:text-white/40">Select the Dasmariñas barangays the organization normally serves. Coverage can be revised later.</p>
+                    <h3 class="text-sm font-black text-slate-900 dark:text-white">Service area<HelpTip title="Service area" text="Emergencies in these barangays are offered to your organization. Barangay rescue units pick only their own barangay; hospitals, private ambulances and other providers can pick several." /></h3>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-white/40">{{ singleArea ? 'A barangay rescue unit serves its own barangay. Select one.' : 'Select the Dasmariñas barangays the organization normally serves. Coverage can be revised later.' }}</p>
                   </div>
                   <span class="rounded-full bg-[#1976D2]/10 px-2.5 py-1 text-[0.68rem] font-bold text-[#1976D2] dark:text-[#7fb3ec]">{{ form.service_areas.length }} selected</span>
                 </div>
 
-                <div v-if="!barangayLoadFailed" class="mt-4 rounded-2xl border border-base-300 p-4 dark:border-white/10">
+                <div class="mt-4 rounded-2xl border border-base-300 p-4 dark:border-white/10">
                   <div class="relative">
                     <Icon icon="lucide:search" width="15" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input v-model="barangaySearch" class="field pl-10" :placeholder="loadingBarangays ? 'Loading barangays…' : 'Search barangays'" :disabled="loadingBarangays" />
+                    <input v-model="barangaySearch" class="field pl-10" :placeholder="'Search barangays'" />
                   </div>
                   <div class="mt-3 max-h-64 overflow-y-auto pr-1">
                     <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                       <label v-for="barangay in filteredBarangays" :key="barangay" class="flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-semibold transition-colors" :class="form.service_areas.includes(barangay) ? 'border-[#1976D2]/40 bg-[#1976D2]/10 text-[#1976D2] dark:text-[#7fb3ec]' : 'border-base-300 text-slate-600 hover:bg-base-200 dark:border-white/10 dark:text-white/50 dark:hover:bg-white/5'">
-                        <input type="checkbox" class="checkbox checkbox-xs" :checked="form.service_areas.includes(barangay)" @change="toggleServiceArea(barangay)" />
+                        <input :type="singleArea ? 'radio' : 'checkbox'" class="checkbox checkbox-xs" :checked="form.service_areas.includes(barangay)" @change="toggleServiceArea(barangay)" />
                         <span>{{ barangay }}</span>
                       </label>
                     </div>
-                  </div>
-                </div>
-
-                <div v-else class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/20 dark:bg-amber-500/10">
-                  <p class="text-xs font-bold text-amber-800 dark:text-amber-200">Barangay directory is unavailable. Add service areas manually.</p>
-                  <div class="mt-3 flex gap-2">
-                    <input v-model.trim="manualBarangay" class="field bg-white dark:bg-[#071829]" placeholder="Barangay name" @keyup.enter.prevent="addManualBarangay" />
-                    <button type="button" class="rounded-xl bg-amber-600 px-4 text-xs font-bold text-white" @click="addManualBarangay">Add</button>
                   </div>
                 </div>
 
@@ -242,9 +235,12 @@
 
 <script setup>
 import { addBasemap, loadLeaflet } from '@/services/basemap'
+import HelpTip from '@/components/forms/HelpTip.vue'
+import { DASMARINAS_BARANGAYS } from '@/config/dasmarinasBarangays'
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import PasswordReveal from '@/components/forms/PasswordReveal.vue'
+import PasswordMeter from '@/components/forms/PasswordMeter.vue'
 import { useToast } from '@/composables/useToast'
 import { fetchOrganizationRequirements, resendOrganizationApplicantOtp, submitOrganizationApplication, verifyOrganizationApplicantEmail } from '@/services/organizationApplications'
 
@@ -400,46 +396,22 @@ function jumpToStep(step) {
   if (step <= currentStep.value) currentStep.value = step
 }
 
-const PSGC_BASE = 'https://psgc.gitlab.io/api'
-const DASMARINAS_CITY_CODE = '042106000'
-const barangays = ref([])
+const barangays = ref([...DASMARINAS_BARANGAYS]) // official list, works offline
 const barangaySearch = ref('')
-const loadingBarangays = ref(false)
-const barangayLoadFailed = ref(false)
-const manualBarangay = ref('')
+// Barangay rescue units serve one barangay; other types may list several.
+const singleArea = computed(() => form.value.organization_type === 'barangay_rescue')
 const filteredBarangays = computed(() => {
   const q = barangaySearch.value.trim().toLowerCase()
   return q ? barangays.value.filter(item => item.toLowerCase().includes(q)) : barangays.value
 })
-async function loadBarangays() {
-  loadingBarangays.value = true
-  barangayLoadFailed.value = false
-  try {
-    const response = await fetch(`${PSGC_BASE}/cities-municipalities/${DASMARINAS_CITY_CODE}/barangays/`)
-    if (!response.ok) throw new Error('Barangay lookup failed')
-    const data = await response.json()
-    barangays.value = [...new Set(data.map(item => item.name).filter(Boolean))].sort((a, b) => a.localeCompare(b))
-    if (!barangays.value.length) throw new Error('No barangays returned')
-  } catch (error) {
-    console.error(error)
-    barangayLoadFailed.value = true
-  } finally {
-    loadingBarangays.value = false
-  }
-}
 function toggleServiceArea(area) {
   const list = form.value.service_areas
   const index = list.indexOf(area)
+  if (singleArea.value) { form.value.service_areas = index >= 0 ? [] : [area]; return }
   if (index >= 0) list.splice(index, 1)
   else list.push(area)
 }
-function addManualBarangay() {
-  const area = manualBarangay.value.trim()
-  if (!area) return
-  if (!form.value.service_areas.includes(area)) form.value.service_areas.push(area)
-  manualBarangay.value = ''
-}
-
+watch(singleArea, (single) => { if (single && form.value.service_areas.length > 1) form.value.service_areas = form.value.service_areas.slice(0, 1) })
 const mapContainer = ref(null)
 const locating = ref(false)
 let map = null
@@ -556,7 +528,7 @@ async function resendOtp() {
   }
 }
 
-onMounted(() => { loadBarangays(); loadRequirements() })
+onMounted(() => { loadRequirements() })
 onBeforeUnmount(() => {
   if (map) map.remove()
   map = null

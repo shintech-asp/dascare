@@ -72,10 +72,10 @@
 
           <aside class="space-y-6">
             <section class="rounded-[28px] border border-base-300 bg-base-100 p-5 shadow-sm dark:border-white/10 dark:bg-[#0d2943] sm:p-6">
-              <div class="flex items-center justify-between"><div><p class="text-[0.68rem] font-black uppercase tracking-[0.14em] text-red-600 dark:text-red-300">Coverage</p><h2 class="mt-1 text-lg font-black text-slate-950 dark:text-white">Service Areas</h2></div><Icon icon="lucide:map-pinned" width="20" class="text-slate-300 dark:text-white/20" /></div>
-              <div v-if="editing" class="mt-4 flex gap-2"><input v-model.trim="newArea" class="field" placeholder="Add barangay / service area" @keyup.enter.prevent="addArea" /><button class="rounded-xl bg-[#1976D2] px-4 text-xs font-bold text-white" @click="addArea">Add</button></div>
+              <div class="flex items-center justify-between"><div><p class="text-[0.68rem] font-black uppercase tracking-[0.14em] text-red-600 dark:text-red-300">Coverage</p><h2 class="mt-1 text-lg font-black text-slate-950 dark:text-white">Service Areas<HelpTip title="Service areas" text="The barangays this unit responds to. Emergencies are offered to your organization only when they are in one of these barangays. A barangay rescue unit can choose only its own barangay." /></h2></div><Icon icon="lucide:map-pinned" width="20" class="text-slate-300 dark:text-white/20" /></div>
+              <div v-if="editing" class="mt-4 flex gap-2"><select v-model="newArea" class="field" @change="addArea"><option value="">{{ singleArea ? 'Choose your barangay' : 'Choose a barangay to add' }}</option><option v-for="b in availableAreas" :key="b" :value="b">{{ b }}</option></select></div>
               <div class="mt-4 flex flex-wrap gap-2">
-                <button v-for="area in form.service_areas" :key="area" type="button" class="inline-flex items-center gap-1.5 rounded-full bg-base-200 px-3 py-1.5 text-[0.7rem] font-bold text-slate-600 dark:bg-white/5 dark:text-white/45" @click="editing && removeArea(area)">{{ area }}<Icon v-if="editing" icon="lucide:x" width="12" /></button>
+                <button v-for="area in form.service_areas" :key="area" type="button" :class="validArea(area) ? 'bg-base-200 text-slate-600 dark:bg-white/5 dark:text-white/45' : 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300'" class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.7rem] font-bold" :title="validArea(area) ? '' : 'Not a Dasmariñas barangay — remove it'" @click="editing && removeArea(area)">{{ area }}<Icon v-if="editing" icon="lucide:x" width="12" /></button>
                 <p v-if="!form.service_areas.length" class="text-xs text-slate-400">No service areas configured.</p>
               </div>
             </section>
@@ -101,15 +101,19 @@
 
 <script setup>
 import { organizationDocumentLabel } from '@/config/organizationDocuments'
+import HelpTip from '@/components/forms/HelpTip.vue'
+import { DASMARINAS_BARANGAYS } from '@/config/dasmarinasBarangays'
 import { addBasemap, loadLeaflet } from '@/services/basemap'
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { fetchOrganizationProfile, updateOrganizationProfile } from '@/services/organizationManagement'
 import { useSession } from '@/composables/useSession'
 import { useToast } from '@/composables/useToast'
+import { useAlert } from '@/composables/useAlert'
 
 const { hasPermission, fetchSession } = useSession()
 const toast = useToast()
+const alert = useAlert()
 const loading = ref(true), saving = ref(false), editing = ref(false), errorMessage = ref('')
 const organization = ref(null), documents = ref([]), mapContainer = ref(null), newArea = ref('')
 const form = ref({ email:'', phone:'', address_line:'', latitude:null, longitude:null, service_areas:[] })
@@ -126,7 +130,10 @@ const Info = defineComponent({ props:{label:String,value:String,icon:String}, se
 function snapshot() { return JSON.parse(JSON.stringify(form.value)) }
 function startEditing(){ original.value=snapshot(); editing.value=true }
 function cancelEditing(){ if(original.value) form.value=JSON.parse(JSON.stringify(original.value)); editing.value=false; nextTick(renderMap) }
-function addArea(){ const v=newArea.value.trim(); if(v && !form.value.service_areas.some(a=>a.toLowerCase()===v.toLowerCase())) form.value.service_areas.push(v); newArea.value='' }
+const singleArea = computed(() => organization.value?.organization_type === 'barangay_rescue')
+const validArea = (a) => DASMARINAS_BARANGAYS.some((b) => b.toLowerCase() === String(a).toLowerCase())
+const availableAreas = computed(() => DASMARINAS_BARANGAYS.filter((b) => !form.value.service_areas.includes(b)))
+function addArea(){ const v=newArea.value; newArea.value=''; if(!v || !validArea(v)) return; if(singleArea.value){ form.value.service_areas=[v]; return } if(!form.value.service_areas.includes(v)) form.value.service_areas.push(v) }
 function removeArea(area){ form.value.service_areas=form.value.service_areas.filter(a=>a!==area) }
 
 
@@ -169,6 +176,10 @@ async function load(){
   }
 }
 async function save(){
+  const bad=form.value.service_areas.filter(a=>!validArea(a)); if(bad.length){ toast.error?.(`Remove “${bad[0]}” — it is not a Dasmariñas barangay.`); return }
+  if(singleArea.value && form.value.service_areas.length>1){ toast.error?.('A barangay rescue unit can only serve one barangay.'); return }
+  if(!form.value.service_areas.length && organization.value?.organization_type!=='city_rescue'){ toast.error?.('Select at least one service area.'); return }
+  if(!await alert.confirm('Save these changes to your organization profile and service areas?','Save profile')) return
   saving.value=true
   try{ const result=await updateOrganizationProfile(form.value); toast.success?.(result.message||'Organization profile updated.'); editing.value=false; await fetchSession(true); await load() }
   catch(e){ toast.error?.(e?.response?.data?.message||'Could not save the organization profile.') }

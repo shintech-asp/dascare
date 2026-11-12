@@ -16,6 +16,8 @@
 require_once __DIR__ . '/../../cors.php';
 require_once __DIR__ . '/../../db/db.php';
 require_once __DIR__ . '/../../reusables/organization_guard.php';
+require_once __DIR__ . '/../../reusables/input_validation.php';
+require_once __DIR__ . '/../../reusables/dasmarinas_barangays.php';
 require_once __DIR__ . '/../../reusables/realtime.php';
 header('Content-Type: application/json');
 
@@ -58,6 +60,10 @@ if (mb_strlen($barangay) > 120) organizationJsonError(422, 'Barangay name is too
 if (mb_strlen($addressText) > 255) organizationJsonError(422, 'Address is too long.');
 if (mb_strlen($landmark) > 255) organizationJsonError(422, 'Landmark is too long.');
 if (mb_strlen($description) > 2000) organizationJsonError(422, 'Description is too long (max 2000 characters).');
+if ($requesterName !== '' && !inputIsPersonName($requesterName)) organizationJsonError(422, 'Requester name can only contain letters, spaces, apostrophes, periods and hyphens.');
+if ($landmark !== '' && !inputLooksLikeText($landmark, 3)) organizationJsonError(422, 'Landmark must be readable text.');
+if ($addressText !== '' && !inputLooksLikeText($addressText, 3)) organizationJsonError(422, 'Address must be readable text.');
+if ($description !== '' && !inputLooksLikeText($description, 8)) organizationJsonError(422, 'Describe the situation in words (at least a short sentence).');
 
 $normalizedPhone = preg_replace('/[\s-]/', '', $requesterPhoneRaw);
 if ($normalizedPhone !== '' && !preg_match('/^(\+639\d{9}|09\d{9})$/', $normalizedPhone)) {
@@ -102,6 +108,11 @@ try {
 
     // A blank name keeps whatever was there (e.g. the account name or the
     // "Guest requester" placeholder) rather than wiping it. Same for phone.
+    if ($barangay !== '' && mb_strtolower($barangay) !== mb_strtolower((string) $request['barangay'])) {
+        $canon = barangayCanonical($barangay);
+        if ($canon === null) { $pdo->rollBack(); organizationJsonError(422, 'Choose the barangay from the list.'); }
+        $barangay = $canon;
+    }
     $finalName = $requesterName !== '' ? $requesterName : $request['requester_name'];
     $finalPhone = $normalizedPhone !== '' ? $normalizedPhone : $request['requester_phone'];
 

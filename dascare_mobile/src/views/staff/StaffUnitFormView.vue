@@ -36,15 +36,18 @@ import * as ui from '@/components/ui/styles'
 import { apiMessage } from '@/services/api'
 import { createFleetUnit, fetchFleetUnit, updateFleetUnit } from '@/services/org/organizationFleet'
 import { useToast } from '@/composables/useToast'
+import { useAlert } from '@/composables/useAlert'
 
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const alert = useAlert()
 const editId = computed(() => Number(route.query.id) || null)
 const saving = ref(false)
 const form = ref({ id: null, unit_code: '', plate_number: '', vehicle_make_model: '', model_year: '', ambulance_type: 'basic_life_support', capacity: 1, registration_expiry: '', inspection_expiry: '', capability_notes: '' })
 
 async function save() {
+  if (!(await alert.confirm(editId.value ? 'Save the changes to this ambulance?' : 'Add this ambulance to your fleet?', 'Save ambulance'))) { return }
   saving.value = true
   try {
     const r = editId.value ? await updateFleetUnit(form.value) : await createFleetUnit(form.value)

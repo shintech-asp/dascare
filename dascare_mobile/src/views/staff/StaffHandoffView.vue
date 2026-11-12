@@ -5,6 +5,7 @@
        after its handoff is completed (missions/status.php). -->
   <div class="min-h-screen bg-base-200 pb-[calc(var(--safe-bottom)+1.5rem)] dark:bg-[#050e1a]">
     <ScreenHeader :title="`Handoff · ${mission?.reference_number || ''}`" :fallback="`/staff/missions/${id}`" />
+    <p class="px-1 pt-2 text-xs leading-5 text-slate-500 dark:text-white/45">Tell the hospital a patient is coming.<HelpTip title="Facility endorsement" text="The facility accepts or declines; once accepted, the Dispatcher confirms the physical handoff, and only then can the mission be completed." /></p>
     <main class="space-y-4 px-4 pt-3">
       <section v-for="h in handoffs" :key="h.id" :class="[ui.card, 'p-4']">
         <div class="flex items-start justify-between gap-2">
@@ -46,6 +47,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import HelpTip from '@/components/HelpTip.vue'
 import { useRoute } from 'vue-router'
 import ScreenHeader from '@/components/ScreenHeader.vue'
 import * as ui from '@/components/ui/styles'
@@ -77,6 +79,7 @@ async function loadHandoffs() {
   try { const d = await fetchHandoffs(id.value); handoffs.value = d.handoffs || []; canConfirm.value = !!d.can_confirm; canRecord.value = !!d.can_record } catch (err) { toast.error(apiMessage(err, 'Unable to load handoffs.'), 'Error') }
 }
 async function create() {
+  if (!(await alert.confirm('Send this endorsement to the receiving facility?', 'Create endorsement'))) { return }
   saving.value = true
   try {
     const d = await createHandoff({ assignment_id: id.value, medical_facility_id: Number(form.value.medical_facility_id), eta_minutes: Number(form.value.eta_minutes || 0), notes: form.value.notes })

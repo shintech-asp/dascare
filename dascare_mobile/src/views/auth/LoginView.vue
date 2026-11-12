@@ -33,6 +33,10 @@
         Don't have an account?
         <RouterLink to="/register" replace class="font-semibold text-red-600 no-underline dark:text-red-400">Sign up</RouterLink>
       </p>
+      <a v-if="orgApplyUrl" :href="orgApplyUrl" target="_blank" rel="noopener" class="tap mt-4 flex items-center justify-center gap-2 rounded-2xl border border-base-300 py-3 text-sm font-bold text-slate-700 no-underline dark:border-white/10 dark:text-white/70">
+        <Icon icon="lucide:building-2" width="16" /> Register your organization
+      </a>
+      <p v-if="orgApplyUrl" class="mt-1.5 text-center text-[0.68rem] text-slate-400 dark:text-white/35">For ambulance providers, hospitals and barangay rescue units. Opens the DASCARE website.</p>
     </form>
 
     <template #after>
@@ -48,7 +52,9 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AuthScreen from './AuthScreen.vue'
 import * as ui from '@/components/ui/styles'
-import api, { apiMessage } from '@/services/api'
+import api, { API_BASE_URL, apiMessage } from '@/services/api'
+// Organization applications are a website flow: …/api → https://host/apply/organization (hidden for local dev URLs).
+const orgApplyUrl = /^https:\/\//.test(API_BASE_URL) ? API_BASE_URL.replace(/\/(dascare_)?api\/?$/, '') + '/apply/organization' : ''
 import { getItem, removeItem, setItem } from '@/services/storage'
 import { useSession } from '@/composables/useSession'
 import { useAuthFlow } from '@/composables/useAuthFlow'

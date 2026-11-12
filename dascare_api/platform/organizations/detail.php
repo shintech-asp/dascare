@@ -24,7 +24,7 @@ try {
     $areaStmt->execute([$organizationId]);
     $serviceAreas = $areaStmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $docStmt = $pdo->prepare("\n        SELECT id, doc_type, original_name, mime_type, file_size, status, rejection_reason, reviewed_at, created_at\n        FROM organization_documents\n        WHERE organization_id = ?\n        ORDER BY created_at, id\n    ");
+    $docStmt = $pdo->prepare("\n        SELECT id, doc_type, original_name, mime_type, file_size, status, rejection_reason, reviewed_at, created_at\n        FROM organization_documents\n        WHERE organization_id = ? AND superseded_at IS NULL\n        ORDER BY created_at, id\n    ");
     $docStmt->execute([$organizationId]);
     $documents = $docStmt->fetchAll(PDO::FETCH_ASSOC);
 

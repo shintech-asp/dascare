@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../cors.php';
 require_once __DIR__ . '/../../db/db.php';
 require_once __DIR__ . '/../../reusables/organization_guard.php';
+require_once __DIR__ . '/../../reusables/dasmarinas_barangays.php';
 
 header('Content-Type: application/json');
 $ctx = requireOrganizationAccess($pdo, 'org_settings.org_profile.update');
@@ -24,13 +25,10 @@ if ($address === '' || mb_strlen($address) > 255) organizationJsonError(422, 'En
 if ($latitude === null || $longitude === null || $latitude < 14.26 || $latitude > 14.40 || $longitude < 120.87 || $longitude > 121.00) {
     organizationJsonError(422, 'Choose a valid base location within Dasmariñas City.');
 }
-if (!is_array($serviceAreas)) organizationJsonError(422, 'Service areas must be a list.');
-$serviceAreas = array_values(array_unique(array_filter(array_map(static function ($area) {
-    $area = trim(strip_tags((string) $area));
-    return mb_strlen($area) <= 120 ? $area : '';
-}, $serviceAreas))));
-if (!$serviceAreas) organizationJsonError(422, 'Select at least one service area.');
-if (count($serviceAreas) > 100) organizationJsonError(422, 'Too many service areas were selected.');
+$typeStmt = $pdo->prepare('SELECT organization_type FROM organizations WHERE id = ?');
+$typeStmt->execute([$ctx['organization_id']]);
+[$serviceAreas, $areaError] = organizationValidateServiceAreas($serviceAreas, (string) $typeStmt->fetchColumn());
+if ($areaError !== null) organizationJsonError(422, $areaError);
 
 try {
     $pdo->beginTransaction();

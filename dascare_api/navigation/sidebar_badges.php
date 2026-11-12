@@ -56,7 +56,7 @@ try {
 
         $badges['/platform/escalations'] = $scalar($pdo, "\n            SELECT COUNT(DISTINCT er.id)\n            FROM emergency_requests er\n            WHERE er.status IN ('submitted','validating','verified')\n              AND (\n                EXISTS (\n                    SELECT 1 FROM dss_recommendation_runs dr\n                    WHERE dr.emergency_request_id = er.id AND dr.run_status = 'exhausted'\n                )\n                OR (\n                    SELECT COUNT(*) FROM incident_offers io\n                    WHERE io.emergency_request_id = er.id\n                      AND io.offer_status IN ('declined','timed_out')\n                ) >= 2\n              )\n        ");
 
-        $badges['/platform/compliance'] = $scalar($pdo, "\n            SELECT COUNT(*) FROM organization_documents\n            WHERE status IN ('pending','rejected')\n        ");
+        $badges['/platform/compliance'] = $scalar($pdo, "\n            SELECT COUNT(*) FROM organization_documents\n            WHERE superseded_at IS NULL AND (status = 'pending' OR (status = 'approved' AND expires_at IS NOT NULL AND expires_at < CURDATE()))\n        ");
     }
 
     if (in_array($level, ['organization_admin', 'organization_operational_user'], true)) {

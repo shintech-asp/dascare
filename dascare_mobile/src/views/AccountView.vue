@@ -39,6 +39,7 @@
             <div><label :class="ui.label">Current password</label><PasswordReveal v-slot="{ type }"><input v-model="account.current_password" :type="type" autocomplete="current-password" :class="[ui.input, '!pr-11']" /></PasswordReveal></div>
             <div><label :class="ui.label">New password</label><PasswordReveal v-slot="{ type }"><input v-model="account.new_password" :type="type" autocomplete="new-password" :class="[ui.input, '!pr-11']" /></PasswordReveal><PasswordStrength :password="account.new_password" /></div>
             <div><label :class="ui.label">Confirm new password</label><PasswordReveal v-slot="{ type }"><input v-model="account.new_password_confirmation" :type="type" autocomplete="new-password" :class="[ui.input, '!pr-11']" /></PasswordReveal></div>
+            <PasswordMeter :password="account.new_password" :confirm="account.new_password_confirmation" />
           </div>
         </div>
 
@@ -53,7 +54,7 @@
         <div class="flex items-start gap-3">
           <span class="grid h-11 w-11 flex-shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300"><Icon icon="lucide:shield-check" width="20" /></span>
           <div class="min-w-0 flex-1">
-            <h2 class="text-base font-black text-slate-900 dark:text-white">Two-factor authentication</h2>
+            <h2 class="text-base font-black text-slate-900 dark:text-white">Two-factor authentication<HelpTip text="Asks for a one-time code sent to your email each time you sign in, so a stolen password alone is not enough." /></h2>
             <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-white/40">When enabled, DASCARE emails you a one-time verification code every time you log in.</p>
           </div>
           <button type="button" role="switch" :aria-checked="twoFactor" :disabled="savingTwoFactor" class="relative mt-1 h-7 w-12 flex-shrink-0 rounded-full transition-colors disabled:opacity-50" :class="twoFactor ? 'bg-red-600' : 'bg-slate-200 dark:bg-white/10'" @click="openTwoFactor">
@@ -87,9 +88,11 @@
 
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import HelpTip from '@/components/HelpTip.vue'
 import ScreenHeader from '@/components/ScreenHeader.vue'
 import PasswordStrength from '@/components/PasswordStrength.vue'
 import PasswordReveal from '@/components/PasswordReveal.vue'
+import PasswordMeter from '@/components/PasswordMeter.vue'
 import * as ui from '@/components/ui/styles'
 import api, { apiMessage } from '@/services/api'
 import { useSession } from '@/composables/useSession'

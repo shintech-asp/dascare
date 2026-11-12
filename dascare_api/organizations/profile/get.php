@@ -26,7 +26,7 @@ try {
     $docs = $pdo->prepare("
         SELECT id, doc_type, original_name, mime_type, file_size, status, rejection_reason, reviewed_at, created_at
         FROM organization_documents
-        WHERE organization_id = ?
+        WHERE organization_id = ? AND superseded_at IS NULL
         ORDER BY created_at DESC, id DESC
     ");
     $docs->execute([$organizationId]);

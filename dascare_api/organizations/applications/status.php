@@ -45,7 +45,7 @@ $areaStmt->execute([$organization['id']]);
 $serviceAreas = $areaStmt->fetchAll(PDO::FETCH_COLUMN);
 
 $docStmt = $pdo->prepare("SELECT id, doc_type, original_name, mime_type, file_size, status, rejection_reason, reviewed_at
-    FROM organization_documents WHERE organization_id = ? ORDER BY created_at, id");
+    FROM organization_documents WHERE organization_id = ? AND superseded_at IS NULL ORDER BY created_at, id");
 $docStmt->execute([$organization['id']]);
 $documents = $docStmt->fetchAll(PDO::FETCH_ASSOC);
 

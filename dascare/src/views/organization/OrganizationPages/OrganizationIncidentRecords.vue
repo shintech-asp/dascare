@@ -82,7 +82,7 @@
           <div class="sm:col-span-2"><span :class="labelClass">Emergency type</span><EmergencyTypePicker v-model="form.emergency_category_id" /></div>
           <label class="block"><span :class="labelClass">Requester name</span><input v-model.trim="form.requester_name" :class="fieldClass" placeholder="Juan Dela Cruz" /></label>
           <label class="block"><span :class="labelClass">Contact number</span><input v-model.trim="form.requester_phone" :class="fieldClass" placeholder="09XXXXXXXXX" /></label>
-          <label class="block"><span :class="labelClass">Barangay</span><input v-model.trim="form.barangay" :class="fieldClass" placeholder="Barangay" /></label>
+          <label class="block"><span :class="labelClass">Barangay</span><select v-model="form.barangay" :class="fieldClass"><option value="">Select barangay</option><option v-if="form.barangay && !DASMARINAS_BARANGAYS.includes(form.barangay)" :value="form.barangay">{{ form.barangay }} (not on the official list)</option><option v-for="b in DASMARINAS_BARANGAYS" :key="b" :value="b">{{ b }}</option></select></label>
           <label class="block"><span :class="labelClass">Landmark</span><input v-model.trim="form.landmark" :class="fieldClass" placeholder="Nearest known landmark" /></label>
           <label class="block sm:col-span-2"><span :class="labelClass">Address</span><input v-model.trim="form.address_text" :class="fieldClass" placeholder="House/unit number, street, subdivision" /></label>
           <label class="block sm:col-span-2"><span :class="labelClass">Situation description</span><textarea v-model.trim="form.description" rows="4" :class="fieldClass" placeholder="What's happening — visible injuries, hazards, anything the crew should know."></textarea></label>
@@ -106,6 +106,9 @@ import { Icon } from '@iconify/vue'
 import PageShell from '@/components/management/PageShell.vue'
 import { useSession } from '@/composables/useSession'
 import { useToast } from '@/composables/useToast'
+import { useAlert } from '@/composables/useAlert'
+import { DASMARINAS_BARANGAYS } from '@/config/dasmarinasBarangays'
+import { incidentDetailsError } from '@/utils/validation'
 import { fetchOrganizationIncidents, updateIncidentDetails } from '@/services/organizationCompletion'
 import EmergencyTypePicker from '@/components/emergency-request/EmergencyTypePicker.vue'
 import { fetchOrganizationLinkedReports, unmergeOrganizationReport } from '@/services/dispatchOperations'
@@ -113,6 +116,7 @@ import LinkedReportsPanel from '@/components/incidents/LinkedReportsPanel.vue'
 
 const { hasPermission } = useSession()
 const toast = useToast()
+const alert = useAlert()
 
 const items = ref([])
 const stats = ref({})
@@ -168,6 +172,9 @@ function openEdit(i) {
 
 async function save() {
   if (phoneInvalid.value || saving.value) return
+  const problem = incidentDetailsError(form)
+  if (problem) { toast.error(problem, 'Check the details'); return }
+  if (!(await alert.confirm('Save these incident details? Responders and the requester will see the update.', 'Save incident details'))) return
   saving.value = true
   try {
     await updateIncidentDetails({

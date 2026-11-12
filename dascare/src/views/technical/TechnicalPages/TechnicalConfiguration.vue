@@ -6,7 +6,7 @@
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p class="font-mono text-xs font-black text-red-600">dispatch.dedup.*</p>
-            <h2 class="mt-1 text-base font-black text-slate-900 dark:text-white">Duplicate-request detection</h2>
+            <h2 class="mt-1 text-base font-black text-slate-900 dark:text-white">Duplicate-request detection<HelpTip text="When several people report the same emergency, later reports close by and soon after are linked to the first one instead of sending another ambulance." /></h2>
             <p class="mt-1 max-w-2xl text-sm text-slate-500 dark:text-white/45">When several people report the same emergency, later reports inside the radius and time window are linked to the first one instead of dispatching another ambulance.</p>
           </div>
           <label class="flex cursor-pointer items-center gap-2 rounded-xl bg-base-200 px-3 py-2 text-xs font-black text-slate-600 dark:bg-white/5 dark:text-white/60">
@@ -158,6 +158,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import HelpTip from '@/components/forms/HelpTip.vue'
 import PageShell from '@/components/management/PageShell.vue'
 import { fetchRealtimeUsage, fetchTechnicalConfiguration, saveTechnicalConfiguration, saveTechnicalConfigurationBatch } from '@/services/adminCompletion'
 import { useToast } from '@/composables/useToast'
@@ -255,6 +256,13 @@ async function save(key) {
   const current = items.value.find((i) => i.key === key)
   const next = decode(drafts.value[key])
   if (current && encode(current.value) === encode(next)) { toast.info('No changes to save.'); return }
+  // The new value must be the same kind as the current one (true/false, number, JSON object, text).
+  const kind = (v) => (Array.isArray(v) ? 'list' : v === null ? 'empty' : typeof v)
+  if (current && current.value !== null && kind(current.value) !== kind(next)) {
+    const want = { boolean: 'true or false', number: 'a number', object: 'a JSON object', list: 'a JSON list', string: 'text' }[kind(current.value)]
+    toast.error(`"${key}" must be ${want}.`, 'Invalid value')
+    return
+  }
   const ok = await alert.confirm(`Change "${key}" from ${preview(current?.value)} to ${preview(next)}?`, 'Change configuration')
   if (!ok) return
   try { const d = await saveTechnicalConfiguration(key, decode(drafts.value[key])); toast.success(d.message); await load() }

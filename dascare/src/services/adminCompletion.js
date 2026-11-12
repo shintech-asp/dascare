@@ -6,6 +6,8 @@ export const fetchPlatformCompliance = async () => (await api.get('/platform/com
 export const fetchPlatformFleet = async () => (await api.get('/platform/fleet/list.php')).data
 export const fetchPlatformAnalytics = async () => (await api.get('/platform/analytics/summary.php')).data
 export const fetchPlatformDssSettings = async () => (await api.get('/platform/settings/dss.php')).data
+export const fetchRequestLimit = async () => (await api.get('/platform/settings/request_limit.php')).data
+export const saveRequestLimit = async (payload) => (await api.post('/platform/settings/request_limit.php', payload)).data
 export const savePlatformDssSettings = async (payload) => (await api.post('/platform/settings/dss.php',payload)).data
 export const fetchPlatformAudit = async (params={}) => (await api.get('/platform/audit/list.php',{params})).data
 export const fetchPlatformEscalations = async () => (await api.get('/platform/escalations/list.php')).data
@@ -18,3 +20,6 @@ export const fetchTechnicalConfiguration = async () => (await api.get('/technica
 export const saveTechnicalConfiguration = async (key,value) => (await api.post('/technical/configuration/index.php',{key,value})).data
 export const fetchRealtimeUsage = async () => (await api.get('/technical/realtime/usage.php')).data
 export const saveTechnicalConfigurationBatch = async (items) => (await api.post('/technical/configuration/index.php',{items})).data
+export const fetchPlatformDocuments = async (params = {}) => (await api.get('/platform/documents/list.php', { params })).data
+export const reviewPlatformDocument = async (payload) => (await api.post('/platform/documents/review.php', payload)).data
+export const fetchPlatformDocumentBlob = async (id) => (await api.get('/platform/organizations/media.php', { params: { document_id: id }, responseType: 'blob' })).data

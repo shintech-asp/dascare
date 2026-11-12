@@ -225,6 +225,7 @@ const actionHint = computed(() => ({
 function openAction(kind, item) { action.value = { kind, item }; note.value = '' }
 async function submitAction() {
   const { kind, item } = action.value
+  if (!(await alert.confirm(`${actionTitle.value}? ${actionHint.value}`, actionTitle.value))) return
   saving.value = true
   try {
     const d = kind === 'lift' ? await liftSanctionSuspension(item.id, note.value)

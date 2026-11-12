@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../reusables/password_helpers.php';
 require_once __DIR__ . '/../../reusables/rate_limit.php';
 require_once __DIR__ . '/../../reusables/email_helper.php';
 require_once __DIR__ . '/../../reusables/organization_requirements.php';
+require_once __DIR__ . '/../../reusables/dasmarinas_barangays.php';
 
 header('Content-Type: application/json');
 
@@ -152,14 +153,8 @@ if ($latitude < 14.26 || $latitude > 14.40 || $longitude < 120.87 || $longitude 
 
 $serviceAreasDecoded = json_decode((string) $serviceAreasRaw, true);
 if (!is_array($serviceAreasDecoded)) jsonError(422, 'Invalid service area selection.');
-$serviceAreas = [];
-foreach ($serviceAreasDecoded as $area) {
-    $area = cleanText((string) $area, 120);
-    if (mb_strlen($area) >= 2) $serviceAreas[$area] = true;
-}
-$serviceAreas = array_keys($serviceAreas);
-if (!$serviceAreas) jsonError(422, 'Select at least one Dasmariñas barangay as a service area.');
-if (count($serviceAreas) > 100) jsonError(422, 'Too many service areas were selected.');
+[$serviceAreas, $areaError] = organizationValidateServiceAreas($serviceAreasDecoded, $organizationType);
+if ($areaError !== null) jsonError(422, $areaError);
 
 // Documents depend on the organization type (reusables/organization_requirements.php).
 $validatedUploads = [];

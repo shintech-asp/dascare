@@ -6,7 +6,7 @@ require_once __DIR__ . '/../../reusables/care_helpers.php';
 require_once __DIR__ . '/../../reusables/routing.php';
 header('Content-Type: application/json');
 if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST') organizationJsonError(405,'Method not allowed.');
-$ctx=requireOrganizationAccess($pdo,null);$body=json_decode(file_get_contents('php://input'),true)?:[];
+$ctx=requireOrganizationAccess($pdo,'hospital.handoffs.create');$body=json_decode(file_get_contents('php://input'),true)?:[];
 $assignmentId=(int)($body['assignment_id']??0);$facilityId=(int)($body['medical_facility_id']??0);$eta=(int)($body['eta_minutes']??0);$notes=mb_substr(trim((string)($body['notes']??'')),0,500);
 if($assignmentId<=0||$facilityId<=0) organizationJsonError(422,'Choose a mission and receiving facility.');
 $assignment=requireCareMissionAccess($pdo,$ctx,$assignmentId,'hospital.handoffs.create',true);

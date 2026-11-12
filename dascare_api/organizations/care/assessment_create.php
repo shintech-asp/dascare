@@ -3,10 +3,11 @@ require_once __DIR__ . '/../../cors.php';
 require_once __DIR__ . '/../../db/db.php';
 require_once __DIR__ . '/../../reusables/organization_rbac.php';
 require_once __DIR__ . '/../../reusables/care_helpers.php';
+require_once __DIR__ . '/../../reusables/input_validation.php';
 header('Content-Type: application/json');
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') organizationJsonError(405,'Method not allowed.');
-$ctx = requireOrganizationAccess($pdo, null);
+$ctx = requireOrganizationAccess($pdo, 'incidents.patient_assessments.create');
 $body = json_decode(file_get_contents('php://input'), true) ?: [];
 $assignmentId = (int) ($body['assignment_id'] ?? 0);
 if ($assignmentId <= 0) organizationJsonError(422,'Choose an active mission.');
@@ -24,13 +25,14 @@ if (!in_array($consciousness,['alert','responsive_to_voice','responsive_to_pain'
 $breathing = mb_substr(trim((string)($body['breathing_status'] ?? '')),0,120);
 $summary = trim((string)($body['condition_summary'] ?? ''));
 $injuries = trim((string)($body['injuries'] ?? ''));
-if ($summary === '') organizationJsonError(422,'Condition summary is required.');
+if ($patientName !== '' && !inputIsPersonName($patientName)) organizationJsonError(422,'Patient name can only contain letters, spaces, apostrophes, periods and hyphens.');
+if ($breathing !== '' && !inputLooksLikeText($breathing, 3)) organizationJsonError(422,'Describe the breathing status in words (e.g. normal, labored).');
+if ($summary === '' || !inputLooksLikeText($summary, 8)) organizationJsonError(422,'Describe the patient\'s condition in words (at least a short sentence).');
+if ($injuries !== '' && !inputLooksLikeText($injuries, 3)) organizationJsonError(422,'Injuries/notes must be readable text.');
+if (mb_strlen($summary) > 2000 || mb_strlen($injuries) > 2000) organizationJsonError(422,'Condition summary and injuries are limited to 2000 characters.');
 $vitals = is_array($body['vital_signs'] ?? null) ? $body['vital_signs'] : [];
-$cleanVitals=[];
-foreach (['pulse_bpm','respiratory_rate','blood_pressure','spo2_percent','temperature_c'] as $key) {
-    $val = $vitals[$key] ?? null;
-    if ($val !== null && $val !== '') $cleanVitals[$key] = mb_substr(trim((string)$val),0,40);
-}
+[$cleanVitals, $vitalsError] = inputCleanVitals($vitals);
+if ($vitalsError !== null) organizationJsonError(422, $vitalsError);
 
 try {
     $stmt=$pdo->prepare("INSERT INTO patient_assessments

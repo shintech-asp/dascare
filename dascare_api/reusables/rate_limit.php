@@ -37,6 +37,7 @@ const RATE_LIMIT_RULES = [
     'login_2fa_resend'    => [3, 600],
     'forgot_password'      => [3, 600],  // guards OTP-email spam on the forgot flow itself
     'register'              => [6, 3600], // 6 signups / hour per IP — throttles mass fake-account creation
+    'org_document_upload' => [20, 3600], // 20 document uploads / hour per organization
     'temporary_login'      => [8, 900],   // "log in with your request key" — per IP
     'emergency_request'    => [10, 1800], // 10 requests / 30 min (checked per-user AND per-IP) — generous enough for a genuinely bad night, tight enough to stop a dispatcher-flooding script
 ];
@@ -63,6 +64,41 @@ function getClientIp(): string
     return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 }
 
+/**
+ * [max attempts, window seconds] for an action. Emergency requests are
+ * admin-configurable (system_settings 'emergency.request_limit' =
+ * {"max":10,"window_minutes":30}, edited on Platform → DSS & Operations);
+ * every other action uses RATE_LIMIT_RULES.
+ */
+const EMERGENCY_LIMIT_RANGES = ['max' => [1, 50], 'window_minutes' => [1, 1440]];
+function rateLimitRule(PDO $pdo, string $actionKey): array
+{
+    $rule = RATE_LIMIT_RULES[$actionKey] ?? RATE_LIMIT_DEFAULT;
+    if ($actionKey !== 'emergency_request') return $rule;
+    try {
+        $stmt = $pdo->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'emergency.request_limit'");
+        $stmt->execute();
+        $cfg = json_decode((string) $stmt->fetchColumn(), true);
+        if (is_array($cfg)) {
+            $max = (int) ($cfg['max'] ?? 0);
+            $win = (int) ($cfg['window_minutes'] ?? 0);
+            if ($max >= EMERGENCY_LIMIT_RANGES['max'][0] && $max <= EMERGENCY_LIMIT_RANGES['max'][1]
+                && $win >= EMERGENCY_LIMIT_RANGES['window_minutes'][0] && $win <= EMERGENCY_LIMIT_RANGES['window_minutes'][1]) {
+                return [$max, $win * 60];
+            }
+        }
+    } catch (Throwable $e) { /* keep the default */ }
+    return $rule;
+}
+
+/** "12 minutes 5 seconds" style wait for the 429 message. */
+function rateLimitWaitText(int $seconds): string
+{
+    if ($seconds >= 3600) { $h = intdiv($seconds, 3600); $m = intdiv($seconds % 3600, 60); return $h . ' hour' . ($h > 1 ? 's' : '') . ($m ? " $m min" : ''); }
+    if ($seconds >= 60) { $m = intdiv($seconds, 60); $r = $seconds % 60; return $m . ' minute' . ($m > 1 ? 's' : '') . ($r ? " $r sec" : ''); }
+    return max(1, $seconds) . ' second' . ($seconds === 1 ? '' : 's');
+}
+
 function rateLimitHash(string $actionKey, string $identifier): string
 {
     return hash('sha256', $actionKey . '|' . strtolower($identifier));
@@ -76,7 +112,7 @@ function rateLimitHash(string $actionKey, string $identifier): string
  */
 function checkRateLimit(PDO $pdo, string $actionKey, string $identifier): void
 {
-    [$maxAttempts, ] = RATE_LIMIT_RULES[$actionKey] ?? RATE_LIMIT_DEFAULT;
+    [$maxAttempts, ] = rateLimitRule($pdo, $actionKey);
     $hash = rateLimitHash($actionKey, $identifier);
 
     $stmt = $pdo->prepare("
@@ -102,7 +138,10 @@ function checkRateLimit(PDO $pdo, string $actionKey, string $identifier): void
         header("Retry-After: {$retryAfter}");
         echo json_encode([
             "success" => false,
-            "message" => "Too many attempts. Please try again later.",
+            "message" => $actionKey === 'emergency_request'
+                ? "You have reached the limit of {$maxAttempts} emergency requests. You can send another in " . rateLimitWaitText($retryAfter) . ". If someone is in danger right now, call 911."
+                : "Too many attempts. Please try again in " . rateLimitWaitText($retryAfter) . ".",
+            "code" => $actionKey === 'emergency_request' ? 'REQUEST_LIMIT' : 'RATE_LIMIT',
             "retry_after_seconds" => $retryAfter,
         ]);
         exit;
@@ -115,7 +154,7 @@ function checkRateLimit(PDO $pdo, string $actionKey, string $identifier): void
  */
 function recordAttempt(PDO $pdo, string $actionKey, string $identifier): void
 {
-    [, $windowSeconds] = RATE_LIMIT_RULES[$actionKey] ?? RATE_LIMIT_DEFAULT;
+    [, $windowSeconds] = rateLimitRule($pdo, $actionKey);
     $hash = rateLimitHash($actionKey, $identifier);
     $now       = time();
     $nowStr    = date('Y-m-d H:i:s', $now);

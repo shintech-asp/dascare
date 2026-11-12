@@ -244,7 +244,8 @@ const showSettings = computed(() => !(props.workspace.key === 'organization' && 
 
 const primaryAction = computed(() => {
   if (props.workspace.key === 'organization' && organization.value?.status !== 'active') return null
-  return props.workspace.primaryAction || null
+  const action = props.workspace.primaryAction || null
+  return action && canSee(action) ? action : null
 })
 
 const initials = computed(() => (user.value?.name || '?')

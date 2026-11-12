@@ -39,8 +39,9 @@ import { Icon } from '@iconify/vue'
 import { createMaintenanceRecord, fetchFleetUnit, fetchFleetUnits, saveReadinessCheck, updateMaintenanceRecord } from '@/services/organizationFleet'
 import { useSession } from '@/composables/useSession'
 import { useToast } from '@/composables/useToast'
+import { useAlert } from '@/composables/useAlert'
 
-const { hasPermission }=useSession();const toast=useToast()
+const { hasPermission }=useSession();const toast=useToast();const alert=useAlert()
 const loading=ref(true),errorMessage=ref(''),units=ref([]),stats=ref({ready:0,attention:0,maintenance:0,credential_alerts:0})
 const selectedUnit=ref(null),readinessOpen=ref(false),maintenanceOpen=ref(false),historyOpen=ref(false),historyLoading=ref(false),history=ref(null),savingReadiness=ref(false),savingMaintenance=ref(false)
 const readinessForm=ref({fuel_level:'adequate',oxygen_ready:true,medical_supplies_ready:true,lights_siren_ready:true,communications_ready:true,stretcher_ready:true,cleanliness_ready:true,critical_issue:false,notes:''})
@@ -63,10 +64,10 @@ const Check=defineComponent({props:{modelValue:Boolean,label:String,icon:String}
 
 async function load(){loading.value=true;errorMessage.value='';try{const r=await fetchFleetUnits();units.value=r.units||[];stats.value=r.stats||stats.value}catch(e){errorMessage.value=e?.response?.data?.message||'Could not load fleet readiness.'}finally{loading.value=false}}
 function openReadiness(unit){selectedUnit.value=unit;readinessForm.value={fuel_level:'adequate',oxygen_ready:true,medical_supplies_ready:true,lights_siren_ready:true,communications_ready:true,stretcher_ready:true,cleanliness_ready:true,critical_issue:false,notes:''};readinessOpen.value=true}
-async function saveCheck(){savingReadiness.value=true;try{const r=await saveReadinessCheck({ambulance_id:selectedUnit.value.id,...readinessForm.value});toast.success(r.message);readinessOpen.value=false;await load()}catch(e){toast.error(e?.response?.data?.message||'Could not save readiness check.')}finally{savingReadiness.value=false}}
+async function saveCheck(){if(!await alert.confirm(`Record this readiness check for ${selectedUnit.value.unit_code}? It decides whether the unit can be dispatched.`,'Save readiness check'))return;savingReadiness.value=true;try{const r=await saveReadinessCheck({ambulance_id:selectedUnit.value.id,...readinessForm.value});toast.success(r.message);readinessOpen.value=false;await load()}catch(e){toast.error(e?.response?.data?.message||'Could not save readiness check.')}finally{savingReadiness.value=false}}
 function openMaintenance(unit){selectedUnit.value=unit;maintenanceForm.value={maintenance_type:'preventive',status:'scheduled',scheduled_for:'',provider:'',cost:'',notes:''};maintenanceOpen.value=true}
-async function saveMaintenance(){savingMaintenance.value=true;try{const r=await createMaintenanceRecord({ambulance_id:selectedUnit.value.id,...maintenanceForm.value});toast.success(r.message);maintenanceOpen.value=false;await load()}catch(e){toast.error(e?.response?.data?.message||'Could not create maintenance record.')}finally{savingMaintenance.value=false}}
+async function saveMaintenance(){if(!await alert.confirm(`Add this maintenance record for ${selectedUnit.value.unit_code}?`,'Add maintenance'))return;savingMaintenance.value=true;try{const r=await createMaintenanceRecord({ambulance_id:selectedUnit.value.id,...maintenanceForm.value});toast.success(r.message);maintenanceOpen.value=false;await load()}catch(e){toast.error(e?.response?.data?.message||'Could not create maintenance record.')}finally{savingMaintenance.value=false}}
 async function openHistory(id){historyOpen.value=true;historyLoading.value=true;try{history.value=await fetchFleetUnit(id)}catch(e){toast.error(e?.response?.data?.message||'Could not load fleet history.');historyOpen.value=false}finally{historyLoading.value=false}}
-async function setMaintenanceStatus(record,status){try{const r=await updateMaintenanceRecord({id:record.id,status,notes:record.notes||''});toast.success(r.message);history.value=await fetchFleetUnit(history.value.unit.id);await load()}catch(e){toast.error(e?.response?.data?.message||'Could not update maintenance.')}}
+async function setMaintenanceStatus(record,status){if(!await alert.confirm(`Mark this maintenance as ${String(status).replaceAll('_',' ')}?`,'Update maintenance'))return;try{const r=await updateMaintenanceRecord({id:record.id,status,notes:record.notes||''});toast.success(r.message);history.value=await fetchFleetUnit(history.value.unit.id);await load()}catch(e){toast.error(e?.response?.data?.message||'Could not update maintenance.')}}
 onMounted(load)
 </script>

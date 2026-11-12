@@ -172,7 +172,7 @@
               <div class="relative">
                 <Icon icon="mdi:lock-outline" width="20" height="20"
                   class="absolute left-3 top-3.5 text-slate-400 dark:text-white/30" />
-                <input :type="showLoginPassword ? 'text' : 'password'" v-model="loginPassword" required
+                <input :type="showLoginPassword ? 'text' : 'password'" v-model="loginPassword" @keydown="trackCaps" @keyup="trackCaps" @blur="capsOn = false" required
                   placeholder="••••••••"
                   class="w-full rounded-xl border border-slate-200 bg-[#f8f3e8] py-3 pl-11 pr-12 text-slate-800 placeholder:text-slate-400 transition-all focus:border-red-600 focus:outline-none focus:ring-2 focus:ring-red-600/20 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-white/30" />
                 <button type="button" @click="showLoginPassword = !showLoginPassword"
@@ -180,6 +180,7 @@
                   <Icon :icon="showLoginPassword ? 'line-md:watch' : 'line-md:watch-off'" width="22" height="22" />
                 </button>
               </div>
+              <p v-if="capsOn" class="mt-1.5 flex items-center gap-1 text-[0.7rem] font-bold text-amber-600 dark:text-amber-400" role="status"><Icon icon="lucide:arrow-big-up-dash" width="13" />Caps Lock is on</p>
 
               <label class="mt-3 flex items-center gap-2 text-xs text-slate-500 dark:text-white/50">
                 <input type="checkbox" v-model="rememberDevice"
@@ -210,6 +211,11 @@
                 Sent an SOS as a guest?
                 <RouterLink to="/my-emergency" class="font-semibold text-red-600 hover:underline dark:text-red-400">Log in with your request key</RouterLink>
               </p>
+              <RouterLink to="/apply/organization" class="mt-5 flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/60 px-4 py-3 text-sm font-bold text-slate-700 transition hover:border-red-300 hover:text-red-600 dark:border-white/15 dark:bg-white/5 dark:text-white/70 dark:hover:border-red-400/50 dark:hover:text-red-300">
+                <Icon icon="lucide:building-2" width="17" />
+                Register your organization
+              </RouterLink>
+              <p class="mt-1.5 text-center text-[0.68rem] text-slate-400 dark:text-white/35">For ambulance providers, hospitals and barangay rescue units.</p>
             </form>
 
             <!-- ═══════════ SIGN UP ═══════════ -->
@@ -249,7 +255,7 @@
 
               <label class="mt-4 mb-1.5 text-xs font-semibold text-slate-500 dark:text-white/50">Password</label>
               <div class="relative">
-                <input :type="showRegisterPassword ? 'text' : 'password'" v-model="registerPassword" required
+                <input :type="showRegisterPassword ? 'text' : 'password'" v-model="registerPassword" @keydown="trackCaps" @keyup="trackCaps" @blur="capsOn = false" required
                   placeholder="Create a password"
                   class="w-full rounded-xl border border-slate-200 bg-[#f8f3e8] px-4 py-3 pr-12 text-slate-800 placeholder:text-slate-400 transition-all focus:border-red-600 focus:outline-none focus:ring-2 focus:ring-red-600/20 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-white/30" />
                 <button type="button" @click="showRegisterPassword = !showRegisterPassword"
@@ -257,6 +263,7 @@
                   <Icon :icon="showRegisterPassword ? 'line-md:watch' : 'line-md:watch-off'" width="22" height="22" />
                 </button>
               </div>
+              <p v-if="capsOn" class="mt-1.5 flex items-center gap-1 text-[0.7rem] font-bold text-amber-600 dark:text-amber-400" role="status"><Icon icon="lucide:arrow-big-up-dash" width="13" />Caps Lock is on</p>
               <div v-if="registerPassword.length > 0" class="mt-2">
                 <div class="flex gap-1">
                   <div v-for="i in 4" :key="i" class="h-1 flex-1 rounded-full transition-all duration-300" :class="i <= passwordStrength
@@ -318,6 +325,11 @@
                 <span class="cursor-pointer font-semibold text-red-600 hover:underline dark:text-red-400"
                   @click="switchTo(false)">Log in</span>
               </p>
+              <RouterLink to="/apply/organization" class="mt-5 flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/60 px-4 py-3 text-sm font-bold text-slate-700 transition hover:border-red-300 hover:text-red-600 dark:border-white/15 dark:bg-white/5 dark:text-white/70 dark:hover:border-red-400/50 dark:hover:text-red-300">
+                <Icon icon="lucide:building-2" width="17" />
+                Register your organization
+              </RouterLink>
+              <p class="mt-1.5 text-center text-[0.68rem] text-slate-400 dark:text-white/35">For ambulance providers, hospitals and barangay rescue units.</p>
             </form>
 
           </div>
@@ -442,7 +454,7 @@
 
         <label class="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-white/50">New password</label>
         <div class="relative mb-2">
-          <input :type="showResetPassword ? 'text' : 'password'" v-model="resetPassword"
+          <input :type="showResetPassword ? 'text' : 'password'" v-model="resetPassword" @keydown="trackCaps" @keyup="trackCaps" @blur="capsOn = false"
             placeholder="Enter new password"
             class="w-full rounded-xl border border-slate-200 bg-[#f8f3e8] px-4 py-3 pr-12 text-slate-800 focus:border-red-600 focus:outline-none focus:ring-2 focus:ring-red-600/20 dark:border-white/10 dark:bg-white/5 dark:text-white" />
           <button type="button" @click="showResetPassword = !showResetPassword"
@@ -450,6 +462,7 @@
             <Icon :icon="showResetPassword ? 'line-md:watch' : 'line-md:watch-off'" width="22" height="22" />
           </button>
         </div>
+        <p v-if="capsOn" class="mt-1.5 flex items-center gap-1 text-[0.7rem] font-bold text-amber-600 dark:text-amber-400" role="status"><Icon icon="lucide:arrow-big-up-dash" width="13" />Caps Lock is on</p>
         <div v-if="resetPassword.length > 0" class="mb-4">
           <div class="flex gap-1">
             <div v-for="i in 4" :key="i" class="h-1 flex-1 rounded-full transition-all duration-300" :class="i <= resetPasswordStrength
@@ -464,7 +477,7 @@
 
         <label class="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-white/50">Confirm password</label>
         <div class="relative">
-          <input :type="showResetConfirmPassword ? 'text' : 'password'" v-model="resetConfirmPassword"
+          <input :type="showResetConfirmPassword ? 'text' : 'password'" v-model="resetConfirmPassword" @keydown="trackCaps" @keyup="trackCaps" @blur="capsOn = false"
             placeholder="Re-enter new password"
             class="w-full rounded-xl border border-slate-200 bg-[#f8f3e8] px-4 py-3 pr-12 text-slate-800 focus:border-red-600 focus:outline-none focus:ring-2 focus:ring-red-600/20 dark:border-white/10 dark:bg-white/5 dark:text-white" />
           <button type="button" @click="showResetConfirmPassword = !showResetConfirmPassword"
@@ -472,6 +485,7 @@
             <Icon :icon="showResetConfirmPassword ? 'line-md:watch' : 'line-md:watch-off'" width="22" height="22" />
           </button>
         </div>
+        <p v-if="capsOn" class="mt-1.5 flex items-center gap-1 text-[0.7rem] font-bold text-amber-600 dark:text-amber-400" role="status"><Icon icon="lucide:arrow-big-up-dash" width="13" />Caps Lock is on</p>
         <div v-if="resetConfirmPassword.length > 0" class="mt-2 flex items-center gap-2">
           <Icon :icon="resetPasswordsMatch ? 'mdi:check-circle' : 'mdi:close-circle'" class="h-4 w-4"
             :class="resetPasswordsMatch ? 'text-emerald-500' : 'text-red-500'" />
@@ -601,6 +615,9 @@ function switchTo(active) {
 const loginEmail = ref('')
 const loginPassword = ref('')
 const showLoginPassword = ref(false)
+// Caps Lock warning under the password fields.
+const capsOn = ref(false)
+const trackCaps = (e) => { capsOn.value = typeof e.getModifierState === 'function' && e.getModifierState('CapsLock') }
 const isLoginLoading = ref(false)
 const rememberDevice = ref(false)
 

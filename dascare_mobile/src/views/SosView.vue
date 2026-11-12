@@ -113,7 +113,7 @@
             <div class="rounded-2xl border px-4 py-3" :class="form.reporter_type === 'witness' ? 'border-amber-300 bg-amber-50/70 dark:border-amber-500/30 dark:bg-amber-500/5' : 'border-base-300 dark:border-white/10'">
               <div class="flex items-center justify-between gap-3">
                 <div class="min-w-0">
-                  <p class="text-sm font-bold text-slate-800 dark:text-white/80">Did you see someone else in an emergency?</p>
+                  <p class="text-sm font-bold text-slate-800 dark:text-white/80">Did you see someone else in an emergency?<HelpTip title="Witness report" text="Turn this on if you saw the emergency happen to someone else. Tell us what you saw and add photos if you can — responders will know the patient may not be you." /></p>
                   <p class="text-xs text-slate-500 dark:text-white/45">Turn on if you're reporting for another person.</p>
                 </div>
                 <label class="flex flex-shrink-0 items-center gap-2 text-xs font-bold text-slate-600 dark:text-white/60">
@@ -155,7 +155,7 @@
 
             <!-- What happened? Optional label for dispatch; nothing picked = "Other". -->
             <div>
-              <p class="mb-2 text-xs font-semibold text-slate-600 dark:text-white/60">What happened? <span class="font-normal text-slate-400 dark:text-white/30">(optional — tap one)</span></p>
+              <p class="mb-2 text-xs font-semibold text-slate-600 dark:text-white/60">What happened?<HelpTip text="Optional. Picking a type helps dispatch send the right ambulance. If you are unsure, skip it — your location is all we need." /> <span class="font-normal text-slate-400 dark:text-white/30">(optional — tap one)</span></p>
               <EmergencyTypePicker v-model="form.emergency_category_id" clearable hide-other />
             </div>
 
@@ -168,12 +168,19 @@
               </div>
             </div>
 
+            <!-- Request limit reached: when they can send again -->
+            <div v-if="requestLimit.active.value" class="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-center dark:border-amber-500/30 dark:bg-amber-500/10" role="status">
+              <p class="text-xs font-bold text-amber-800 dark:text-amber-200">Request limit reached</p>
+              <p class="mt-1 font-mono text-2xl font-black text-amber-700 dark:text-amber-200">{{ requestLimit.label.value }}</p>
+              <p class="mt-1 text-[0.7rem] leading-4 text-amber-800/80 dark:text-amber-200/70">You can send another request when the timer ends. If someone is in danger right now, call <b>911</b>.</p>
+            </div>
+
             <!-- The big button — same look as the web -->
-            <button type="button" :disabled="submitting"
+            <button type="button" :disabled="submitting || requestLimit.active.value"
               class="mx-auto flex aspect-square w-full max-w-[230px] flex-col items-center justify-center gap-3 rounded-full border-[8px] border-red-400/70 bg-red-600 px-8 text-center text-white shadow-[0_18px_45px_rgba(220,38,38,0.32)] transition-transform active:scale-[0.96] disabled:opacity-60 dark:border-red-400/50 dark:shadow-red-950/40"
               @click="submit">
               <Icon :icon="submitting ? 'lucide:loader-2' : 'lucide:zap'" width="30" :class="submitting ? 'animate-spin' : ''" />
-              <span class="max-w-[150px] text-lg font-black uppercase leading-tight tracking-tight">{{ submitting ? 'Sending…' : 'Request Rescue Now' }}</span>
+              <span class="max-w-[150px] text-lg font-black uppercase leading-tight tracking-tight">{{ submitting ? 'Sending…' : requestLimit.active.value ? `Wait ${requestLimit.label.value}` : 'Request Rescue Now' }}</span>
             </button>
             <p class="text-center text-[0.7rem] text-slate-400 dark:text-white/30">
               {{ isGuest ? 'Your location is sent to dispatch — stay where you are if possible.' : `Dispatch will call ${form.requester_phone || 'your registered number'} — stay where you are if possible.` }}
@@ -280,6 +287,7 @@
 // the phone's GPS/camera, haptic confirmation, an explicit offline state,
 // and guest SOS keys kept on the phone (see composables/useGuestKeys.js).
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
+import HelpTip from '@/components/HelpTip.vue'
 import EmergencyTypePicker from '@/components/incidents/EmergencyTypePicker.vue'
 import { OTHER_EMERGENCY_TYPE } from '@/config/emergencyTypes'
 import { Geolocation } from '@capacitor/geolocation'
@@ -293,6 +301,7 @@ import api, { apiMessage } from '@/services/api'
 import { useSession } from '@/composables/useSession'
 import { useGuestKeys } from '@/composables/useGuestKeys'
 import { useToast } from '@/composables/useToast'
+import { useRequestLimitCountdown } from '@/composables/useRequestLimitCountdown'
 import { enablePush } from '@/services/push'
 import { cameraDeniedText, isPermissionDenied, isUserCancel, locationDeniedText } from '@/utils/permissions'
 
@@ -303,6 +312,7 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024
 const { user, isLoggedIn } = useSession()
 const guestKeys = useGuestKeys()
 const toast = useToast()
+const requestLimit = useRequestLimitCountdown()
 const isGuest = computed(() => !isLoggedIn.value)
 
 const witnessEl = ref(null)
@@ -463,7 +473,7 @@ function buildDescription() {
 }
 
 async function submit() {
-  if (submitting.value) return
+  if (submitting.value || requestLimit.active.value) return
   document.activeElement?.blur()
   sendError.value = ''
   if (!locationOk.value) {
@@ -515,6 +525,10 @@ async function submit() {
     enablePush() // get "a unit is on the way" even with the app closed
   } catch (err) {
     Haptics.notification({ type: NotificationType.Error }).catch(() => {})
+    if (requestLimit.handle(err.response?.data)) {
+      toast.error(err.response.data.message, 'Request limit reached')
+      return
+    }
     if (err.response?.data?.code === 'GUEST_LIMIT') {
       guestLimit.value = err.response.data.limit ?? guestLimit.value
       guestUsed.value = Math.max(err.response.data.used ?? 0, guestLimit.value)

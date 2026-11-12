@@ -85,9 +85,7 @@
               <label class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-white/55">Confirm new password</label>
               <PasswordReveal v-slot="{ type }"><input v-model="account.new_password_confirmation" :type="type" autocomplete="new-password" minlength="10" class="settings-input !pr-11" /></PasswordReveal>
             </div>
-            <p class="text-[0.68rem] text-slate-400 dark:text-white/30 sm:col-span-2">
-              Use at least 10 characters with upper and lowercase letters, a number, and a symbol.
-            </p>
+            <div class="sm:col-span-2"><PasswordMeter :password="account.new_password" :confirm="account.new_password_confirmation" :exclude="[account.email, account.first_name, account.last_name]" /></div>
           </div>
         </div>
 
@@ -241,6 +239,7 @@ import axios from 'axios'
 import { onMounted, reactive, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import PasswordReveal from '@/components/forms/PasswordReveal.vue'
+import PasswordMeter from '@/components/forms/PasswordMeter.vue'
 import FalseAlarmRecord from '@/components/sanctions/FalseAlarmRecord.vue'
 import { useSession } from '@/composables/useSession'
 import { useTheme } from '@/composables/useTheme'

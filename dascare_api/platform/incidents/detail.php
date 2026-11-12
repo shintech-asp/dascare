@@ -53,7 +53,8 @@ try {
             $mergedInto = $primary;
         }
     }
-    echo json_encode(['success'=>true,'incident'=>$request,'run'=>$run,'recommendations'=>$recommendations,'offers'=>$offers,'linked_reports'=>$linkedReports,'merged_into'=>$mergedInto]);
+    $noCandidateReasons = (!$run || (int) $run['candidate_count'] === 0) && !in_array($request['status'], ['completed','cancelled','rejected','duplicate','false_alarm'], true) ? dssExplainNoCandidates($pdo, $request) : [];
+    echo json_encode(['success'=>true,'no_candidate_reasons'=>$noCandidateReasons,'incident'=>$request,'run'=>$run,'recommendations'=>$recommendations,'offers'=>$offers,'linked_reports'=>$linkedReports,'merged_into'=>$mergedInto]);
 } catch (Throwable $e) {
     error_log('Platform incident detail failed: ' . $e->getMessage());
     platformJsonError(500, 'Unable to load incident details.');

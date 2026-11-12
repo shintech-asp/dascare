@@ -12,10 +12,10 @@
             <Field label="Consciousness"><select v-model="form.consciousness" class="input"><option value="alert">Alert</option><option value="responsive_to_voice">Responsive to voice</option><option value="responsive_to_pain">Responsive to pain</option><option value="unresponsive">Unresponsive</option><option value="unknown">Unknown</option></select></Field>
             <Field label="Breathing status"><input v-model="form.breathing_status" class="input" placeholder="e.g. normal, labored"/></Field>
             <Field label="Blood pressure"><input v-model="form.vital_signs.blood_pressure" class="input" placeholder="120/80"/></Field>
-            <Field label="Pulse"><input v-model="form.vital_signs.pulse_bpm" class="input" placeholder="bpm"/></Field>
-            <Field label="Respiratory rate"><input v-model="form.vital_signs.respiratory_rate" class="input" placeholder="breaths/min"/></Field>
-            <Field label="SpO₂"><input v-model="form.vital_signs.spo2_percent" class="input" placeholder="%"/></Field>
-            <Field label="Temperature"><input v-model="form.vital_signs.temperature_c" class="input" placeholder="°C"/></Field>
+            <Field label="Pulse (bpm)"><input v-model="form.vital_signs.pulse_bpm" type="number" inputmode="numeric" min="20" max="250" step="1" class="input" placeholder="bpm (20–250)"/></Field>
+            <Field label="Respiratory rate"><input v-model="form.vital_signs.respiratory_rate" type="number" inputmode="numeric" min="4" max="80" step="1" class="input" placeholder="breaths/min (4–80)"/></Field>
+            <Field label="SpO₂"><input v-model="form.vital_signs.spo2_percent" type="number" inputmode="numeric" min="50" max="100" step="1" class="input" placeholder="% (50–100)"/></Field>
+            <Field label="Temperature"><input v-model="form.vital_signs.temperature_c" type="number" inputmode="decimal" min="30" max="45" step="0.1" class="input" placeholder="°C (30–45)"/></Field>
             <Field label="Condition summary" class="sm:col-span-2"><textarea v-model="form.condition_summary" class="input min-h-24" placeholder="Brief current condition and observations"></textarea></Field>
             <Field label="Visible injuries / notes" class="sm:col-span-2 lg:col-span-3"><textarea v-model="form.injuries" class="input min-h-20" placeholder="Optional"></textarea></Field>
           </div><div class="mt-5 flex justify-end"><button :disabled="saving" class="rounded-xl bg-red-600 px-5 py-2.5 text-xs font-black text-white hover:bg-red-700 disabled:opacity-50" @click="save"><Icon icon="lucide:save" width="14" class="mr-1 inline"/>Record Assessment</button></div>
@@ -27,10 +27,12 @@
 </template>
 <script setup>
 import { computed, defineComponent, h, onMounted, ref, watch } from 'vue'
+import HelpTip from '@/components/forms/HelpTip.vue'
 import { Icon } from '@iconify/vue'
 import { fetchOrganizationMissions } from '@/services/dispatchOperations'
 import { createAssessment, fetchAssessments } from '@/services/rescueOperations'
 import { useAlert } from '@/composables/useAlert'
+import { assessmentError } from '@/utils/validation'
 const alert=useAlert(),missions=ref([]),selectedId=ref(null),assessments=ref([]),saving=ref(false)
 const selected=computed(()=>missions.value.find(m=>m.id===selectedId.value)||missions.value[0]||null)
 const blank=()=>({patient_name:'',approximate_age:'',sex:'unknown',consciousness:'unknown',breathing_status:'',condition_summary:'',injuries:'',vital_signs:{pulse_bpm:'',respiratory_rate:'',blood_pressure:'',spo2_percent:'',temperature_c:''}});const form=ref(blank())
@@ -38,7 +40,7 @@ const Field=defineComponent({props:{label:String},setup(p,{slots}){return()=>h('
 const pretty=v=>String(v||'').replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());const formatDate=v=>v?new Date(String(v).replace(' ','T')).toLocaleString():'—'
 async function load(){try{const d=await fetchOrganizationMissions();missions.value=d.missions||[];if(!selectedId.value)selectedId.value=missions.value[0]?.id||null}catch(e){alert.error(e?.response?.data?.message||e.message||'Unable to load missions.')}}
 async function loadAssess(){if(!selected.value){assessments.value=[];return}try{const d=await fetchAssessments(selected.value.emergency_request_id);assessments.value=d.assessments||[]}catch(e){alert.error(e?.response?.data?.message||e.message||'Unable to load assessments.')}}
-async function save(){if(!selected.value)return;saving.value=true;try{const d=await createAssessment({...form.value,assignment_id:selected.value.id});alert.success(d.message);form.value=blank();await loadAssess()}catch(e){alert.error(e?.response?.data?.message||e.message||'Unable to save assessment.')}finally{saving.value=false}}
+async function save(){if(!selected.value)return;const problem=assessmentError(form.value);if(problem){alert.error(problem);return}if(!await alert.confirm('Record this patient assessment for the mission?','Record assessment'))return;saving.value=true;try{const d=await createAssessment({...form.value,assignment_id:selected.value.id});alert.success(d.message);form.value=blank();await loadAssess()}catch(e){alert.error(e?.response?.data?.message||e.message||'Unable to save assessment.')}finally{saving.value=false}}
 watch(selectedId,loadAssess);onMounted(async()=>{await load();await loadAssess()})
 </script>
 <style scoped>.input{width:100%;border:1px solid hsl(var(--bc)/.12);background:hsl(var(--b1));border-radius:.75rem;padding:.7rem .8rem;font-size:.8rem;outline:none}.input:focus{border-color:#dc2626;box-shadow:0 0 0 3px rgba(220,38,38,.08)}</style>

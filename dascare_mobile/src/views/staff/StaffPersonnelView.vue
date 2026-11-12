@@ -140,6 +140,7 @@ function openManage(m) { managed.value = m; manageForm.value = { membership_stat
 async function saveManage() {
   const m = managed.value
   if (needsReason.value && manageForm.value.note.trim().length < 5) { toast.error('Give a short reason for restricting this member.', 'Reason needed'); return }
+  if (!(await alert.confirm('Save the changes to this member?', 'Save member settings'))) { return }
   saving.value = true
   try {
     if (canManage.value && manageForm.value.membership_status !== m.membership_status) await updateOrganizationMemberStatus(m.id, manageForm.value.membership_status, manageForm.value.note.trim())

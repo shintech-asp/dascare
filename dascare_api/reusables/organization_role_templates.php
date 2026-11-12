@@ -11,6 +11,8 @@ function ensureStarterOrganizationRoles(PDO $pdo, int $organizationId, ?int $cre
                 'dispatch.crew_assignments.create', 'dispatch.crew_assignments.read', 'dispatch.crew_assignments.update', 'dispatch.mission_status.update',
                 'dispatch.tracking.read', 'dispatch.tracking.update',
                 'incidents.emergency_requests.read', 'incidents.emergency_requests.update', 'analytics.reports.read',
+                // Dispatchers record the receiving-facility endorsement and confirm the handoff.
+                'hospital.handoffs.create', 'hospital.handoffs.read', 'hospital.handoffs.update',
             ],
         ],
         'Driver' => [

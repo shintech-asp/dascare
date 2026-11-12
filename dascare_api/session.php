@@ -141,6 +141,8 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'])) {
                 $response["user"] = [
                     "id"    => (int) $user['id'],
                     "name"  => $_SESSION['user_name'],
+                    "first_name" => $user['first_name'],
+                    "last_name"  => $user['last_name'],
                     "email" => $user['email'],
                     "phone" => $user['phone'],
                     "level" => $user['level'],

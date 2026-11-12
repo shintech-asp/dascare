@@ -27,8 +27,9 @@ import { computed, defineComponent, h, onMounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { fetchPlatformOrganizations, updatePlatformOrganizationStatus } from '@/services/adminCompletion'
 import { useToast } from '@/composables/useToast'
+import { useAlert } from '@/composables/useAlert'
 import PageShell from '@/components/management/PageShell.vue'
-const toast=useToast(),items=ref([]),stats=ref({}),loading=ref(false),error=ref(''),search=ref(''),status=ref('all'),selected=ref(null),reason=ref(''),nextStatus=ref('active'),saving=ref(false)
+const toast=useToast(),alert=useAlert(),items=ref([]),stats=ref({}),loading=ref(false),error=ref(''),search=ref(''),status=ref('all'),selected=ref(null),reason=ref(''),nextStatus=ref('active'),saving=ref(false)
 const statCards=computed(()=>[{label:'Approved',value:stats.value.total||0,icon:'lucide:building-2'},{label:'Active',value:stats.value.active||0,icon:'lucide:badge-check'},{label:'Suspended',value:stats.value.suspended||0,icon:'lucide:pause-circle'},{label:'Inactive',value:stats.value.inactive||0,icon:'lucide:archive'}])
 const Stat=defineComponent({props:{label:String,value:[String,Number],icon:String},setup:p=>()=>h('article',{class:'rounded-3xl border border-base-300 bg-base-100 p-5 shadow-sm dark:border-white/10 dark:bg-[#071829]'},[h(Icon,{icon:p.icon,width:20,class:'text-red-500'}),h('p',{class:'mt-4 text-2xl font-black dark:text-white'},String(p.value??0)),h('p',{class:'mt-1 text-xs font-bold text-slate-500'},p.label)])})
 const Status=defineComponent({props:{value:String},setup:p=>()=>h('span',{class:['rounded-full px-2.5 py-1 text-[.65rem] font-black',p.value==='active'?'bg-emerald-100 text-emerald-700':p.value==='suspended'?'bg-amber-100 text-amber-700':'bg-slate-200 text-slate-600']},p.value)})
@@ -36,6 +37,6 @@ const Mini=defineComponent({props:{label:String,value:String},setup:p=>()=>h('di
 const labelType=v=>String(v||'').replaceAll('_',' ').replace(/\b\w/g,m=>m.toUpperCase())
 async function load(){loading.value=true;error.value='';try{const d=await fetchPlatformOrganizations({search:search.value,status:status.value});items.value=d.items||[];stats.value=d.stats||{}}catch(e){error.value=e?.response?.data?.message||'Unable to load organizations.'}finally{loading.value=false}}
 function openManage(item){selected.value=item;reason.value='';nextStatus.value='active'}
-async function change(target){if(target!=='active'&&!reason.value.trim()){toast.error('Provide an administrative reason.');return}saving.value=true;try{const d=await updatePlatformOrganizationStatus({organization_id:selected.value.id,status:target,reason:reason.value});toast.success(d.message);selected.value=null;await load()}catch(e){toast.error(e?.response?.data?.message||'Unable to update organization.')}finally{saving.value=false}}
+async function change(target){if(target!=='active'&&!reason.value.trim()){toast.error('Provide an administrative reason.');return}if(!await alert.confirm(`Set ${selected.value.name||'this organization'} to ${target}?`,'Change organization status'))return;saving.value=true;try{const d=await updatePlatformOrganizationStatus({organization_id:selected.value.id,status:target,reason:reason.value});toast.success(d.message);selected.value=null;await load()}catch(e){toast.error(e?.response?.data?.message||'Unable to update organization.')}finally{saving.value=false}}
 onMounted(load)
 </script>

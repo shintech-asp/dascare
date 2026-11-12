@@ -160,14 +160,6 @@ body {
   background-color: var(--color-base-200);
 }
 
-/* Temporary test: apply the same cursor everywhere */
-html,
-body,
-#app,
-* {
-  cursor: url("/cursors/dascare-cursor.png") 0 0, auto !important;
-}
-
 button,
 input,
 select,

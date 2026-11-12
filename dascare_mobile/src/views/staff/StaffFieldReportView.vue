@@ -44,9 +44,12 @@ import { apiMessage } from '@/services/api'
 import { fetchOrganizationMissions } from '@/services/org/dispatchOperations'
 import { fetchFieldReport, fetchReceivingFacilities, saveFieldReport } from '@/services/org/rescueOperations'
 import { useToast } from '@/composables/useToast'
+import { useAlert } from '@/composables/useAlert'
+import { fieldReportError } from '@/utils/validation'
 
 const route = useRoute()
 const toast = useToast()
+const alert = useAlert()
 const id = computed(() => Number(route.params.id))
 const mission = ref(null)
 const facilities = ref([])
@@ -64,6 +67,9 @@ async function loadReport() {
   }
 }
 async function save(submit) {
+  const problem = fieldReportError(form.value, submit)
+  if (problem) { toast.error(problem, 'Check the details'); return }
+  if (!(await alert.confirm(submit ? 'Submit this field report? It cannot be edited after submission.' : 'Save this field report as a draft?', 'Field report'))) { return }
   saving.value = true
   try {
     const d = await saveFieldReport({ assignment_id: id.value, ...form.value, destination_facility_id: form.value.destination_facility_id ? Number(form.value.destination_facility_id) : null, submit })

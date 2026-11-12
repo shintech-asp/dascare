@@ -90,6 +90,7 @@ function toggleOpen(k) { const n = new Set(open.value); n.has(k) ? n.delete(k) :
 
 async function save() {
   if (!role.value?.is_system && form.value.role_name.trim().length < 3) { toast.error('Enter a role name of at least 3 characters.', 'Name needed'); return }
+  if (!(await alert.confirm('Save the permissions for this role? Affected members get them after refreshing their session.', 'Save permissions'))) { return }
   saving.value = true
   try {
     const payload = { ...form.value, permission_ids: form.value.permission_ids.map(Number) }

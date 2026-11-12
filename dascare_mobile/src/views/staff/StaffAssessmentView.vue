@@ -22,7 +22,7 @@
         <h3 class="text-sm font-black text-slate-900 dark:text-white">{{ assessments.length ? 'Add another assessment' : 'New assessment' }}</h3>
         <div><label :class="ui.label">Patient name</label><input v-model="form.patient_name" :class="ui.input" placeholder="If known" /></div>
         <div class="grid grid-cols-2 gap-3">
-          <div><label :class="ui.label">Approx. age</label><input v-model="form.approximate_age" inputmode="numeric" :class="ui.input" placeholder="e.g. 65" /></div>
+          <div><label :class="ui.label">Approx. age</label><input v-model="form.approximate_age" type="number" min="0" max="120" inputmode="numeric" :class="ui.input" placeholder="e.g. 65" /></div>
           <div><label :class="ui.label">Sex</label><select v-model="form.sex" :class="ui.input"><option value="unknown">Unknown</option><option value="male">Male</option><option value="female">Female</option></select></div>
         </div>
         <div>
@@ -37,11 +37,11 @@
         <div>
           <label :class="ui.label">Vital signs</label>
           <div class="grid grid-cols-2 gap-2">
-            <input v-model="form.vital_signs.pulse_bpm" inputmode="numeric" :class="ui.input" placeholder="Pulse (bpm)" />
-            <input v-model="form.vital_signs.respiratory_rate" inputmode="numeric" :class="ui.input" placeholder="Resp. rate" />
+            <input v-model="form.vital_signs.pulse_bpm" type="number" min="20" max="250" step="1" inputmode="numeric" :class="ui.input" placeholder="Pulse (bpm)" />
+            <input v-model="form.vital_signs.respiratory_rate" type="number" min="4" max="80" step="1" inputmode="numeric" :class="ui.input" placeholder="Resp. rate" />
             <input v-model="form.vital_signs.blood_pressure" :class="ui.input" placeholder="BP (120/80)" />
-            <input v-model="form.vital_signs.spo2_percent" inputmode="numeric" :class="ui.input" placeholder="SpO₂ %" />
-            <input v-model="form.vital_signs.temperature_c" inputmode="decimal" :class="ui.input" placeholder="Temp °C" />
+            <input v-model="form.vital_signs.spo2_percent" type="number" min="50" max="100" step="1" inputmode="numeric" :class="ui.input" placeholder="SpO₂ %" />
+            <input v-model="form.vital_signs.temperature_c" type="number" min="30" max="45" step="0.1" inputmode="decimal" :class="ui.input" placeholder="Temp °C" />
           </div>
         </div>
         <div><label :class="ui.label">Injuries</label><textarea v-model="form.injuries" rows="2" :class="ui.input"></textarea></div>
@@ -61,9 +61,12 @@ import { apiMessage } from '@/services/api'
 import { fetchOrganizationMissions } from '@/services/org/dispatchOperations'
 import { createAssessment, fetchAssessments } from '@/services/org/rescueOperations'
 import { useToast } from '@/composables/useToast'
+import { useAlert } from '@/composables/useAlert'
+import { assessmentError } from '@/utils/validation'
 
 const route = useRoute()
 const toast = useToast()
+const alert = useAlert()
 const id = computed(() => Number(route.params.id))
 const mission = ref(null)
 const assessments = ref([])
@@ -83,6 +86,9 @@ async function loadAssessments() {
   try { assessments.value = (await fetchAssessments(mission.value.emergency_request_id)).assessments || [] } catch (err) { toast.error(apiMessage(err, 'Unable to load assessments.'), 'Error') }
 }
 async function save() {
+  const problem = assessmentError(form.value)
+  if (problem) { toast.error(problem, 'Check the details'); return }
+  if (!(await alert.confirm('Record this patient assessment for the mission?', 'Record assessment'))) { return }
   saving.value = true
   try {
     const d = await createAssessment({ ...form.value, assignment_id: id.value })

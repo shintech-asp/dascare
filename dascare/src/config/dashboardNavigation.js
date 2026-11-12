@@ -59,7 +59,7 @@ export const dashboardWorkspaces = {
           { label: 'Overview', to: '/platform', icon: 'lucide:layout-dashboard' },
           { label: 'Organization Applications', to: '/platform/applications', icon: 'lucide:building-2', permissions: ['organizations.organizations.read'] },
           { label: 'Approved Organizations', to: '/platform/organizations', icon: 'lucide:badge-check', permissions: ['organizations.organizations.read'] },
-          { label: 'Compliance Review', to: '/platform/compliance', icon: 'lucide:file-check-2', permissions: ['organizations.org_documents.read'] },
+          { label: 'Document Management', to: '/platform/compliance', icon: 'lucide:file-check-2', permissions: ['organizations.org_documents.read'] },
         ],
       },
       {
@@ -103,14 +103,14 @@ export const dashboardWorkspaces = {
     basePath: '/organization',
     roleLabels: ['Organization Admin', 'Organization Staff'],
     accent: 'red',
-    primaryAction: { label: 'Incident Offers', description: 'Review incoming rescue work', to: '/organization/offers', icon: 'lucide:siren' },
+    primaryAction: { label: 'Incident Offers', description: 'Review incoming rescue work', to: '/organization/offers', icon: 'lucide:siren', permissions: ['dispatch.dispatch_assignments.read', 'dispatch.dispatch_assignments.approve'], permissionMode: 'any' },
     navGroups: [
       {
         label: 'Workspace',
         items: [
           { label: 'Overview', to: '/organization', icon: 'lucide:layout-dashboard' },
           { label: 'Incident Offers', to: '/organization/offers', icon: 'lucide:inbox', permissions: ['dispatch.dispatch_assignments.read', 'dispatch.dispatch_assignments.approve'], permissionMode: 'any' },
-          { label: 'Active Missions', to: '/organization/missions', icon: 'lucide:route', permissions: ['dispatch.dispatch_assignments.read'] },
+          { label: 'Active Missions', to: '/organization/missions', icon: 'lucide:route', permissions: ['dispatch.dispatch_assignments.read', 'dispatch.mission_status.update'], permissionMode: 'any' },
           { label: 'Resource Assignment', to: '/organization/assignments', icon: 'lucide:git-pull-request-arrow', permissions: ['dispatch.dispatch_assignments.update', 'dispatch.crew_assignments.create'], permissionMode: 'any' },
           { label: 'Live Tracking', to: '/organization/tracking', icon: 'lucide:map-pinned', permissions: ['dispatch.tracking.read', 'dispatch.dispatch_assignments.read'], permissionMode: 'any' },
           { label: 'Scheduled Transport', to: '/organization/transports', icon: 'lucide:calendar-clock', permissions: ['dispatch.dispatch_assignments.read'] },

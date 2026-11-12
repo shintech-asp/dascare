@@ -100,6 +100,61 @@ function dssLoadRequest(PDO $pdo, int $requestId, bool $forUpdate = false): arra
     return $request;
 }
 
+/**
+ * Why nobody qualified: one line per active organization saying what stopped
+ * its units (on a mission, readiness not passed, expired papers, maintenance,
+ * outside the barangay). Shown to the platform when an incident has 0 candidates.
+ */
+function dssExplainNoCandidates(PDO $pdo, array $request): array
+{
+    $orgs = $pdo->query("SELECT id, name, organization_type FROM organizations WHERE deleted_at IS NULL AND status = 'active' ORDER BY (organization_type = 'city_rescue') DESC, name")->fetchAll(PDO::FETCH_ASSOC);
+    if (!$orgs) return [['organization' => 'No active organization', 'reasons' => ['There is no active rescue organization to send this to.']]];
+
+    $units = $pdo->query("
+        SELECT a.id, a.organization_id, a.status, a.registration_expiry, a.inspection_expiry,
+               (SELECT rc.overall_status FROM ambulance_readiness_checks rc WHERE rc.ambulance_id = a.id ORDER BY rc.checked_at DESC, rc.id DESC LIMIT 1) AS readiness,
+               EXISTS (SELECT 1 FROM ambulance_maintenance_records am WHERE am.ambulance_id = a.id AND am.status = 'in_progress') AS in_maintenance
+        FROM ambulances a WHERE a.deleted_at IS NULL")->fetchAll(PDO::FETCH_ASSOC);
+    $byOrg = [];
+    foreach ($units as $u) $byOrg[(int) $u['organization_id']][] = $u;
+
+    $areas = [];
+    foreach ($pdo->query('SELECT organization_id, barangay FROM organization_service_areas')->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $areas[(int) $r['organization_id']][] = mb_strtolower(trim((string) $r['barangay']));
+    }
+    $barangay = mb_strtolower(trim((string) ($request['barangay'] ?? '')));
+    $today = date('Y-m-d');
+    $out = [];
+    foreach ($orgs as $o) {
+        $id = (int) $o['id'];
+        $reasons = [];
+        $isLgu = $o['organization_type'] === 'city_rescue';
+        if (!$isLgu && !empty($areas[$id]) && !in_array($barangay, $areas[$id], true)) {
+            $reasons[] = 'Does not cover this barangay (' . ($request['barangay'] ?: 'Unspecified') . ').';
+        }
+        $list = $byOrg[$id] ?? [];
+        if (!$list) {
+            $reasons[] = 'Has no ambulance registered.';
+        } else {
+            $c = ['busy' => 0, 'offline' => 0, 'returning' => 0, 'notready' => 0, 'papers' => 0, 'maint' => 0, 'ok' => 0];
+            foreach ($list as $u) {
+                if (in_array($u['status'], ['reserved', 'dispatched', 'on_scene', 'transporting'], true)) $c['busy']++;
+                elseif ($u['status'] === 'returning') $c['returning']++;
+                elseif ($u['status'] !== 'available') $c['offline']++;
+                elseif ($u['readiness'] !== 'ready') $c['notready']++;
+                elseif (($u['registration_expiry'] && $u['registration_expiry'] < $today) || ($u['inspection_expiry'] && $u['inspection_expiry'] < $today)) $c['papers']++;
+                elseif ((int) $u['in_maintenance'] === 1) $c['maint']++;
+                else $c['ok']++;
+            }
+            $labels = ['busy' => 'on a mission', 'returning' => 'returning (Fleet must clear it)', 'offline' => 'offline / unavailable', 'notready' => 'readiness check not passed', 'papers' => 'registration or inspection expired', 'maint' => 'in maintenance'];
+            foreach ($labels as $k => $label) if ($c[$k]) $reasons[] = $c[$k] . ' unit' . ($c[$k] > 1 ? 's' : '') . ' ' . $label . '.';
+            if ($c['ok'] && !$reasons) $reasons[] = $c['ok'] . ' unit(s) ready — re-run the DSS.';
+        }
+        $out[] = ['organization' => $o['name'] . ($isLgu ? ' (LGU)' : ''), 'reasons' => $reasons ?: ['Eligible.']];
+    }
+    return $out;
+}
+
 function dssBuildCandidates(PDO $pdo, array $request, array $weights): array
 {
     $unitStmt = $pdo->query("

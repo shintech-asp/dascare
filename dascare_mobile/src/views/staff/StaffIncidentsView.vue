@@ -63,7 +63,7 @@
           <div><label :class="ui.label">Emergency type</label><EmergencyTypePicker v-model="form.emergency_category_id" /></div>
           <div><label :class="ui.label">Requester name</label><input v-model="form.requester_name" :class="ui.input" /></div>
           <div><label :class="ui.label">Mobile number</label><input v-model="form.requester_phone" inputmode="tel" :class="ui.input" placeholder="09XXXXXXXXX" /><p v-if="phoneInvalid" class="mt-1 text-xs text-red-500">Enter a valid PH mobile number</p></div>
-          <div><label :class="ui.label">Barangay</label><input v-model="form.barangay" :class="ui.input" /></div>
+          <div><label :class="ui.label">Barangay</label><select v-model="form.barangay" :class="ui.input"><option value="">Select barangay</option><option v-if="form.barangay && !DASMARINAS_BARANGAYS.includes(form.barangay)" :value="form.barangay">{{ form.barangay }} (not on the official list)</option><option v-for="b in DASMARINAS_BARANGAYS" :key="b" :value="b">{{ b }}</option></select></div>
           <div><label :class="ui.label">Address</label><input v-model="form.address_text" :class="ui.input" /></div>
           <div><label :class="ui.label">Landmark</label><input v-model="form.landmark" :class="ui.input" /></div>
           <div><label :class="ui.label">Description</label><textarea v-model="form.description" rows="3" :class="ui.input"></textarea></div>
@@ -88,6 +88,8 @@ import { fetchOrganizationLinkedReports, unmergeOrganizationReport } from '@/ser
 import { useSession } from '@/composables/useSession'
 import { useToast } from '@/composables/useToast'
 import { useAlert } from '@/composables/useAlert'
+import { DASMARINAS_BARANGAYS } from '@/config/dasmarinasBarangays'
+import { incidentDetailsError } from '@/utils/validation'
 
 const { hasPermission } = useSession()
 const toast = useToast()
@@ -123,6 +125,9 @@ function openEdit(i) {
   editOpen.value = true
 }
 async function save() {
+  const problem = incidentDetailsError(form)
+  if (problem) { toast.error(problem, 'Check the details'); return }
+  if (!(await alert.confirm('Save these incident details? Responders and the requester will see the update.', 'Save incident details'))) { return }
   saving.value = true
   try {
     const { id, reference_number, ...fields } = form

@@ -31,7 +31,7 @@
             </button>
             <div class="grid gap-2" :class="canOpenMissions ? 'grid-cols-2' : 'grid-cols-1'">
               <button v-if="canOpenMissions" type="button" class="rounded-2xl border border-base-300 py-3 text-sm font-bold text-slate-600 hover:bg-base-200 dark:border-white/10 dark:text-white/60" @click="openMission">View details</button>
-              <button type="button" class="rounded-2xl border border-base-300 py-3 text-sm font-bold text-slate-600 hover:bg-base-200 dark:border-white/10 dark:text-white/60" @click="later">Later</button>
+              <button type="button" class="rounded-2xl border border-base-300 py-3 text-sm font-bold text-slate-600 hover:bg-base-200 dark:border-white/10 dark:text-white/60" @click="later">Remind me in 2 min</button>
             </div>
           </div>
           <p v-if="error" class="mt-3 text-center text-xs font-semibold text-red-600 dark:text-red-400">{{ error }}</p>
@@ -42,7 +42,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { fetchMyPendingMissions, updateMissionStatus } from '@/services/dispatchOperations'
@@ -56,12 +56,15 @@ const toast = useToast()
 const { hasPermission } = useSession()
 
 const pending = ref([]) // missions waiting for MY acknowledgement
-const later_ = ref(new Set()) // dismissed with "Later" (this page load only)
+const later_ = ref({}) // id -> time until which "Later" hides it; it comes back after SNOOZE_MS
+const SNOOZE_MS = 2 * 60 * 1000
+const nowMs = ref(Date.now())
+let tick = null
 const busy = ref(false)
 const error = ref('')
 
-const current = computed(() => pending.value.find((m) => !later_.value.has(m.id)) || null)
-const canOpenMissions = computed(() => hasPermission('dispatch.dispatch_assignments.read'))
+const current = computed(() => pending.value.find((m) => !(later_.value[m.id] > nowMs.value)) || null)
+const canOpenMissions = computed(() => hasPermission('dispatch.dispatch_assignments.read') || hasPermission('dispatch.mission_status.update'))
 const myRole = (m) => String(m.my_role || 'crew').replace('_', ' ')
 const crewNames = (m) => (m.crew || []).map((c) => `${c.first_name} ${c.last_name}`.trim()).filter(Boolean).join(', ')
 
@@ -90,12 +93,13 @@ async function acknowledge() {
 
 function openMission() {
   const m = current.value
-  if (m) later_.value = new Set([...later_.value, m.id])
+  if (m) snooze(m.id)
   router.push('/organization/missions')
 }
 function later() {
-  if (current.value) later_.value = new Set([...later_.value, current.value.id])
+  if (current.value) snooze(current.value.id)
 }
+function snooze(id) { later_.value = { ...later_.value, [id]: Date.now() + SNOOZE_MS } }
 
 // A short two-tone alert + vibration when a NEW mission pops up. Browsers only
 // allow sound after the user has interacted with the page — fail silently.
@@ -121,7 +125,8 @@ useLiveUpdates(load, {
   channels: () => [realtimeChannels.value?.user, realtimeChannels.value?.org],
   onEvent: (msg) => (['ambulance.location', 'route.updated', 'fleet.updated'].includes(msg.name) ? false : undefined),
 })
-onMounted(load)
+onMounted(() => { load(); tick = setInterval(() => { nowMs.value = Date.now() }, 15000) })
+onBeforeUnmount(() => clearInterval(tick))
 </script>
 
 <style scoped>
