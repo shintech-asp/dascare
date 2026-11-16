@@ -21,6 +21,13 @@ function supAudit(PDO $pdo, int $uid, string $action, string $type, int $id, arr
 
 try {
     if ($isGet) {
+        // No webhook yet / missed webhook: settle recent pending donations by asking PayMongo directly,
+        // and expire ones nobody finished after 2 days.
+        try {
+            $pdo->exec("UPDATE donations SET status = 'expired' WHERE status = 'pending' AND created_at < DATE_SUB(NOW(), INTERVAL 2 DAY)");
+            $pend = $pdo->query("SELECT * FROM donations WHERE status = 'pending' AND paymongo_checkout_id IS NOT NULL AND created_at >= DATE_SUB(NOW(), INTERVAL 2 DAY) ORDER BY id DESC LIMIT 10")->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($pend as $p) { try { supportRefreshFromPaymongo($pdo, $p); } catch (Throwable $e) { error_log('Pending donation refresh failed: ' . $e->getMessage()); } }
+        } catch (Throwable $e) { error_log('Donation reconcile failed: ' . $e->getMessage()); }
         $where = ['1=1']; $args = [];
         $status = (string) ($_GET['status'] ?? '');
         if (in_array($status, ['pending', 'paid', 'failed', 'cancelled', 'expired', 'refunded'], true)) { $where[] = 'd.status = ?'; $args[] = $status; }
