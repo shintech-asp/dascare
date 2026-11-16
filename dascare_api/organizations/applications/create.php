@@ -137,8 +137,10 @@ if ($passwordError !== null) jsonError(422, $passwordError);
 if (mb_strlen($organizationName) < 3) jsonError(422, 'Organization name must be at least 3 characters.');
 if (!isset(ORGANIZATION_TYPES[$organizationType])) jsonError(422, 'Please select a valid organization type.');
 if ($organizationType === LGU_ORGANIZATION_TYPE && organizationLguTaken($pdo)) jsonError(409, LGU_TAKEN_MESSAGE);
-if ($organizationEmail !== '' && !filter_var($organizationEmail, FILTER_VALIDATE_EMAIL)) jsonError(422, 'Please provide a valid organization email address.');
-if ($organizationPhone !== '' && !preg_match('/^\+?[0-9]{7,15}$/', $organizationPhone)) jsonError(422, 'Please provide a valid organization contact number.');
+if ($organizationEmail === '') jsonError(422, 'Please provide the organization email address.');
+if (!filter_var($organizationEmail, FILTER_VALIDATE_EMAIL) || mb_strlen($organizationEmail) > 190) jsonError(422, 'Please provide a valid organization email address.');
+if ($organizationPhone === '') jsonError(422, 'Please provide the organization contact number.');
+if (!preg_match('/^\+?[0-9]{7,15}$/', $organizationPhone)) jsonError(422, 'Please provide a valid organization contact number.');
 if (mb_strlen($addressLine) < 8) jsonError(422, 'Please provide the organization base/station address.');
 if (!$attested) jsonError(422, 'Please confirm that the submitted organization information is accurate.');
 

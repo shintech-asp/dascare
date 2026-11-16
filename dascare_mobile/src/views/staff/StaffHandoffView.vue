@@ -33,7 +33,7 @@
           <label :class="ui.label">Facility</label>
           <select v-model="form.medical_facility_id" :class="ui.input" required>
             <option value="">Select facility</option>
-            <option v-for="f in facilities" :key="f.id" :value="f.id">{{ f.name }}</option>
+            <option v-for="f in nearFacilities" :key="f.id" :value="f.id">{{ f.name }}<template v-if="f.km != null"> · {{ f.km.toFixed(1) }} km from the incident</template></option>
           </select>
         </div>
         <div><label :class="ui.label">ETA (minutes)</label><input v-model="form.eta_minutes" inputmode="numeric" :class="ui.input" /></div>
@@ -52,6 +52,7 @@ import { useRoute } from 'vue-router'
 import ScreenHeader from '@/components/ScreenHeader.vue'
 import * as ui from '@/components/ui/styles'
 import { apiMessage } from '@/services/api'
+import { facilitiesByDistance } from '@/utils/validation'
 import { fetchOrganizationMissions } from '@/services/org/dispatchOperations'
 import { createHandoff, fetchHandoffs, fetchReceivingFacilities, updateHandoffStatus } from '@/services/org/rescueOperations'
 import { useToast } from '@/composables/useToast'
@@ -63,6 +64,7 @@ const alert = useAlert()
 const id = computed(() => Number(route.params.id))
 const mission = ref(null)
 const facilities = ref([])
+const nearFacilities = computed(() => facilitiesByDistance(facilities.value, mission.value ? { latitude: mission.value.latitude, longitude: mission.value.longitude } : null))
 const handoffs = ref([])
 // Confirming the physical handoff is Dispatcher-only (handoffs_list.php can_confirm);
 // recording facility accepted / declined follows RBAC (can_record).

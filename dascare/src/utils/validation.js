@@ -98,3 +98,12 @@ export function idNumberError(type, number, driver = false) {
   }
   return ''
 }
+
+// --- Facilities nearest to an incident (straight-line km, sorted) ---
+export function facilitiesByDistance(facilities, from) {
+  const toRad = (d) => (d * Math.PI) / 180
+  const km = (a, b) => { const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng); const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2; return 2 * 6371 * Math.asin(Math.sqrt(h)) }
+  const hasFrom = from && Number.isFinite(Number(from.latitude)) && Number.isFinite(Number(from.longitude))
+  return (facilities || []).map((f) => ({ ...f, km: hasFrom && f.latitude != null ? km({ lat: Number(from.latitude), lng: Number(from.longitude) }, { lat: Number(f.latitude), lng: Number(f.longitude) }) : null }))
+    .sort((a, b) => (a.km ?? 1e9) - (b.km ?? 1e9) || String(a.name).localeCompare(String(b.name)))
+}

@@ -85,8 +85,8 @@
                 </Field>
                 <Field label="Registration / authorization reference" hint="If applicable"><input v-model.trim="form.registration_number" class="field" maxlength="100" /></Field>
                 <Field label="Accreditation / supervising body" hint="If applicable"><input v-model.trim="form.accreditation_body" class="field" maxlength="150" /></Field>
-                <Field label="Organization email"><input v-model.trim="form.organization_email" class="field" type="email" maxlength="190" /></Field>
-                <Field label="Organization contact number"><input v-model.trim="form.organization_phone" class="field" type="tel" maxlength="18" /></Field>
+                <Field label="Organization email" hint="Required"><input v-model.trim="form.organization_email" class="field" type="email" maxlength="190" /></Field>
+                <Field label="Organization contact number" hint="Required"><input v-model.trim="form.organization_phone" class="field" type="tel" maxlength="18" /></Field>
                 <Field label="Base / station address" class="sm:col-span-2"><textarea v-model.trim="form.address_line" class="field min-h-[96px] resize-none" maxlength="255" placeholder="Street, subdivision / area, barangay, Dasmariñas City, Cavite"></textarea></Field>
               </div>
 
@@ -369,6 +369,10 @@ function stepOneValid() {
 function stepTwoValid() {
   if (form.value.organization_name.length < 3) return 'Enter the organization name.'
   if (!form.value.organization_type) return 'Select an organization type.'
+  if (!form.value.organization_email) return 'Enter the organization email address.'
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.organization_email)) return 'Enter a valid organization email address.'
+  if (!form.value.organization_phone) return 'Enter the organization contact number.'
+  if (!/^\+?[0-9]{7,15}$/.test(form.value.organization_phone.replace(/[\s\-()]/g, ''))) return 'Enter a valid organization contact number (7–15 digits).'
   if (form.value.address_line.length < 8) return 'Enter the base/station address.'
   if (form.value.latitude === null || form.value.longitude === null) return 'Pin the organization base on the map.'
   return ''

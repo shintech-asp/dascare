@@ -2,8 +2,8 @@
   <!-- "Start transport": choose the receiving facility first. The parent
        creates the facility handoff with these details, then moves the mission
        to transporting — and navigation / the live route now point to this
-       facility. Same file in dascare/src/components/incidents/
-       TransportFacilityPicker.vue (web) — keep in sync. -->
+       facility. Same file in dascare_mobile/src/components/incidents/
+       TransportFacilityPicker.vue — keep in sync. -->
   <Teleport to="body">
     <div v-if="open" class="fixed inset-0 z-[10040] flex items-end justify-center bg-slate-950/60 sm:items-center sm:p-4" @click.self="$emit('close')">
       <form class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-base-100 p-6 pb-[calc(var(--safe-bottom,0px)+1.5rem)] shadow-2xl sm:rounded-3xl dark:bg-[#0c1a2c]" @submit.prevent="confirm">
@@ -15,18 +15,28 @@
           </div>
         </div>
 
-        <p class="mt-5 text-xs font-bold text-slate-600 dark:text-white/55">Receiving facility · nearest first</p>
+        <p class="mt-5 text-xs font-bold text-slate-600 dark:text-white/55">Nearest hospitals to the incident</p>
+        <p v-if="!from" class="mt-1 text-xs text-amber-700 dark:text-amber-300">The incident location is missing, so the list is alphabetical, not by distance.</p>
         <div class="mt-2 space-y-2">
-          <button v-for="f in sorted" :key="f.id" type="button" class="flex w-full items-start gap-3 rounded-2xl border-2 p-3 text-left transition"
+          <button v-for="(f, i) in recommended" :key="f.id" type="button" class="flex w-full items-start gap-3 rounded-2xl border-2 p-3 text-left transition"
             :class="selectedId === f.id ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-500/10' : 'border-base-300 dark:border-white/10'" @click="pick(f)">
             <span class="mt-0.5 grid h-5 w-5 flex-shrink-0 place-items-center rounded-full border-2" :class="selectedId === f.id ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300 dark:border-white/20'"><Icon v-if="selectedId === f.id" icon="lucide:check" width="12" /></span>
             <span class="min-w-0 flex-1">
-              <span class="block text-sm font-black text-slate-900 dark:text-white">{{ f.name }}</span>
+              <span class="block text-sm font-black text-slate-900 dark:text-white">{{ f.name }} <span v-if="from" class="ml-1 rounded-full bg-emerald-100 px-1.5 py-0.5 align-middle text-[0.58rem] font-black uppercase text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">{{ i === 0 ? 'Nearest' : '#' + (i + 1) }}</span></span>
               <span class="block truncate text-xs text-slate-500 dark:text-white/45">{{ f.address_text }}</span>
               <span v-if="f.capabilities" class="mt-0.5 block truncate text-[0.7rem] text-slate-400">{{ f.capabilities }}</span>
             </span>
             <span v-if="f.km != null" class="flex-shrink-0 text-right text-xs font-bold text-slate-600 dark:text-white/60">{{ f.km.toFixed(1) }} km<br><span class="font-normal text-slate-400">~{{ f.eta }} min</span></span>
           </button>
+          <button v-if="others.length" type="button" class="w-full rounded-xl py-2 text-xs font-bold text-[#1976D2] dark:text-sky-300" @click="showOthers = !showOthers">{{ showOthers ? 'Hide other hospitals' : `Show ${others.length} more hospital${others.length === 1 ? '' : 's'}` }}</button>
+          <template v-if="showOthers">
+            <button v-for="f in others" :key="f.id" type="button" class="flex w-full items-start gap-3 rounded-2xl border-2 p-3 text-left transition"
+              :class="selectedId === f.id ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-500/10' : 'border-base-300 dark:border-white/10'" @click="pick(f)">
+              <span class="mt-0.5 grid h-5 w-5 flex-shrink-0 place-items-center rounded-full border-2" :class="selectedId === f.id ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300 dark:border-white/20'"><Icon v-if="selectedId === f.id" icon="lucide:check" width="12" /></span>
+              <span class="min-w-0 flex-1"><span class="block text-sm font-black text-slate-900 dark:text-white">{{ f.name }}</span><span class="block truncate text-xs text-slate-500 dark:text-white/45">{{ f.address_text }}</span></span>
+              <span v-if="f.km != null" class="flex-shrink-0 text-right text-xs font-bold text-slate-600 dark:text-white/60">{{ f.km.toFixed(1) }} km<br><span class="font-normal text-slate-400">~{{ f.eta }} min</span></span>
+            </button>
+          </template>
           <p v-if="!facilities.length" class="rounded-2xl bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">No receiving facilities are set up yet. A platform administrator adds them.</p>
         </div>
 
@@ -64,6 +74,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'confirm'])
 
 const selectedId = ref(null)
+const showOthers = ref(false)
 const eta = ref(15)
 const notes = ref('')
 
@@ -79,8 +90,12 @@ const sorted = computed(() => props.facilities.map((f) => {
   return { ...f, km: d, eta: d != null ? Math.max(3, Math.round((d * 1.4) / 30 * 60)) : null }
 }).sort((a, b) => (a.km ?? 1e9) - (b.km ?? 1e9)))
 
+// The three nearest to the INCIDENT (not to the ambulance) are the recommendation; the rest sit behind "show more".
+const recommended = computed(() => sorted.value.slice(0, 3))
+const others = computed(() => sorted.value.slice(3))
+
 function pick(f) { selectedId.value = f.id; if (f.eta) eta.value = f.eta }
 function confirm() { if (selectedId.value) emit('confirm', { medical_facility_id: selectedId.value, eta_minutes: Number(eta.value) || 15, notes: notes.value.trim() }) }
 
-watch(() => props.open, (v) => { if (v) { selectedId.value = null; notes.value = ''; eta.value = 15; if (sorted.value[0]) pick(sorted.value[0]) } })
+watch(() => props.open, (v) => { if (v) { selectedId.value = null; showOthers.value = false; notes.value = ''; eta.value = 15; if (sorted.value[0]) pick(sorted.value[0]) } })
 </script>
