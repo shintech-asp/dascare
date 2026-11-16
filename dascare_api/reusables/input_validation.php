@@ -54,3 +54,50 @@ function inputCleanVitals(array $vitals): array
     }
     return [$out, null];
 }
+
+/** Government IDs accepted for employees (key => label). Same list as dascare/src/utils/validation.js. */
+const EMPLOYEE_ID_TYPES = [
+    'drivers_license' => "Driver's license (LTO)",
+    'philsys' => 'PhilSys National ID',
+    'umid' => 'UMID',
+    'prc' => 'PRC ID',
+    'passport' => 'Passport',
+    'sss' => 'SSS ID',
+    'voters' => "Voter's ID",
+    'postal' => 'Postal ID',
+    'other_government_id' => 'Other government ID',
+];
+
+/**
+ * Normalizes an employee ID number for its type; null when it isn't valid.
+ * Driver's license = LTO format: letter + 2 digits - 2 digits - 6 digits (N01-12-345678), with or
+ * without dashes/spaces. Every other ID: 5–25 letters/digits/dashes containing at least 4 digits.
+ */
+function inputNormalizeIdNumber(string $type, string $raw): ?string
+{
+    $v = strtoupper(preg_replace('/[\s]+/', '', trim($raw)));
+    if ($type === 'drivers_license') {
+        $c = str_replace('-', '', $v);
+        return preg_match('/^([A-Z])(\d{2})(\d{2})(\d{6})$/', $c, $m) ? $m[1] . $m[2] . '-' . $m[3] . '-' . $m[4] : null;
+    }
+    if (!preg_match('/^[A-Z0-9][A-Z0-9-]{4,24}$/', $v) || preg_match_all('/\d/', $v) < 4 || preg_match('/(.)\1{5,}/', $v)) return null;
+    return $v;
+}
+
+/** SQL comparing an ID-number column ignoring dashes/spaces/case. */
+function inputIdSql(string $column): string
+{
+    return "REPLACE(REPLACE(UPPER($column), '-', ''), ' ', '')";
+}
+
+/** True when another employee/pending invitation already has this ID (same type + number). */
+function inputIdInUse(PDO $pdo, string $type, string $normalized, int $exceptMemberId = 0): bool
+{
+    $needle = str_replace('-', '', $normalized);
+    $a = $pdo->prepare('SELECT 1 FROM personnel_profiles WHERE id_type = ? AND ' . inputIdSql('license_number') . ' = ? AND organization_member_id <> ? LIMIT 1');
+    $a->execute([$type, $needle, $exceptMemberId]);
+    if ($a->fetchColumn()) return true;
+    $b = $pdo->prepare("SELECT 1 FROM organization_invitations WHERE status = 'pending' AND id_type = ? AND " . inputIdSql('license_number') . ' = ? LIMIT 1');
+    $b->execute([$type, $needle]);
+    return (bool) $b->fetchColumn();
+}

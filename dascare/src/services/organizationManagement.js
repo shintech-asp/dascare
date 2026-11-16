@@ -85,3 +85,4 @@ export async function updateOrganizationMemberAvailability(organizationMemberId,
   })
   return data
 }
+export const updateMemberIdNumber = async (payload) => (await api.post('/organizations/members/id_number.php', payload)).data

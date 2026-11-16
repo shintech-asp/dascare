@@ -65,6 +65,10 @@
               <div class="grid grid-cols-2 gap-2"><button v-for="s in AVAILABILITY" :key="s.value" type="button" class="rounded-xl border-2 py-2.5 text-xs font-black" :class="manageForm.availability_status === s.value ? 'border-red-600 bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300' : 'border-base-300 text-slate-600 dark:border-white/10 dark:text-white/60'" @click="manageForm.availability_status = s.value">{{ s.label }}</button></div>
             </div>
             <p v-if="managed.availability_status === 'assigned'" class="text-xs text-blue-600 dark:text-blue-300">On a mission — availability frees up when it ends.</p>
+            <template v-if="canManage">
+              <div v-if="!managedIsDriver"><label :class="ui.label">Government ID type</label><select v-model="manageForm.id_type" :class="ui.input"><option value="">Not on file</option><option v-for="t in ID_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option></select></div>
+              <div><label :class="ui.label">{{ managedIsDriver ? "Driver's license number" : 'ID number' }}</label><input v-model="manageForm.id_number" :class="ui.input" :placeholder="managedIsDriver ? 'N01-12-345678' : 'ID number'" autocomplete="off" /></div>
+            </template>
             <div><label :class="ui.label">Note {{ needsReason ? '(required, min. 5 characters)' : '(optional)' }}</label><input v-model="manageForm.note" :class="ui.input" /></div>
             <div class="grid grid-cols-2 gap-2"><button type="button" :class="ui.secondaryButton" @click="sheet = null">Cancel</button><button type="submit" :disabled="saving" :class="ui.primaryButton">Save</button></div>
           </form>
@@ -81,8 +85,9 @@
             <div><label :class="ui.label">Role</label><select v-model="invite.role_id" :class="ui.input" required><option value="">Select a role</option><option v-for="r in roles" :key="r.id" :value="r.id">{{ r.role_name }}</option></select></div>
             <div class="grid grid-cols-2 gap-3">
               <div><label :class="ui.label">Employee code</label><input v-model="invite.employee_code" :class="ui.input" /></div>
-              <div><label :class="ui.label">License no.</label><input v-model="invite.license_number" :class="ui.input" /></div>
             </div>
+            <div v-if="!inviteIsDriver"><label :class="ui.label">Government ID type</label><select v-model="invite.id_type" :class="ui.input"><option value="">Select an ID</option><option v-for="t in ID_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option></select></div>
+            <div><label :class="ui.label">{{ inviteIsDriver ? "Driver's license number" : 'ID number' }}</label><input v-model="invite.license_number" :class="ui.input" :placeholder="inviteIsDriver ? 'N01-12-345678' : (ID_TYPES.find((t) => t.value === invite.id_type)?.hint || 'ID number')" autocomplete="off" /></div>
             <div><label :class="ui.label">Certifications</label><input v-model="invite.certification_details" :class="ui.input" /></div>
             <div class="grid grid-cols-2 gap-2"><button type="button" :class="ui.secondaryButton" @click="sheet = null">Cancel</button><button type="submit" :disabled="saving" :class="ui.primaryButton">Send invite</button></div>
           </form>
@@ -103,7 +108,8 @@ import { computed, onMounted, ref } from 'vue'
 import ScreenHeader from '@/components/ScreenHeader.vue'
 import * as ui from '@/components/ui/styles'
 import { apiMessage } from '@/services/api'
-import { cancelOrganizationInvitation, fetchOrganizationMembers, fetchOrganizationRoles, inviteOrganizationMember, updateOrganizationMemberAvailability, updateOrganizationMemberStatus } from '@/services/org/organizationManagement'
+import { cancelOrganizationInvitation, fetchOrganizationMembers, fetchOrganizationRoles, inviteOrganizationMember, updateOrganizationMemberAvailability, updateMemberIdNumber, updateOrganizationMemberStatus } from '@/services/org/organizationManagement'
+import { EMPLOYEE_ID_TYPES, idNumberError, isDriverRole } from '@/utils/validation'
 import { useSession } from '@/composables/useSession'
 import { useToast } from '@/composables/useToast'
 import { useAlert } from '@/composables/useAlert'
@@ -128,6 +134,9 @@ const saving = ref(false)
 const managed = ref(null)
 const manageForm = ref({})
 const invite = ref({})
+const ID_TYPES = EMPLOYEE_ID_TYPES
+const inviteIsDriver = computed(() => isDriverRole(roles.value.find((r) => String(r.id) === String(invite.value.role_id))?.role_name))
+const managedIsDriver = computed(() => (managed.value?.role_names || []).some(isDriverRole))
 const inviteResult = ref(null)
 
 const statTiles = computed(() => [{ label: 'Members', value: stats.value.members ?? 0 }, { label: 'Active', value: stats.value.active ?? 0 }, { label: 'Available', value: stats.value.available ?? 0 }, { label: 'Invites', value: stats.value.pending_invites ?? 0 }])
@@ -136,13 +145,20 @@ const pretty = (v) => String(v || '').replaceAll('_', ' ')
 const initials = (m) => `${(m.first_name || '?')[0]}${(m.last_name || '')[0] || ''}`.toUpperCase()
 const needsReason = computed(() => managed.value && manageForm.value.membership_status !== 'active' && manageForm.value.membership_status !== managed.value.membership_status)
 
-function openManage(m) { managed.value = m; manageForm.value = { membership_status: m.membership_status || 'active', availability_status: m.availability_status || 'off_duty', note: '' }; sheet.value = 'manage' }
+function openManage(m) { managed.value = m; manageForm.value = { membership_status: m.membership_status || 'active', availability_status: m.availability_status || 'off_duty', note: '', id_type: m.id_type && m.license_number ? m.id_type : '', id_number: m.license_number || '' }; sheet.value = 'manage' }
 async function saveManage() {
   const m = managed.value
   if (needsReason.value && manageForm.value.note.trim().length < 5) { toast.error('Give a short reason for restricting this member.', 'Reason needed'); return }
+  const f = manageForm.value
+  const idChanged = canManage.value && ((f.id_number || '') !== (m.license_number || '') || (!managedIsDriver.value && f.id_type !== (m.license_number ? m.id_type : '')))
+  if (idChanged && (f.id_number || f.id_type)) {
+    const problem = idNumberError(f.id_type, f.id_number, managedIsDriver.value)
+    if (problem) { toast.error(problem, 'Check the ID'); return }
+  }
   if (!(await alert.confirm('Save the changes to this member?', 'Save member settings'))) { return }
   saving.value = true
   try {
+    if (idChanged && f.id_number) await updateMemberIdNumber({ organization_member_id: m.id, id_type: managedIsDriver.value ? 'drivers_license' : f.id_type, id_number: f.id_number })
     if (canManage.value && manageForm.value.membership_status !== m.membership_status) await updateOrganizationMemberStatus(m.id, manageForm.value.membership_status, manageForm.value.note.trim())
     if (canAvailability.value && manageForm.value.membership_status === 'active' && m.availability_status !== 'assigned' && manageForm.value.availability_status !== (m.availability_status || 'off_duty')) {
       await updateOrganizationMemberAvailability(m.id, manageForm.value.availability_status, manageForm.value.note.trim() || 'Updated from the staff app.')
@@ -156,10 +172,13 @@ async function saveManage() {
     saving.value = false
   }
 }
-function openInvite() { inviteResult.value = null; invite.value = { first_name: '', last_name: '', email: '', phone: '', role_id: '', employee_code: '', license_number: '', certification_details: '' }; sheet.value = 'invite' }
+function openInvite() { inviteResult.value = null; invite.value = { first_name: '', last_name: '', email: '', phone: '', role_id: '', employee_code: '', license_number: '', id_type: '', certification_details: '' }; sheet.value = 'invite' }
 async function sendInvite() {
+  const problem = idNumberError(invite.value.id_type, invite.value.license_number, inviteIsDriver.value)
+  if (problem) { toast.error(problem, 'Check the ID'); return }
+  if (!(await alert.confirm(`Send an invitation to ${invite.value.first_name} ${invite.value.last_name} (${invite.value.email})?`, 'Send invitation'))) return
   saving.value = true
-  try { inviteResult.value = await inviteOrganizationMember(invite.value); toast.success(inviteResult.value.message || 'Invitation created.', 'Invited'); await load() } catch (err) { toast.error(apiMessage(err, 'Could not send the invitation.'), 'Not sent') } finally { saving.value = false }
+  try { inviteResult.value = await inviteOrganizationMember({ ...invite.value, id_type: inviteIsDriver.value ? 'drivers_license' : invite.value.id_type }); toast.success(inviteResult.value.message || 'Invitation created.', 'Invited'); await load() } catch (err) { toast.error(apiMessage(err, 'Could not send the invitation.'), 'Not sent') } finally { saving.value = false }
 }
 async function shareInvite() {
   const url = inviteResult.value?.invite_url

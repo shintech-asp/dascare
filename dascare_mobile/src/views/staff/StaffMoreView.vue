@@ -29,6 +29,14 @@
 
     <p class="px-2 pt-2 text-[0.68rem] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-white/35">Account</p>
     <section :class="[ui.card, 'divide-y divide-base-300 dark:divide-white/10']">
+      <RouterLink :to="{ name: 'Support' }" class="tap flex items-center gap-3 p-4 no-underline">
+        <span class="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-300"><Icon icon="lucide:heart-handshake" width="20" /></span>
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-bold text-slate-900 dark:text-white">Support DASCARE</p>
+          <p class="text-xs text-slate-500 dark:text-white/45">Voluntary donations and sponsors keep it free</p>
+        </div>
+        <Icon icon="lucide:chevron-right" width="18" class="text-slate-400" />
+      </RouterLink>
       <RouterLink :to="{ name: 'Account' }" class="tap flex items-center gap-3 p-4 no-underline">
         <span class="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-white/60"><Icon icon="lucide:user-cog" width="20" /></span>
         <div class="min-w-0 flex-1">

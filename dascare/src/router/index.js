@@ -122,6 +122,8 @@ const platformChildren = [
   { path: 'false-alarms', name: 'PlatformFalseAlarms', component: RequestReviewQueue, meta: { title: 'False Alarm Review', reviewMode: 'false_alarm', permissions: ['oversight.emergency_requests.update'] } },
   { path: 'citizen-verifications', name: 'PlatformCitizenVerifications', component: CitizenVerifications, meta: { title: 'Citizen Verifications', permissions: ['citizens.kyc_verifications.read'] } },
   { path: 'citizens', name: 'PlatformCitizens', component: CitizenAccounts, meta: { title: 'Citizen Accounts', permissions: ['citizens.citizens.read'] } },
+  { path: 'support', name: 'PlatformSupport', component: () => import('@/views/platform/PlatformPages/SupportDonations.vue'), meta: { title: 'Donations & Goals', permissions: ['support.donations.read'] } },
+  { path: 'sponsors', name: 'PlatformSponsors', component: () => import('@/views/platform/PlatformPages/SupportSponsors.vue'), meta: { title: 'Sponsors', permissions: ['support.sponsors.read'] } },
   { path: 'sanctions', name: 'PlatformSanctions', component: FalseAlarmSanctions, meta: { title: 'False Alarm Sanctions', permissions: ['citizens.citizens.read'] } },
   { path: 'heatmaps', name: 'PlatformHeatmaps', component: IncidentHeatmap, meta: { title: 'Incident Heatmaps', permissions: ['analytics.reports.read'] } },
   { path: 'analytics', name: 'PlatformAnalytics', component: PlatformAnalytics, meta: { title: 'Analytics & Reports', permissions: ['analytics.reports.read'] } },
@@ -173,6 +175,9 @@ const routes = [
       // Guest SOS tracking (no account): /track/:id#key=<private key>
       { path: 'track/:id(\\d+)', name: 'GuestTrack', component: TrackRequest, meta: { title: 'Track request', guestTracking: true } },
       { path: 'privacy-policy', name: 'PrivacyPolicy', component: PrivacyPolicy, meta: { title: 'Privacy Policy' } },
+      // Voluntary donations + sponsors (never on emergency screens)
+      { path: 'support', name: 'Support', component: () => import('@/views/public/Support.vue'), meta: { title: 'Support DASCARE' } },
+      { path: 'support/sponsor', name: 'BecomeSponsor', component: () => import('@/views/public/BecomeSponsor.vue'), meta: { title: 'Become a sponsor' } },
     ],
   },
   {

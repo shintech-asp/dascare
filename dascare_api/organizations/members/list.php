@@ -13,7 +13,7 @@ try {
         SELECT om.id, om.employee_code, om.membership_status, om.joined_at, om.created_at,
                u.id AS user_id, u.first_name, u.last_name, u.email, u.phone, u.account_status,
                ur.role AS account_role,
-               pp.license_number, pp.certification_details, pp.availability_status,
+               pp.license_number, pp.id_type, pp.certification_details, pp.availability_status,
                GROUP_CONCAT(DISTINCT r.role_name ORDER BY r.role_name SEPARATOR '||') AS role_names
         FROM organization_members om
         INNER JOIN users u ON u.id = om.user_id AND u.deleted_at IS NULL

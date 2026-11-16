@@ -122,6 +122,7 @@
                 <li><RouterLink to="/about" class="footer-link">About DASCARE</RouterLink></li>
                 <li><RouterLink to="/privacy-policy" class="footer-link">Privacy policy</RouterLink></li>
                 <li><RouterLink to="/terms-of-service" class="footer-link">Terms of service</RouterLink></li>
+                <li><RouterLink to="/support" class="footer-link">Support DASCARE</RouterLink></li>
               </ul>
             </div>
           </div>

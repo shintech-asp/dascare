@@ -12,3 +12,13 @@ Local secrets that must **never** be committed (this folder's files are gitignor
 - `tomtom.json` — TomTom API key for road routes + traffic-aware ETAs on the live maps (`reusables/routing.php`),
   e.g. `{"key": "<your key>"}` (free at developer.tomtom.com, Routing API). Without it, the maps show a
   straight-line estimate labelled as such. Calls are capped at 2,000/day (`routing_api_usage` table).
+
+## paymongo.json (donations)
+
+```json
+{ "secret_key": "sk_test_...", "webhook_secret": "whsk_..." }
+```
+
+Use `sk_test_…` while testing, `sk_live_…` in production. In the PayMongo dashboard add a webhook for the
+event `checkout_session.payment.paid` pointing to `https://<site>/api/support/webhook.php` and paste its
+signing secret as `webhook_secret`. Without this file donations are simply switched off on the Support page.

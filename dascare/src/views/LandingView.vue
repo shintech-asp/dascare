@@ -5,6 +5,7 @@
     <DecisionSupport />
     <RolesSection />
     <MobileApp />
+    <SupportersStrip />
     <CTASection />
   </section>
 </template>
@@ -16,6 +17,7 @@ import DecisionSupport from './landing/DecisionSupport.vue'
 import RolesSection from './landing/RolesSection.vue'
 import MobileApp from './landing/MobileApp.vue'
 import CTASection from './landing/CTASection.vue'
+import SupportersStrip from '@/components/support/SupportersStrip.vue'
 import { onMounted, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 

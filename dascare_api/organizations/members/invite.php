@@ -4,6 +4,7 @@ require_once __DIR__ . '/../../db/db.php';
 require_once __DIR__ . '/../../reusables/organization_rbac.php';
 require_once __DIR__ . '/../../reusables/organization_role_templates.php';
 require_once __DIR__ . '/../../reusables/email_helper.php';
+require_once __DIR__ . '/../../reusables/input_validation.php';
 
 header('Content-Type: application/json');
 $ctx = requireOrganizationAccess($pdo, 'hr.members.create');
@@ -36,6 +37,16 @@ try {
     $role = $roleStmt->fetch(PDO::FETCH_ASSOC);
     if (!$role) organizationJsonError(422, 'Choose a valid role from this organization.');
 
+    // Government ID: Drivers need their driver's license; other roles may give any accepted government ID.
+    $isDriver = strcasecmp(trim((string) $role['role_name']), 'Driver') === 0;
+    $idType = $isDriver ? 'drivers_license' : trim((string) ($data['id_type'] ?? ''));
+    if (!isset(EMPLOYEE_ID_TYPES[$idType])) organizationJsonError(422, 'Choose which government ID the employee is giving.');
+    if ($licenseNumber === '') organizationJsonError(422, $isDriver ? "Enter the driver's license number (e.g. N01-12-345678)." : 'Enter the employee\'s government ID number.');
+    $normalized = inputNormalizeIdNumber($idType, $licenseNumber);
+    if ($normalized === null) organizationJsonError(422, $idType === 'drivers_license' ? 'Enter a valid license number like N01-12-345678 (letter, 2 digits, 2 digits, 6 digits).' : 'Enter a valid ' . EMPLOYEE_ID_TYPES[$idType] . ' number (letters/digits, at least 4 digits).');
+    $licenseNumber = $normalized;
+    if (inputIdInUse($pdo, $idType, $licenseNumber)) organizationJsonError(409, 'That ID number is already registered to another employee.');
+
     if ($ctx['user_role'] !== 'organization_admin') {
         $rolePermStmt = $pdo->prepare('SELECT permission_id FROM org_role_permissions WHERE role_id = ?');
         $rolePermStmt->execute([$roleId]);
@@ -65,12 +76,12 @@ try {
     $insert = $pdo->prepare("
         INSERT INTO organization_invitations
             (organization_id, role_id, invited_by_user_id, first_name, last_name, email, phone,
-             employee_code, license_number, certification_details, token_hash, status, expires_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, 'pending', ?)
+             employee_code, license_number, id_type, certification_details, token_hash, status, expires_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), ?, NULLIF(?, ''), ?, 'pending', ?)
     ");
     $insert->execute([
         $ctx['organization_id'], $roleId, $ctx['user_id'], $firstName, $lastName, $email, $phone,
-        $employeeCode, $licenseNumber, $certificationDetails, $tokenHash, $expiresAt,
+        $employeeCode, $licenseNumber, $idType, $certificationDetails, $tokenHash, $expiresAt,
     ]);
     $invitationId = (int) $pdo->lastInsertId();
 

@@ -38,6 +38,8 @@ const RATE_LIMIT_RULES = [
     'forgot_password'      => [3, 600],  // guards OTP-email spam on the forgot flow itself
     'register'              => [6, 3600], // 6 signups / hour per IP — throttles mass fake-account creation
     'org_document_upload' => [20, 3600], // 20 document uploads / hour per organization
+    'support_donate' => [8, 600],      // 8 checkout attempts / 10 min per IP
+    'sponsor_inquiry' => [3, 3600],    // 3 sponsor inquiries / hour per IP
     'temporary_login'      => [8, 900],   // "log in with your request key" — per IP
     'emergency_request'    => [10, 1800], // 10 requests / 30 min (checked per-user AND per-IP) — generous enough for a genuinely bad night, tight enough to stop a dispatcher-flooding script
 ];

@@ -34,6 +34,8 @@ const routes = [
   { path: '/false-alarms', name: 'FalseAlarms', component: () => import('@/views/FalseAlarmView.vue'), meta: { title: 'False alarm record' } },
   { path: '/account', name: 'Account', component: () => import('@/views/AccountView.vue'), meta: { auth: true, title: 'Account & security' } },
   { path: '/verify-identity', name: 'VerifyIdentity', component: () => import('@/views/VerifyIdentityView.vue'), meta: { auth: true, citizen: true, title: 'Verify identity' } },
+  // Voluntary donations + sponsors (public; never part of an emergency flow)
+  { path: '/support', name: 'Support', component: () => import('@/views/SupportView.vue'), meta: { title: 'Support DASCARE' } },
   { path: '/legal/:slug', name: 'Legal', component: () => import('@/views/LegalView.vue'), meta: { title: 'Legal' } },
   { path: '/diagnostics', name: 'Diagnostics', component: () => import('@/views/ConnectionCheck.vue'), meta: { title: 'Server connection' } },
   {

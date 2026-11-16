@@ -72,9 +72,9 @@ try {
     }
 
     $pdo->prepare("
-        INSERT INTO personnel_profiles (organization_member_id, license_number, certification_details, availability_status)
-        VALUES (?, NULLIF(?, ''), NULLIF(?, ''), 'off_duty')
-    ")->execute([$memberId, $invite['license_number'] ?? '', $invite['certification_details'] ?? '']);
+        INSERT INTO personnel_profiles (organization_member_id, license_number, id_type, certification_details, availability_status)
+        VALUES (?, NULLIF(?, ''), ?, NULLIF(?, ''), 'off_duty')
+    ")->execute([$memberId, $invite['license_number'] ?? '', $invite['id_type'] ?? 'drivers_license', $invite['certification_details'] ?? '']);
     $pdo->prepare('INSERT INTO org_member_roles (organization_member_id, role_id, assigned_by) VALUES (?, ?, ?)')
         ->execute([$memberId, $invite['role_id'], $invite['invited_by_user_id']]);
     $pdo->prepare("UPDATE organization_invitations SET status='accepted', accepted_at=NOW() WHERE id=?")->execute([$invite['id']]);
