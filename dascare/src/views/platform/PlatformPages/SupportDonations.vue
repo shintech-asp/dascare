@@ -7,11 +7,6 @@
         <p class="mt-1 text-xs font-bold text-slate-500">{{ t.label }}</p>
       </article>
     </div>
-    <div class="mt-4 rounded-2xl border px-4 py-3 text-xs leading-5" :class="onlineReady ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-200' : 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-100'">
-      <p class="flex items-center gap-2 font-black"><Icon :icon="onlineReady ? 'lucide:circle-check' : 'lucide:triangle-alert'" width="15" /> {{ onlineReady ? 'PayMongo is connected.' : 'PayMongo is not connected yet — donors cannot pay online.' }}</p>
-      <p class="mt-1">Keys live on the server in <code>api/config/paymongo.json</code> ({"secret_key": "sk_…", "webhook_secret": "whsk_…"}). In the PayMongo dashboard add a webhook for <b>checkout_session.payment.paid</b> pointing to <code class="break-all">{{ webhookUrl }}</code>. Payouts go to the account owner of that PayMongo account.</p>
-    </div>
-
     <div role="tablist" class="mt-6 flex flex-wrap gap-2">
       <button v-for="t in TABS" :key="t.key" type="button" class="rounded-xl px-4 py-2 text-xs font-black transition-colors" :class="tab === t.key ? 'bg-red-600 text-white' : 'bg-base-200 text-slate-600 hover:bg-base-300 dark:bg-white/5 dark:text-white/60'" @click="tab = t.key">{{ t.label }}</button>
     </div>
@@ -148,7 +143,6 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import PageShell from '@/components/management/PageShell.vue'
 import HelpTip from '@/components/forms/HelpTip.vue'
-import api from '@/services/api'
 import { fetchCampaigns, fetchDonations, formatPeso, recordDonation, saveCampaign, saveSupportSettings, updateDonation } from '@/services/support'
 import { useSession } from '@/composables/useSession'
 import { useToast } from '@/composables/useToast'
@@ -165,7 +159,6 @@ const loading = ref(true)
 const saving = ref(false)
 const donations = ref([])
 const stats = ref({})
-const onlineReady = ref(false)
 const campaigns = ref([])
 const settings = ref(null)
 const limits = ref({})
@@ -173,7 +166,6 @@ const methodLabels = ref({})
 const search = ref('')
 const statusFilter = ref('')
 const today = new Date().toISOString().slice(0, 10)
-const webhookUrl = computed(() => `${String(api.defaults.baseURL || '').replace(/\/$/, '')}/support/webhook.php`)
 
 const tiles = computed(() => [
   { label: 'This month', value: formatPeso(stats.value.paid_month) },
@@ -188,10 +180,10 @@ const periodText = (c) => (c.period === 'month' ? 'Per month' : c.period === 'ye
 let timer = null
 const debounced = () => { clearTimeout(timer); timer = setTimeout(loadDonations, 300) }
 async function loadDonations() {
-  try { const d = await fetchDonations({ status: statusFilter.value, search: search.value }); donations.value = d.items || []; stats.value = d.stats || {}; onlineReady.value = !!d.online_ready } catch (e) { toast.error(e?.response?.data?.message || 'Unable to load donations.') }
+  try { const d = await fetchDonations({ status: statusFilter.value, search: search.value }); donations.value = d.items || []; stats.value = d.stats || {} } catch (e) { toast.error(e?.response?.data?.message || 'Unable to load donations.') }
 }
 async function loadGoals() {
-  try { const d = await fetchCampaigns(); campaigns.value = d.campaigns || []; settings.value = d.settings; limits.value = d.limits || {}; methodLabels.value = d.methods || {}; onlineReady.value = !!d.online_ready; presetsText.value = (d.settings?.presets || []).join(', ') } catch (e) { toast.error(e?.response?.data?.message || 'Unable to load goals.') }
+  try { const d = await fetchCampaigns(); campaigns.value = d.campaigns || []; settings.value = d.settings; limits.value = d.limits || {}; methodLabels.value = d.methods || {}; presetsText.value = (d.settings?.presets || []).join(', ') } catch (e) { toast.error(e?.response?.data?.message || 'Unable to load goals.') }
 }
 async function load() { loading.value = true; await Promise.all([loadDonations(), loadGoals()]); loading.value = false }
 
