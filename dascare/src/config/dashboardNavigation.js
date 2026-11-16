@@ -22,6 +22,7 @@ export const dashboardWorkspaces = {
         label: 'Administration',
         items: [
           { label: 'Administrative Accounts', to: '/system/accounts', icon: 'lucide:shield-user' },
+          { label: 'Hospitals', to: '/system/hospitals', icon: 'lucide:hospital' },
           { label: 'Security Center', to: '/system/security', icon: 'lucide:shield-check' },
           { label: 'Backup & Recovery', to: '/system/backups', icon: 'lucide:database-backup' },
         ],

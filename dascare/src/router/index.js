@@ -101,6 +101,7 @@ const technicalChildren = [
   { path: 'platform-health', name: 'TechnicalPlatformHealth', component: TechnicalSystemStatus, meta: { title: 'Platform Health', mode: 'health' } },
   { path: 'services', name: 'TechnicalServices', component: TechnicalSystemStatus, meta: { title: 'Services & APIs', mode: 'services' } },
   { path: 'accounts', name: 'TechnicalAccounts', component: TechnicalAccounts, meta: { title: 'Administrative Accounts' } },
+  { path: 'hospitals', name: 'TechnicalHospitals', component: () => import('@/views/technical/TechnicalPages/TechnicalFacilities.vue'), meta: { title: 'Hospitals' } },
   { path: 'security', name: 'TechnicalSecurity', component: TechnicalSystemStatus, meta: { title: 'Security Center', mode: 'security' } },
   { path: 'backups', name: 'TechnicalBackups', component: TechnicalSystemStatus, meta: { title: 'Backup & Recovery', mode: 'backups' } },
   { path: 'logs', name: 'TechnicalLogs', component: TechnicalAudit, meta: { title: 'System Logs' } },
