@@ -1,0 +1,37 @@
+export const projects = {
+  dascare: {
+    name: 'DASCARE',
+    stack: ['Vue.js', 'PHP'],
+    description: 'A web and mobile ambulance rescue platform for Dasmariñas City. Its decision support system helps coordinate emergency dispatch by recommending eligible ambulances, while live tracking keeps requesters and rescue teams informed.',
+    overview: 'DASCARE connects citizens, dispatchers, and rescue organizations throughout an emergency response. Users can request an ambulance, while a decision support system (DSS) ranks eligible units using distance, availability, capability, and workload to support dispatch decisions. The platform brings together ambulance and crew assignment, live location tracking, mission updates, and hospital handoffs across web and mobile.',
+    pages: [
+      { name: 'Home', path: '/', image: 'dascare', description: 'The emergency response platform at a glance.' },
+      { name: 'About', path: '/about', image: 'dascare-about', description: 'The purpose and people behind the platform.' },
+      { name: 'Sign in', path: '/login', image: 'dascare-login', description: 'Access for citizens and rescue organizations.' },
+      { name: 'Create account', path: '/register', image: 'dascare-register', description: 'Citizen account registration.' },
+      { name: 'Organization application', path: '/apply/organization', image: 'dascare-organization', description: 'Onboarding for rescue organizations.' },
+      { name: 'Support DASCARE', path: '/support', image: 'dascare-support', description: 'Community support for the platform.' },
+      { name: 'Privacy policy', path: '/privacy-policy', image: 'dascare-privacy', description: 'Privacy and information handling.' },
+      { name: 'Terms of service', path: '/terms-of-service', image: 'dascare-terms', description: 'Terms for using the platform.' },
+    ],
+    origin: 'https://dascare.online',
+  },
+  pestify: {
+    name: 'Pestify',
+    stack: ['React', 'PHP'],
+    description: 'A platform connecting users with pest control companies. Its decision support system helps users identify suitable services based on their pest problem and needs, compare providers, and request the service that fits them.',
+    overview: 'Pestify gives pest control companies a platform to present their services and helps users decide which service is applicable to their situation. Its decision support system (DSS) considers the pest problem, property type, location, budget, and preferences to suggest suitable service matches. Users can explore companies, compare their options, and request a service with a clearer understanding of what fits their needs.',
+    pages: [
+      { name: 'Home', path: '/#/home', image: 'pestify', description: 'Pest control, connected. Serving Cavite.' },
+      { name: 'Find a provider', path: '/#/providers', image: 'pestify-providers', description: 'Explore pest control companies.' },
+      { name: 'Find My Match', path: '/#/match', image: 'pestify-match', description: 'Discover a provider suited to your needs.' },
+      { name: 'Request a service', path: '/#/book', image: 'pestify-book', description: 'The first step toward a pest control service.' },
+      { name: 'Sign in', path: '/auth/login.php', image: 'pestify-login', description: 'Access an existing Pestify account.' },
+      { name: 'Become a partner', path: '/auth/register.php?type=provider', image: 'pestify-partner', description: 'Registration for service providers.' },
+      { name: 'Android app', path: '/download/', image: 'pestify-app', description: 'The Pestify mobile application.' },
+      { name: 'Privacy policy', path: '/privacy.php', image: 'pestify-privacy', description: 'Privacy and information handling.' },
+      { name: 'Terms of service', path: '/terms.php', image: 'pestify-terms', description: 'Terms for using the platform.' },
+    ],
+    origin: 'https://pestify.site',
+  },
+};
